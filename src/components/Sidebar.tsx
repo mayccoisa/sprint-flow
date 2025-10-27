@@ -3,8 +3,9 @@ import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
 const navigation = [
-  { name: 'Squads', href: '/', icon: Folders },
-  { name: 'Team Members', href: '/members', icon: Users },
+  { name: 'Dashboard', href: '/', icon: Folders },
+  { name: 'Squads', href: '/squads', icon: Folders },
+  { name: 'Team Members', href: '/team', icon: Users },
   { name: 'Backlog', href: '/backlog', icon: ListTodo },
   { name: 'Sprints', href: '/sprints', icon: Calendar },
 ];

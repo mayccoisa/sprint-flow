@@ -89,6 +89,37 @@ export const useLocalData = () => {
     }));
   };
 
+  const updateMember = (id: number, updates: Partial<TeamMember>) => {
+    setData(prev => ({
+      ...prev,
+      members: prev.members.map(m => m.id === id ? { ...m, ...updates } : m),
+    }));
+  };
+
+  const deleteMember = (id: number) => {
+    setData(prev => ({
+      ...prev,
+      members: prev.members.filter(m => m.id !== id),
+      taskAssignments: prev.taskAssignments.filter(ta => ta.member_id !== id),
+    }));
+  };
+
+  const updateTask = (id: number, updates: Partial<Task>) => {
+    setData(prev => ({
+      ...prev,
+      tasks: prev.tasks.map(t => t.id === id ? { ...t, ...updates } : t),
+    }));
+  };
+
+  const deleteTask = (id: number) => {
+    setData(prev => ({
+      ...prev,
+      tasks: prev.tasks.filter(t => t.id !== id),
+      sprintTasks: prev.sprintTasks.filter(st => st.task_id !== id),
+      taskAssignments: prev.taskAssignments.filter(ta => ta.task_id !== id),
+    }));
+  };
+
   return {
     data,
     addSquad,
@@ -97,5 +128,9 @@ export const useLocalData = () => {
     addSprint,
     updateSquad,
     deleteSquad,
+    updateMember,
+    deleteMember,
+    updateTask,
+    deleteTask,
   };
 };

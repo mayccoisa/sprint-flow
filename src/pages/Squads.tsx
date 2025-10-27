@@ -1,124 +1,121 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
+import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
+import { SquadCard } from '@/components/SquadCard';
+import { SquadFormDialog } from '@/components/SquadFormDialog';
 import { useLocalData } from '@/hooks/useLocalData';
-import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { toast } from '@/hooks/use-toast';
+import type { Squad } from '@/types';
 
 export default function Squads() {
-  const { data, addSquad } = useLocalData();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [description, setDescription] = useState('');
+  const { data, addSquad, updateSquad } = useLocalData();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingSquad, setEditingSquad] = useState<Squad | undefined>();
+  const [showInactive, setShowInactive] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    addSquad({
-      name,
-      description: description || null,
-      status: 'Active',
-    });
-    setName('');
-    setDescription('');
-    setOpen(false);
-  };
+  const filteredSquads = showInactive
+    ? data.squads
+    : data.squads.filter(s => s.status === 'Active');
 
   const getMemberCount = (squadId: number) => {
     return data.members.filter(m => m.squad_id === squadId && m.status === 'Active').length;
   };
 
+  const handleSubmit = (formData: { name: string; description?: string; status: 'Active' | 'Inactive' }) => {
+    if (editingSquad) {
+      updateSquad(editingSquad.id, formData);
+      toast({
+        title: 'Squad updated',
+        description: 'Squad has been updated successfully.',
+      });
+    } else {
+      addSquad({
+        name: formData.name,
+        description: formData.description || null,
+        status: formData.status,
+      });
+      toast({
+        title: 'Squad created',
+        description: 'New squad has been created successfully.',
+      });
+    }
+    setEditingSquad(undefined);
+  };
+
+  const handleEdit = (squad: Squad) => {
+    setEditingSquad(squad);
+    setDialogOpen(true);
+  };
+
+  const handleNewSquad = () => {
+    setEditingSquad(undefined);
+    setDialogOpen(true);
+  };
+
   return (
-    <div>
-      <div className="mb-8 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground">Squads</h1>
-          <p className="mt-2 text-muted-foreground">Manage your development teams</p>
-        </div>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              New Squad
-            </Button>
-          </DialogTrigger>
-          <DialogContent>
-            <form onSubmit={handleSubmit}>
-              <DialogHeader>
-                <DialogTitle>Create New Squad</DialogTitle>
-                <DialogDescription>Add a new development team to your organization.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Squad Name</Label>
-                  <Input
-                    id="name"
-                    placeholder="e.g., Growth Team"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    required
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="description">Description</Label>
-                  <Textarea
-                    id="description"
-                    placeholder="What does this squad focus on?"
-                    value={description}
-                    onChange={(e) => setDescription(e.target.value)}
-                    rows={3}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit">Create Squad</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {data.squads.map((squad) => (
-          <Card key={squad.id} className="transition-shadow hover:shadow-md">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <div className="space-y-1">
-                  <CardTitle>{squad.name}</CardTitle>
-                  <CardDescription>{squad.description || 'No description'}</CardDescription>
-                </div>
-                <Badge variant={squad.status === 'Active' ? 'default' : 'secondary'}>
-                  {squad.status}
-                </Badge>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="text-sm text-muted-foreground">
-                {getMemberCount(squad.id)} active members
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {data.squads.length === 0 && (
-        <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-dashed border-border">
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-foreground">No squads yet</h3>
-            <p className="mt-2 text-sm text-muted-foreground">Get started by creating your first squad.</p>
-            <Button className="mt-4" onClick={() => setOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" />
-              Create Squad
-            </Button>
+    <Layout>
+      <div>
+        <div className="mb-8 flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-foreground">Squads</h1>
+            <p className="mt-2 text-muted-foreground">Manage your development teams</p>
           </div>
+          <Button onClick={handleNewSquad}>
+            <Plus className="mr-2 h-4 w-4" />
+            New Squad
+          </Button>
         </div>
-      )}
-    </div>
+
+        <div className="mb-6 flex items-center gap-2">
+          <Switch
+            id="show-inactive"
+            checked={showInactive}
+            onCheckedChange={setShowInactive}
+          />
+          <Label htmlFor="show-inactive">Show inactive squads</Label>
+        </div>
+
+        {filteredSquads.length > 0 ? (
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {filteredSquads.map((squad) => (
+              <SquadCard
+                key={squad.id}
+                squad={squad}
+                memberCount={getMemberCount(squad.id)}
+                onEdit={() => handleEdit(squad)}
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-dashed border-border">
+            <div className="text-center">
+              <h3 className="text-lg font-semibold text-foreground">
+                {showInactive ? 'No squads found' : 'No active squads'}
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground">
+                {showInactive
+                  ? 'Get started by creating your first squad.'
+                  : 'Create a new squad or enable "Show inactive squads".'}
+              </p>
+              <Button className="mt-4" onClick={handleNewSquad}>
+                <Plus className="mr-2 h-4 w-4" />
+                Create Squad
+              </Button>
+            </div>
+          </div>
+        )}
+
+        <SquadFormDialog
+          open={dialogOpen}
+          onOpenChange={setDialogOpen}
+          onSubmit={handleSubmit}
+          existingSquad={editingSquad}
+          existingNames={data.squads.map(s => s.name)}
+        />
+      </div>
+    </Layout>
   );
 }
