@@ -120,6 +120,38 @@ export const useLocalData = () => {
     }));
   };
 
+  const updateSprint = (id: number, updates: Partial<Sprint>) => {
+    setData(prev => ({
+      ...prev,
+      sprints: prev.sprints.map(s => s.id === id ? { ...s, ...updates } : s),
+    }));
+  };
+
+  const deleteSprint = (id: number) => {
+    setData(prev => ({
+      ...prev,
+      sprints: prev.sprints.filter(s => s.id !== id),
+      sprintTasks: prev.sprintTasks.filter(st => st.sprint_id !== id),
+    }));
+  };
+
+  const addSprintTask = (sprintTask: Omit<SprintTask, 'id' | 'created_at'>) => {
+    const newSprintTask: SprintTask = {
+      ...sprintTask,
+      id: Date.now(),
+      created_at: new Date().toISOString(),
+    };
+    setData(prev => ({ ...prev, sprintTasks: [...prev.sprintTasks, newSprintTask] }));
+    return newSprintTask;
+  };
+
+  const removeSprintTask = (sprintId: number, taskId: number) => {
+    setData(prev => ({
+      ...prev,
+      sprintTasks: prev.sprintTasks.filter(st => !(st.sprint_id === sprintId && st.task_id === taskId)),
+    }));
+  };
+
   return {
     data,
     addSquad,
@@ -132,5 +164,9 @@ export const useLocalData = () => {
     deleteMember,
     updateTask,
     deleteTask,
+    updateSprint,
+    deleteSprint,
+    addSprintTask,
+    removeSprintTask,
   };
 };
