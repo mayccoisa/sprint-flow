@@ -7,6 +7,7 @@ import Index from "./pages/Index";
 import Squads from "./pages/Squads";
 import SquadMembers from "./pages/SquadMembers";
 import Team from "./pages/Team";
+import Backlog from "./pages/Backlog";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => (
           <Route path="/squads" element={<Squads />} />
           <Route path="/squads/:id/members" element={<SquadMembers />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/backlog" element={<Backlog />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

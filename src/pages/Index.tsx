@@ -99,15 +99,15 @@ const Index = () => {
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-md opacity-60">
+          <Card className="transition-shadow hover:shadow-md">
             <CardHeader>
               <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-muted">
-                  <ListTodo className="h-6 w-6 text-muted-foreground" />
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
+                  <ListTodo className="h-6 w-6 text-primary" />
                 </div>
                 <div>
                   <CardTitle>Backlog</CardTitle>
-                  <CardDescription>Coming soon</CardDescription>
+                  <CardDescription>Manage tasks and estimates</CardDescription>
                 </div>
               </div>
             </CardHeader>
@@ -115,7 +115,9 @@ const Index = () => {
               <p className="mb-4 text-sm text-muted-foreground">
                 Manage tasks, estimate effort, and organize your backlog.
               </p>
-              <Button disabled className="w-full">Coming Soon</Button>
+              <Button asChild className="w-full">
+                <Link to="/backlog">Manage Backlog</Link>
+              </Button>
             </CardContent>
           </Card>
 
