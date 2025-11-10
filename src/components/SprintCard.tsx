@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Edit, ListTodo, CheckCircle2 } from 'lucide-react';
+import { Calendar, Edit, ListTodo, CheckCircle2, BarChart3 } from 'lucide-react';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import type { Sprint, Task, SprintTask, TeamMember } from '@/types';
@@ -108,11 +108,20 @@ export const SprintCard = ({ sprint, tasks, sprintTasks, squadMembers, onEdit, o
         </div>
 
         <div className="flex items-center gap-2 pt-2">
-          <Button asChild className="flex-1">
-            <Link to={`/sprints/${sprint.id}/planning`}>
-              Planejar Sprint
-            </Link>
-          </Button>
+          {sprint.status === 'Completed' ? (
+            <Button asChild className="flex-1">
+              <Link to={`/sprints/${sprint.id}/summary`}>
+                <BarChart3 className="h-4 w-4 mr-2" />
+                Ver Resumo
+              </Link>
+            </Button>
+          ) : (
+            <Button asChild className="flex-1">
+              <Link to={`/sprints/${sprint.id}/planning`}>
+                Planejar Sprint
+              </Link>
+            </Button>
+          )}
           {sprint.status === 'Active' && onComplete && (
             <Button variant="outline" onClick={onComplete} className="gap-2">
               <CheckCircle2 className="h-4 w-4" />

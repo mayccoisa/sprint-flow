@@ -12,6 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { KanbanBoard } from '@/components/KanbanBoard';
+import { SprintMetrics } from '@/components/SprintMetrics';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -51,6 +53,7 @@ interface SprintWithSquad extends Sprint {
 
 interface TaskWithSprintTask extends Task {
   sprint_task_id?: number;
+  task_status?: 'Todo' | 'InProgress' | 'Done' | 'Blocked';
 }
 
 const SprintPlanning = () => {
@@ -95,7 +98,7 @@ const SprintPlanning = () => {
           *,
           squad:squads(*)
         `)
-        .eq('id', id)
+        .eq('id', parseInt(id!))
         .single();
 
       if (sprintError) throw sprintError;
@@ -118,7 +121,7 @@ const SprintPlanning = () => {
         .order('order_index');
 
       if (backlogError) throw backlogError;
-      setBacklogTasks(backlogData || []);
+      setBacklogTasks((backlogData || []) as Task[]);
 
       // Load sprint tasks
       const { data: sprintTasksData, error: sprintTasksError } = await supabase
@@ -126,9 +129,10 @@ const SprintPlanning = () => {
         .select(`
           id,
           order_index,
+          task_status,
           task:tasks(*)
         `)
-        .eq('sprint_id', id)
+        .eq('sprint_id', parseInt(id))
         .order('order_index');
 
       if (sprintTasksError) throw sprintTasksError;
@@ -136,6 +140,7 @@ const SprintPlanning = () => {
       const tasksWithSprintId = (sprintTasksData || []).map((st: any) => ({
         ...st.task,
         sprint_task_id: st.id,
+        task_status: st.task_status || 'Todo',
       }));
 
       setSprintTasks(tasksWithSprintId);
@@ -187,11 +192,12 @@ const SprintPlanning = () => {
     if (!sprint) return;
 
     try {
-      // Insert into sprint_tasks
+      // Insert into sprint_tasks with default status 'Todo'
       const { error: insertError } = await supabase.from('sprint_tasks').insert({
         sprint_id: parseInt(id!),
         task_id: taskId,
         order_index: sprintTasks.length,
+        task_status: 'Todo',
       });
 
       if (insertError) throw insertError;
@@ -214,6 +220,44 @@ const SprintPlanning = () => {
       console.error('Error adding task to sprint:', error);
       toast({
         title: 'Erro ao adicionar tarefa',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const updateTaskStatus = async (
+    taskId: number,
+    newStatus: 'Todo' | 'InProgress' | 'Done' | 'Blocked'
+  ) => {
+    try {
+      const task = sprintTasks.find((t) => t.id === taskId);
+      if (!task || !task.sprint_task_id) return;
+
+      // Update sprint_tasks.task_status
+      const { error: updateError } = await supabase
+        .from('sprint_tasks')
+        .update({ task_status: newStatus })
+        .eq('id', task.sprint_task_id);
+
+      if (updateError) throw updateError;
+
+      // If moved to Done, optionally update tasks.status to 'Done'
+      if (newStatus === 'Done') {
+        await supabase
+          .from('tasks')
+          .update({ status: 'Done' })
+          .eq('id', taskId);
+      }
+
+      toast({
+        title: 'Status atualizado',
+      });
+
+      await loadData();
+    } catch (error) {
+      console.error('Error updating task status:', error);
+      toast({
+        title: 'Erro ao atualizar status',
         variant: 'destructive',
       });
     }
@@ -359,13 +403,13 @@ const SprintPlanning = () => {
         </div>
 
         {/* Two Column Layout */}
-        <DndContext
-          sensors={sensors}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-        >
-          <div className="grid grid-cols-2 gap-6">
-            {/* Left Column - Backlog */}
+        <div className="grid grid-cols-[350px_1fr_300px] gap-6">
+          {/* Left Column - Backlog */}
+          <DndContext
+            sensors={sensors}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+          >
             <div className="space-y-4">
               <Card className="bg-muted/30">
                 <CardContent className="p-6">
@@ -430,41 +474,48 @@ const SprintPlanning = () => {
               </Card>
             </div>
 
-            {/* Right Column - Sprint */}
-            <div className="space-y-4">
-              <Card className="bg-primary/5">
-                <CardContent className="p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-semibold">
-                      Sprint: {sprint.name}
-                    </h2>
-                    <Badge variant="secondary" className="text-base">
-                      {sprintTasks.length} tarefas · {totalSprintPoints} pontos
-                    </Badge>
-                  </div>
+            <DragOverlay>
+              {activeId ? (
+                <TaskCard
+                  task={
+                    backlogTasks.find((t) => t.id === activeId) ||
+                    sprintTasks.find((t) => t.id === activeId)!
+                  }
+                  isDragging
+                />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
 
-                  {/* Sprint Tasks Drop Zone */}
-                  <SprintDropZone
-                    sprintTasks={sprintTasks}
-                    onRemove={(taskId) => setRemoveTaskId(taskId)}
-                  />
-                </CardContent>
-              </Card>
+          {/* Center Column - Kanban Board */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-xl font-semibold">
+                Sprint: {sprint.name}
+              </h2>
+              <Badge variant="secondary" className="text-base">
+                {sprintTasks.length} tarefas · {totalSprintPoints} pontos
+              </Badge>
             </div>
+            <KanbanBoard
+              tasks={sprintTasks}
+              onStatusChange={updateTaskStatus}
+              onRemove={(taskId) => setRemoveTaskId(taskId)}
+            />
           </div>
 
-          <DragOverlay>
-            {activeId ? (
-              <TaskCard
-                task={
-                  backlogTasks.find((t) => t.id === activeId) ||
-                  sprintTasks.find((t) => t.id === activeId)!
-                }
-                isDragging
+          {/* Right Column - Metrics */}
+          {sprint.status === 'Active' && (
+            <div>
+              <SprintMetrics
+                tasks={sprintTasks}
+                startDate={sprint.start_date}
+                endDate={sprint.end_date}
+                status={sprint.status}
               />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Finish Planning Dialog */}
