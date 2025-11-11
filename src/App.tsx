@@ -11,6 +11,7 @@ import Backlog from "./pages/Backlog";
 import Sprints from "./pages/Sprints";
 import SprintPlanning from "./pages/SprintPlanning";
 import SprintSummary from "./pages/SprintSummary";
+import SeedData from "./pages/SeedData";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
           <Route path="/sprints" element={<Sprints />} />
           <Route path="/sprints/:id/planning" element={<SprintPlanning />} />
           <Route path="/sprints/:id/summary" element={<SprintSummary />} />
+          <Route path="/admin/seed-data" element={<SeedData />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>

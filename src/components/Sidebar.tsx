@@ -1,4 +1,4 @@
-import { Users, ListTodo, Calendar, Folders } from 'lucide-react';
+import { Users, ListTodo, Calendar, Folders, Database } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -8,6 +8,7 @@ const navigation = [
   { name: 'Team Members', href: '/team', icon: Users },
   { name: 'Backlog', href: '/backlog', icon: ListTodo },
   { name: 'Sprints', href: '/sprints', icon: Calendar },
+  { name: 'Seed Data', href: '/admin/seed-data', icon: Database },
 ];
 
 export const Sidebar = () => {
