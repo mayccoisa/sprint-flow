@@ -27,6 +27,15 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
+import { CalendarIcon } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 const taskSchema = z.object({
   title: z.string().min(1, 'Título é obrigatório'),
@@ -37,6 +46,8 @@ const taskSchema = z.object({
   estimate_backend: z.number().nullable(),
   estimate_qa: z.number().nullable(),
   estimate_design: z.number().nullable(),
+  start_date: z.date().nullable(),
+  end_date: z.date().nullable(),
 }).refine(
   (data) => {
     const hasEstimate =
@@ -81,6 +92,8 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
       estimate_backend: null,
       estimate_qa: null,
       estimate_design: null,
+      start_date: null,
+      end_date: null,
     },
   });
 
@@ -95,6 +108,8 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
         estimate_backend: task.estimate_backend,
         estimate_qa: task.estimate_qa,
         estimate_design: task.estimate_design,
+        start_date: task.start_date ? new Date(task.start_date) : null,
+        end_date: task.end_date ? new Date(task.end_date) : null,
       });
     } else {
       form.reset({
@@ -106,6 +121,8 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
         estimate_backend: null,
         estimate_qa: null,
         estimate_design: null,
+        start_date: null,
+        end_date: null,
       });
     }
   }, [task, form, open]);
@@ -122,6 +139,8 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
       estimate_design: data.estimate_design || null,
       status: task?.status || 'Backlog',
       order_index: task?.order_index || 0,
+      start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
+      end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
     });
     form.reset();
     onClose();
@@ -234,7 +253,94 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
               </div>
             </div>
 
-            {/* Seção 2: Estimativas */}
+            {/* Seção 2: Datas */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-lg">Datas</h3>
+
+              <div className="grid grid-cols-2 gap-4">
+                <FormField
+                  control={form.control}
+                  name="start_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data de Início</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                'w-full pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, 'dd/MM/yyyy')
+                              ) : (
+                                <span>Selecione uma data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value || undefined}
+                            onSelect={field.onChange}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="end_date"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Data de Término</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                'w-full pl-3 text-left font-normal',
+                                !field.value && 'text-muted-foreground'
+                              )}
+                            >
+                              {field.value ? (
+                                format(field.value, 'dd/MM/yyyy')
+                              ) : (
+                                <span>Selecione uma data</span>
+                              )}
+                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={field.value || undefined}
+                            onSelect={field.onChange}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
+
+            {/* Seção 3: Estimativas */}
             <div className="space-y-4">
               <h3 className="font-semibold text-lg">Estimativas por Especialidade</h3>
 

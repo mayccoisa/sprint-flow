@@ -1,4 +1,4 @@
-import { Users, ListTodo, Calendar, Folders, Database } from 'lucide-react';
+import { Users, ListTodo, Calendar as CalendarIcon, Folders, Database, Package } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 
@@ -7,7 +7,9 @@ const navigation = [
   { name: 'Squads', href: '/squads', icon: Folders },
   { name: 'Team Members', href: '/team', icon: Users },
   { name: 'Backlog', href: '/backlog', icon: ListTodo },
-  { name: 'Sprints', href: '/sprints', icon: Calendar },
+  { name: 'Sprints', href: '/sprints', icon: CalendarIcon },
+  { name: 'Calendar', href: '/calendar', icon: CalendarIcon },
+  { name: 'Releases', href: '/releases', icon: Package },
   { name: 'Seed Data', href: '/admin/seed-data', icon: Database },
 ];
 

@@ -11,6 +11,9 @@ import Backlog from "./pages/Backlog";
 import Sprints from "./pages/Sprints";
 import SprintPlanning from "./pages/SprintPlanning";
 import SprintSummary from "./pages/SprintSummary";
+import Calendar from "./pages/Calendar";
+import Releases from "./pages/Releases";
+import ReleaseDetail from "./pages/ReleaseDetail";
 import SeedData from "./pages/SeedData";
 import NotFound from "./pages/NotFound";
 
@@ -31,6 +34,9 @@ const App = () => (
           <Route path="/sprints" element={<Sprints />} />
           <Route path="/sprints/:id/planning" element={<SprintPlanning />} />
           <Route path="/sprints/:id/summary" element={<SprintSummary />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/releases" element={<Releases />} />
+          <Route path="/releases/:id" element={<ReleaseDetail />} />
           <Route path="/admin/seed-data" element={<SeedData />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
