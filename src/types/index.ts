@@ -4,7 +4,9 @@ export type MemberStatus = 'Active' | 'Inactive';
 export type TaskType = 'Feature' | 'Bug' | 'TechDebt' | 'Spike';
 export type TaskPriority = 'High' | 'Medium' | 'Low';
 export type TaskStatus = 'Backlog' | 'InSprint' | 'Done' | 'Archived';
+export type TaskSprintStatus = 'Todo' | 'InProgress' | 'Done' | 'Blocked';
 export type SprintStatus = 'Planning' | 'Active' | 'Completed' | 'Cancelled';
+export type VersionStatus = 'Planned' | 'InProgress' | 'Released' | 'Cancelled';
 
 export interface Squad {
   id: number;
@@ -38,6 +40,8 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   order_index: number;
+  start_date: string | null;
+  end_date: string | null;
 }
 
 export interface Sprint {
@@ -56,6 +60,7 @@ export interface SprintTask {
   sprint_id: number;
   task_id: number;
   order_index: number;
+  task_status: TaskSprintStatus;
 }
 
 export interface TaskAssignment {
@@ -63,4 +68,23 @@ export interface TaskAssignment {
   created_at: string;
   task_id: number;
   member_id: number;
+}
+
+export interface Release {
+  id: number;
+  created_at: string;
+  version_name: string;
+  release_date: string;
+  squad_id: number | null;
+  status: VersionStatus;
+  description: string | null;
+  release_notes: string | null;
+  color: string | null;
+}
+
+export interface ReleaseTask {
+  id: number;
+  created_at: string;
+  release_id: number;
+  task_id: number;
 }

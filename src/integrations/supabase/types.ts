@@ -14,7 +14,318 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      release_tasks: {
+        Row: {
+          created_at: string
+          id: number
+          release_id: number
+          task_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          release_id: number
+          task_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          release_id?: number
+          task_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "release_tasks_release_id_fkey"
+            columns: ["release_id"]
+            isOneToOne: false
+            referencedRelation: "releases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "release_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      releases: {
+        Row: {
+          color: string | null
+          created_at: string
+          description: string | null
+          id: number
+          release_date: string
+          release_notes: string | null
+          squad_id: number | null
+          status: Database["public"]["Enums"]["version_status"]
+          version_name: string
+        }
+        Insert: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: number
+          release_date: string
+          release_notes?: string | null
+          squad_id?: number | null
+          status?: Database["public"]["Enums"]["version_status"]
+          version_name: string
+        }
+        Update: {
+          color?: string | null
+          created_at?: string
+          description?: string | null
+          id?: number
+          release_date?: string
+          release_notes?: string | null
+          squad_id?: number | null
+          status?: Database["public"]["Enums"]["version_status"]
+          version_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "releases_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprint_tasks: {
+        Row: {
+          created_at: string
+          id: number
+          order_index: number
+          sprint_id: number
+          task_id: number
+          task_status: Database["public"]["Enums"]["task_sprint_status"]
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          order_index?: number
+          sprint_id: number
+          task_id: number
+          task_status?: Database["public"]["Enums"]["task_sprint_status"]
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          order_index?: number
+          sprint_id?: number
+          task_id?: number
+          task_status?: Database["public"]["Enums"]["task_sprint_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprint_tasks_sprint_id_fkey"
+            columns: ["sprint_id"]
+            isOneToOne: false
+            referencedRelation: "sprints"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sprint_tasks_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sprints: {
+        Row: {
+          created_at: string
+          end_date: string
+          id: number
+          name: string
+          squad_id: number
+          start_date: string
+          status: Database["public"]["Enums"]["sprint_status"]
+        }
+        Insert: {
+          created_at?: string
+          end_date: string
+          id?: number
+          name: string
+          squad_id: number
+          start_date: string
+          status?: Database["public"]["Enums"]["sprint_status"]
+        }
+        Update: {
+          created_at?: string
+          end_date?: string
+          id?: number
+          name?: string
+          squad_id?: number
+          start_date?: string
+          status?: Database["public"]["Enums"]["sprint_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sprints_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      squads: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: number
+          name: string
+          status: Database["public"]["Enums"]["squad_status"]
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          name: string
+          status?: Database["public"]["Enums"]["squad_status"]
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: number
+          name?: string
+          status?: Database["public"]["Enums"]["squad_status"]
+        }
+        Relationships: []
+      }
+      task_assignments: {
+        Row: {
+          created_at: string
+          id: number
+          member_id: number
+          task_id: number
+        }
+        Insert: {
+          created_at?: string
+          id?: number
+          member_id: number
+          task_id: number
+        }
+        Update: {
+          created_at?: string
+          id?: number
+          member_id?: number
+          task_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "task_assignments_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "task_assignments_task_id_fkey"
+            columns: ["task_id"]
+            isOneToOne: false
+            referencedRelation: "tasks"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tasks: {
+        Row: {
+          created_at: string
+          description: string | null
+          end_date: string | null
+          estimate_backend: number | null
+          estimate_design: number | null
+          estimate_frontend: number | null
+          estimate_qa: number | null
+          id: number
+          order_index: number
+          priority: Database["public"]["Enums"]["task_priority"]
+          start_date: string | null
+          status: Database["public"]["Enums"]["task_status"]
+          task_type: Database["public"]["Enums"]["task_type"]
+          title: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          estimate_backend?: number | null
+          estimate_design?: number | null
+          estimate_frontend?: number | null
+          estimate_qa?: number | null
+          id?: number
+          order_index?: number
+          priority?: Database["public"]["Enums"]["task_priority"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          title: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          end_date?: string | null
+          estimate_backend?: number | null
+          estimate_design?: number | null
+          estimate_frontend?: number | null
+          estimate_qa?: number | null
+          id?: number
+          order_index?: number
+          priority?: Database["public"]["Enums"]["task_priority"]
+          start_date?: string | null
+          status?: Database["public"]["Enums"]["task_status"]
+          task_type?: Database["public"]["Enums"]["task_type"]
+          title?: string
+        }
+        Relationships: []
+      }
+      team_members: {
+        Row: {
+          avatar_url: string | null
+          capacity: number
+          created_at: string
+          id: number
+          name: string
+          specialty: Database["public"]["Enums"]["member_specialty"]
+          squad_id: number
+          status: Database["public"]["Enums"]["member_status"]
+        }
+        Insert: {
+          avatar_url?: string | null
+          capacity?: number
+          created_at?: string
+          id?: number
+          name: string
+          specialty: Database["public"]["Enums"]["member_specialty"]
+          squad_id: number
+          status?: Database["public"]["Enums"]["member_status"]
+        }
+        Update: {
+          avatar_url?: string | null
+          capacity?: number
+          created_at?: string
+          id?: number
+          name?: string
+          specialty?: Database["public"]["Enums"]["member_specialty"]
+          squad_id?: number
+          status?: Database["public"]["Enums"]["member_status"]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_squad_id_fkey"
+            columns: ["squad_id"]
+            isOneToOne: false
+            referencedRelation: "squads"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -23,7 +334,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      member_specialty: "Frontend" | "Backend" | "QA" | "Design"
+      member_status: "Active" | "Inactive"
+      sprint_status: "Planning" | "Active" | "Completed" | "Cancelled"
+      squad_status: "Active" | "Inactive"
+      task_priority: "High" | "Medium" | "Low"
+      task_sprint_status: "Todo" | "InProgress" | "Done" | "Blocked"
+      task_status: "Backlog" | "InSprint" | "Done" | "Archived"
+      task_type: "Feature" | "Bug" | "TechDebt" | "Spike"
+      version_status: "Planned" | "InProgress" | "Released" | "Cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +469,16 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      member_specialty: ["Frontend", "Backend", "QA", "Design"],
+      member_status: ["Active", "Inactive"],
+      sprint_status: ["Planning", "Active", "Completed", "Cancelled"],
+      squad_status: ["Active", "Inactive"],
+      task_priority: ["High", "Medium", "Low"],
+      task_sprint_status: ["Todo", "InProgress", "Done", "Blocked"],
+      task_status: ["Backlog", "InSprint", "Done", "Archived"],
+      task_type: ["Feature", "Bug", "TechDebt", "Spike"],
+      version_status: ["Planned", "InProgress", "Released", "Cancelled"],
+    },
   },
 } as const
