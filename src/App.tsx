@@ -8,6 +8,9 @@ import Squads from "./pages/Squads";
 import SquadMembers from "./pages/SquadMembers";
 import Team from "./pages/Team";
 import Backlog from "./pages/Backlog";
+import ProductBacklog from "./pages/ProductBacklog";
+import InitiativesOverview from "./pages/InitiativesOverview";
+import ProductStrategy from "./pages/ProductStrategy";
 import Sprints from "./pages/Sprints";
 import SprintPlanning from "./pages/SprintPlanning";
 import SprintSummary from "./pages/SprintSummary";
@@ -30,7 +33,12 @@ const App = () => (
           <Route path="/squads" element={<Squads />} />
           <Route path="/squads/:id/members" element={<SquadMembers />} />
           <Route path="/team" element={<Team />} />
+          <Route path="/initiatives" element={<InitiativesOverview />} />
+          <Route path="/product-backlog" element={<ProductBacklog />} />
+          <Route path="/engineering-backlog" element={<Backlog />} />
+          {/* Legacy route alias */}
           <Route path="/backlog" element={<Backlog />} />
+          <Route path="/product-strategy" element={<ProductStrategy />} />
           <Route path="/sprints" element={<Sprints />} />
           <Route path="/sprints/:id/planning" element={<SprintPlanning />} />
           <Route path="/sprints/:id/summary" element={<SprintSummary />} />

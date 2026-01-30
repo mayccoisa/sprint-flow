@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Squad, TeamMember, Task, Sprint, SprintTask, TaskAssignment } from '@/types';
+import type { Squad, TeamMember, Task, Sprint, SprintTask, TaskAssignment, ProductArea, AreaMetric } from '@/types';
 
 interface LocalData {
   squads: Squad[];
@@ -8,15 +8,57 @@ interface LocalData {
   sprints: Sprint[];
   sprintTasks: SprintTask[];
   taskAssignments: TaskAssignment[];
+  productAreas: ProductArea[];
+  areaMetrics: AreaMetric[];
 }
 
 const STORAGE_KEY = 'sprint-capacity-planner-data';
 
 const getInitialData = (): LocalData => {
+  // Initial Seed Data for Product Strategy
+  const initialAreas: ProductArea[] = [
+    { id: 1, name: 'Financial', icon: 'Wallet', health_score: 85, owner_id: null },
+    { id: 2, name: 'Tasks', icon: 'CheckSquare', health_score: 45, owner_id: null },
+    { id: 3, name: 'Pomodoro', icon: 'Timer', health_score: 92, owner_id: null },
+    { id: 4, name: 'Habits', icon: 'Activity', health_score: 65, owner_id: null },
+  ];
+
+  // Generate some metrics for the last 30 days
+  const initialMetrics: AreaMetric[] = [];
+  const today = new Date();
+
+  if (initialMetrics.length === 0) {
+    initialAreas.forEach(area => {
+      // Current state snapshot
+      initialMetrics.push({
+        id: Math.random(),
+        area_id: area.id,
+        metric_type: 'bug_count',
+        value: area.id === 2 ? 12 : Math.floor(Math.random() * 5), // Tasks has bugs
+        date: today.toISOString()
+      });
+
+      initialMetrics.push({
+        id: Math.random(),
+        area_id: area.id,
+        metric_type: 'usage_rate',
+        value: Math.floor(Math.random() * 40) + 40, // 40-80%
+        date: today.toISOString()
+      });
+    });
+  }
+
   const stored = localStorage.getItem(STORAGE_KEY);
   if (stored) {
-    return JSON.parse(stored);
+    const parsed = JSON.parse(stored);
+    // Ensure new fields exist for existing users
+    return {
+      ...parsed,
+      productAreas: parsed.productAreas && parsed.productAreas.length > 0 ? parsed.productAreas : initialAreas,
+      areaMetrics: parsed.areaMetrics && parsed.areaMetrics.length > 0 ? parsed.areaMetrics : initialMetrics,
+    };
   }
+
   return {
     squads: [],
     members: [],
@@ -24,6 +66,8 @@ const getInitialData = (): LocalData => {
     sprints: [],
     sprintTasks: [],
     taskAssignments: [],
+    productAreas: initialAreas,
+    areaMetrics: initialMetrics,
   };
 };
 
@@ -59,6 +103,7 @@ export const useLocalData = () => {
       ...task,
       id: Date.now(),
       created_at: new Date().toISOString(),
+      area_id: task.area_id || null // Ensure area_id is preserved
     };
     setData(prev => ({ ...prev, tasks: [...prev.tasks, newTask] }));
     return newTask;

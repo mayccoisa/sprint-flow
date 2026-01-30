@@ -1,8 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Task, TaskType, TaskPriority } from '@/types';
+import { Task } from '@/types';
 import {
   Dialog,
   DialogContent,
@@ -36,31 +36,7 @@ import {
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
-
-const taskSchema = z.object({
-  title: z.string().min(1, 'Título é obrigatório'),
-  description: z.string().max(500, 'Descrição deve ter no máximo 500 caracteres').optional(),
-  task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike'] as const),
-  priority: z.enum(['High', 'Medium', 'Low'] as const),
-  estimate_frontend: z.number().nullable(),
-  estimate_backend: z.number().nullable(),
-  estimate_qa: z.number().nullable(),
-  estimate_design: z.number().nullable(),
-  start_date: z.date().nullable(),
-  end_date: z.date().nullable(),
-}).refine(
-  (data) => {
-    const hasEstimate =
-      data.estimate_frontend ||
-      data.estimate_backend ||
-      data.estimate_qa ||
-      data.estimate_design;
-    return hasEstimate;
-  },
-  { message: 'Pelo menos uma estimativa deve ser preenchida', path: ['estimate_frontend'] }
-);
-
-type TaskFormValues = z.infer<typeof taskSchema>;
+import { useTranslation } from 'react-i18next';
 
 interface TaskFormDialogProps {
   open: boolean;
@@ -69,18 +45,34 @@ interface TaskFormDialogProps {
   task?: Task | null;
 }
 
-const fibonacciOptions = [
-  { value: 'null', label: 'Vazio' },
-  { value: '1', label: '1' },
-  { value: '2', label: '2' },
-  { value: '3', label: '3' },
-  { value: '5', label: '5' },
-  { value: '8', label: '8' },
-  { value: '13', label: '13' },
-  { value: '21', label: '21' },
-];
-
 export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogProps) => {
+  const { t } = useTranslation();
+
+  const taskSchema = useMemo(() => z.object({
+    title: z.string().min(1, t('validation.required')),
+    description: z.string().max(500, t('validation.maxLength', { max: 500 })).optional(),
+    task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike'] as const),
+    priority: z.enum(['High', 'Medium', 'Low'] as const),
+    estimate_frontend: z.number().nullable(),
+    estimate_backend: z.number().nullable(),
+    estimate_qa: z.number().nullable(),
+    estimate_design: z.number().nullable(),
+    start_date: z.date().nullable(),
+    end_date: z.date().nullable(),
+  }).refine(
+    (data) => {
+      const hasEstimate =
+        data.estimate_frontend ||
+        data.estimate_backend ||
+        data.estimate_qa ||
+        data.estimate_design;
+      return hasEstimate;
+    },
+    { message: t('validation.atLeastOneEstimate'), path: ['estimate_frontend'] }
+  ), [t]);
+
+  type TaskFormValues = z.infer<typeof taskSchema>;
+
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
     defaultValues: {
@@ -96,6 +88,17 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
       end_date: null,
     },
   });
+
+  const fibonacciOptions = [
+    { value: 'null', label: '-' },
+    { value: '1', label: '1' },
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
+    { value: '5', label: '5' },
+    { value: '8', label: '8' },
+    { value: '13', label: '13' },
+    { value: '21', label: '21' },
+  ];
 
   useEffect(() => {
     if (task) {
@@ -141,6 +144,11 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
       order_index: task?.order_index || 0,
       start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
       end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
+      product_objective: task?.product_objective || null,
+      business_goal: task?.business_goal || null,
+      user_impact: task?.user_impact || null,
+      has_prototype: task?.has_prototype || false,
+      prototype_link: task?.prototype_link || null,
     });
     form.reset();
     onClose();
@@ -162,23 +170,61 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-2xl">
         <DialogHeader>
-          <DialogTitle>{task ? 'Editar Tarefa' : 'Nova Tarefa'}</DialogTitle>
+          <DialogTitle>{task ? t('taskForm.editTitle') : t('taskForm.newTitle')}</DialogTitle>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            {/* Seção .5: Contexto do Produto (Read-Only) */}
+            {(task?.product_objective || task?.business_goal || task?.user_impact) && (
+              <div className="bg-muted/50 p-4 rounded-lg space-y-3 border border-border/50">
+                <h3 className="font-semibold text-base text-primary flex items-center gap-2">
+                  <span className="bg-primary/10 p-1 rounded-full text-primary text-xs">{t('taskForm.productContext.title')}</span>
+                </h3>
+
+                <div className="grid grid-cols-1 gap-3 text-sm">
+                  {task.product_objective && (
+                    <div>
+                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.objective')}: </span>
+                      <span className="text-foreground">{task.product_objective}</span>
+                    </div>
+                  )}
+                  {task.business_goal && (
+                    <div>
+                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.businessGoal')}: </span>
+                      <span className="text-foreground">{task.business_goal}</span>
+                    </div>
+                  )}
+                  {task.user_impact && (
+                    <div>
+                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.userImpact')}: </span>
+                      <span className="text-foreground">{task.user_impact}</span>
+                    </div>
+                  )}
+                  {task.prototype_link && (
+                    <div>
+                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.prototype')}: </span>
+                      <a href={task.prototype_link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
+                        {t('taskForm.productContext.viewPrototype')}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {/* Seção 1: Informações Básicas */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Informações Básicas</h3>
+              <h3 className="font-semibold text-lg">{t('taskForm.sections.basicInfo')}</h3>
 
               <FormField
                 control={form.control}
                 name="title"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Título *</FormLabel>
+                    <FormLabel>{t('taskForm.fields.title')}</FormLabel>
                     <FormControl>
-                      <Input {...field} placeholder="Digite o título da tarefa" />
+                      <Input {...field} placeholder={t('taskForm.placeholders.title')} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -190,11 +236,11 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                 name="description"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Descrição</FormLabel>
+                    <FormLabel>{t('taskForm.fields.description')}</FormLabel>
                     <FormControl>
                       <Textarea
                         {...field}
-                        placeholder="Digite a descrição (opcional)"
+                        placeholder={t('taskForm.placeholders.description')}
                         rows={3}
                       />
                     </FormControl>
@@ -209,7 +255,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="task_type"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Tipo *</FormLabel>
+                      <FormLabel>{t('taskForm.fields.type')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -233,7 +279,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="priority"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Prioridade *</FormLabel>
+                      <FormLabel>{t('taskForm.fields.priority')}</FormLabel>
                       <Select onValueChange={field.onChange} value={field.value}>
                         <FormControl>
                           <SelectTrigger>
@@ -241,9 +287,9 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
-                          <SelectItem value="High">Alta</SelectItem>
-                          <SelectItem value="Medium">Média</SelectItem>
-                          <SelectItem value="Low">Baixa</SelectItem>
+                          <SelectItem value="High">High</SelectItem>
+                          <SelectItem value="Medium">Medium</SelectItem>
+                          <SelectItem value="Low">Low</SelectItem>
                         </SelectContent>
                       </Select>
                       <FormMessage />
@@ -255,7 +301,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
 
             {/* Seção 2: Datas */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Datas</h3>
+              <h3 className="font-semibold text-lg">{t('taskForm.sections.dates')}</h3>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -263,7 +309,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="start_date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Data de Início</FormLabel>
+                      <FormLabel>{t('taskForm.fields.startDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -277,7 +323,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                               {field.value ? (
                                 format(field.value, 'dd/MM/yyyy')
                               ) : (
-                                <span>Selecione uma data</span>
+                                <span>{t('taskForm.placeholders.selectDate')}</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -303,7 +349,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="end_date"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Data de Término</FormLabel>
+                      <FormLabel>{t('taskForm.fields.endDate')}</FormLabel>
                       <Popover>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -317,7 +363,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                               {field.value ? (
                                 format(field.value, 'dd/MM/yyyy')
                               ) : (
-                                <span>Selecione uma data</span>
+                                <span>{t('taskForm.placeholders.selectDate')}</span>
                               )}
                               <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
                             </Button>
@@ -342,7 +388,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
 
             {/* Seção 3: Estimativas */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-lg">Estimativas por Especialidade</h3>
+              <h3 className="font-semibold text-lg">{t('taskForm.sections.estimates')}</h3>
 
               <div className="grid grid-cols-2 gap-4">
                 <FormField
@@ -350,7 +396,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="estimate_frontend"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Frontend</FormLabel>
+                      <FormLabel>{t('taskForm.fields.frontend')}</FormLabel>
                       <Select
                         onValueChange={(value) =>
                           field.onChange(value === 'null' ? null : parseInt(value))
@@ -380,7 +426,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="estimate_backend"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Backend</FormLabel>
+                      <FormLabel>{t('taskForm.fields.backend')}</FormLabel>
                       <Select
                         onValueChange={(value) =>
                           field.onChange(value === 'null' ? null : parseInt(value))
@@ -410,7 +456,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="estimate_qa"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>QA</FormLabel>
+                      <FormLabel>{t('taskForm.fields.qa')}</FormLabel>
                       <Select
                         onValueChange={(value) =>
                           field.onChange(value === 'null' ? null : parseInt(value))
@@ -440,7 +486,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                   name="estimate_design"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Design</FormLabel>
+                      <FormLabel>{t('taskForm.fields.design')}</FormLabel>
                       <Select
                         onValueChange={(value) =>
                           field.onChange(value === 'null' ? null : parseInt(value))
@@ -468,16 +514,16 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
 
               <div className="bg-muted p-4 rounded-lg">
                 <p className="text-lg font-semibold">
-                  Esforço Total: {totalEstimate} pontos
+                  {t('taskForm.totalEffort', { points: totalEstimate })}
                 </p>
               </div>
             </div>
 
             <div className="flex justify-end gap-2">
               <Button type="button" variant="outline" onClick={onClose}>
-                Cancelar
+                {t('common.cancel')}
               </Button>
-              <Button type="submit">Salvar</Button>
+              <Button type="submit">{t('common.save')}</Button>
             </div>
           </form>
         </Form>

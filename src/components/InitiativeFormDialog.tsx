@@ -1,0 +1,289 @@
+import { useEffect, useMemo } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Task } from '@/types';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
+import {
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
+    FormDescription,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { useTranslation } from 'react-i18next';
+
+interface InitiativeFormDialogProps {
+    open: boolean;
+    onClose: () => void;
+    onSave: (data: Partial<Task>) => void;
+    task?: Task | null;
+}
+
+export const InitiativeFormDialog = ({ open, onClose, onSave, task }: InitiativeFormDialogProps) => {
+    const { t } = useTranslation();
+
+    const initiativeSchema = useMemo(() => z.object({
+        title: z.string().min(1, t('validation.required')),
+        description: z.string().optional(),
+        product_objective: z.string().min(1, t('validation.required')),
+        business_goal: z.string().min(1, t('validation.required')),
+        user_impact: z.string().min(1, t('validation.required')),
+        task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike'] as const),
+        priority: z.enum(['High', 'Medium', 'Low'] as const),
+        has_prototype: z.boolean().default(false),
+        prototype_link: z.string().optional(),
+    }), [t]);
+
+    type InitiativeFormValues = z.infer<typeof initiativeSchema>;
+
+    const form = useForm<InitiativeFormValues>({
+        resolver: zodResolver(initiativeSchema),
+        defaultValues: {
+            title: '',
+            description: '',
+            product_objective: '',
+            business_goal: '',
+            user_impact: '',
+            task_type: 'Feature',
+            priority: 'Medium',
+            has_prototype: false,
+            prototype_link: '',
+        },
+    });
+
+    useEffect(() => {
+        if (task) {
+            form.reset({
+                title: task.title,
+                description: task.description || '',
+                product_objective: task.product_objective || '',
+                business_goal: task.business_goal || '',
+                user_impact: task.user_impact || '',
+                task_type: task.task_type,
+                priority: task.priority,
+                has_prototype: task.has_prototype || false,
+                prototype_link: task.prototype_link || '',
+            });
+        } else {
+            form.reset({
+                title: '',
+                description: '',
+                product_objective: '',
+                business_goal: '',
+                user_impact: '',
+                task_type: 'Feature',
+                priority: 'Medium',
+                has_prototype: false,
+                prototype_link: '',
+            });
+        }
+    }, [task, form, open]);
+
+    const onSubmit = (data: InitiativeFormValues) => {
+        onSave({
+            ...data,
+            description: data.description || null,
+            prototype_link: data.prototype_link || null,
+            // Default engineering values
+            estimate_frontend: task?.estimate_frontend || null,
+            estimate_backend: task?.estimate_backend || null,
+            estimate_qa: task?.estimate_qa || null,
+            estimate_design: task?.estimate_design || null,
+            status: task?.status || 'Discovery', // Default to Discovery for new initiatives
+            order_index: task?.order_index || 0,
+        });
+        form.reset();
+        onClose();
+    };
+
+    return (
+        <Dialog open={open} onOpenChange={onClose}>
+            <DialogContent className="max-w-3xl">
+                <DialogHeader>
+                    <DialogTitle>{task ? t('initiativeForm.editTitle') : t('initiativeForm.newTitle')}</DialogTitle>
+                </DialogHeader>
+
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <div className="grid grid-cols-1 gap-6">
+
+                            {/* Core Info */}
+                            <div className="space-y-4 border-b pb-4">
+                                <h3 className="font-semibold text-lg">{t('initiativeForm.sections.whatWhy')}</h3>
+
+                                <FormField
+                                    control={form.control}
+                                    name="title"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('initiativeForm.fields.title')}</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder={t('initiativeForm.placeholders.title')} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <div className="grid grid-cols-2 gap-4">
+                                    <FormField
+                                        control={form.control}
+                                        name="product_objective"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t('initiativeForm.fields.objective')}</FormLabel>
+                                                <FormControl>
+                                                    <Textarea {...field} placeholder={t('initiativeForm.placeholders.objective')} rows={3} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                    <FormField
+                                        control={form.control}
+                                        name="user_impact"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t('initiativeForm.fields.userImpact')}</FormLabel>
+                                                <FormControl>
+                                                    <Textarea {...field} placeholder={t('initiativeForm.placeholders.userImpact')} rows={3} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                <FormField
+                                    control={form.control}
+                                    name="business_goal"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('initiativeForm.fields.businessGoal')}</FormLabel>
+                                            <FormControl>
+                                                <Input {...field} placeholder={t('initiativeForm.placeholders.businessGoal')} />
+                                            </FormControl>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                            {/* Discovery Status */}
+                            <div className="space-y-4">
+                                <h3 className="font-semibold text-lg">{t('initiativeForm.sections.discovery')}</h3>
+
+                                <div className="flex items-center space-x-2">
+                                    <FormField
+                                        control={form.control}
+                                        name="has_prototype"
+                                        render={({ field }) => (
+                                            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4">
+                                                <FormControl>
+                                                    <Checkbox
+                                                        checked={field.value}
+                                                        onCheckedChange={field.onChange}
+                                                    />
+                                                </FormControl>
+                                                <div className="space-y-1 leading-none">
+                                                    <FormLabel>
+                                                        {t('initiativeForm.fields.hasPrototype')}
+                                                    </FormLabel>
+                                                </div>
+                                            </FormItem>
+                                        )}
+                                    />
+                                </div>
+
+                                {form.watch('has_prototype') && (
+                                    <FormField
+                                        control={form.control}
+                                        name="prototype_link"
+                                        render={({ field }) => (
+                                            <FormItem>
+                                                <FormLabel>{t('initiativeForm.fields.prototypeLink')}</FormLabel>
+                                                <FormControl>
+                                                    <Input {...field} placeholder={t('initiativeForm.placeholders.prototypeLink')} />
+                                                </FormControl>
+                                                <FormMessage />
+                                            </FormItem>
+                                        )}
+                                    />
+                                )}
+                            </div>
+
+                            {/* Meta */}
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField
+                                    control={form.control}
+                                    name="task_type"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('initiativeForm.fields.type')}</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="Feature">Feature</SelectItem>
+                                                    <SelectItem value="Bug">Bug</SelectItem>
+                                                    <SelectItem value="TechDebt">Tech Debt</SelectItem>
+                                                    <SelectItem value="Spike">Spike</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+
+                                <FormField
+                                    control={form.control}
+                                    name="priority"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>{t('initiativeForm.fields.priority')}</FormLabel>
+                                            <Select onValueChange={field.onChange} value={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                <SelectContent>
+                                                    <SelectItem value="High">High</SelectItem>
+                                                    <SelectItem value="Medium">Medium</SelectItem>
+                                                    <SelectItem value="Low">Low</SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                            </div>
+
+                        </div>
+
+                        <div className="flex justify-end gap-2">
+                            <Button type="button" variant="outline" onClick={onClose}>
+                                {t('initiativeForm.cancel')}
+                            </Button>
+                            <Button type="submit">{t('initiativeForm.save')}</Button>
+                        </div>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+};
