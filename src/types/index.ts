@@ -35,29 +35,7 @@ export interface TeamMember {
   status: MemberStatus;
 }
 
-export interface Task {
-  id: number;
-  created_at: string;
-  title: string;
-  description: string | null;
-  estimate_frontend: number | null;
-  estimate_backend: number | null;
-  estimate_qa: number | null;
-  estimate_design: number | null;
-  task_type: TaskType;
-  priority: TaskPriority;
-  status: TaskStatus;
-  order_index: number;
-  start_date: string | null;
-  end_date: string | null;
-  // Product Context
-  product_objective: string | null;
-  business_goal: string | null;
-  user_impact: string | null;
-  has_prototype: boolean;
-  prototype_link: string | null;
-  area_id: number | null;
-}
+
 
 export interface Sprint {
   id: number;
@@ -104,24 +82,7 @@ export interface ReleaseTask {
   task_id: number;
 }
 
-// Product Strategy Types
-export interface ProductArea {
-  id: number;
-  name: string;
-  icon: string; // Lucide icon name or emoji
-  health_score: number; // 0-100
-  owner_id: number | null;
-}
 
-export type MetricType = 'bug_count' | 'nps' | 'usage_rate';
-
-export interface AreaMetric {
-  id: number;
-  area_id: number;
-  metric_type: MetricType;
-  value: number;
-  date: string;
-}
 
 // Update Task interface with area_id
 export interface Task {
@@ -147,4 +108,53 @@ export interface Task {
   prototype_link: string | null;
   // Strategy
   area_id: number | null;
+  feature_id: number | null;
+}
+
+// Product Architecture Types
+export interface ProductModule {
+  id: number;
+  name: string;
+  description: string | null;
+  area_id: number; // Keep for backward compatibility or grouping
+  icon?: string; // Lucide icon name
+  health_score?: number; // 0-100
+}
+
+export type MetricType = 'bug_count' | 'nps' | 'usage_rate';
+
+export interface ModuleMetric {
+  id: number;
+  module_id: number;
+  metric_type: MetricType;
+  value: number;
+  date: string;
+}
+
+export type ServiceType = 'Internal' | 'External' | 'Database' | 'Queue' | 'Gateway';
+
+export interface ProductService {
+  id: number;
+  name: string;
+  description: string | null;
+  type: ServiceType;
+}
+
+export type FeatureStatus = 'Live' | 'Beta' | 'Development' | 'Concept' | 'Deprecated';
+
+export interface ProductFeature {
+  id: number;
+  module_id: number;
+  name: string;
+  description: string | null;
+  status: FeatureStatus;
+}
+
+export type DependencyType = 'Read' | 'Write' | 'ReadWrite' | 'DependsOn';
+
+export interface ServiceDependency {
+  id: number;
+  feature_id: number;
+  service_id: number;
+  type: DependencyType;
 }

@@ -33,6 +33,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -149,6 +151,8 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
       user_impact: task?.user_impact || null,
       has_prototype: task?.has_prototype || false,
       prototype_link: task?.prototype_link || null,
+      area_id: task?.area_id || null,
+      feature_id: task?.feature_id || null,
     });
     form.reset();
     onClose();
@@ -175,351 +179,375 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            {/* Seção .5: Contexto do Produto (Read-Only) */}
-            {(task?.product_objective || task?.business_goal || task?.user_impact) && (
-              <div className="bg-muted/50 p-4 rounded-lg space-y-3 border border-border/50">
-                <h3 className="font-semibold text-base text-primary flex items-center gap-2">
-                  <span className="bg-primary/10 p-1 rounded-full text-primary text-xs">{t('taskForm.productContext.title')}</span>
-                </h3>
+            <Tabs defaultValue="info" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="info">{t('taskForm.tabs.info')}</TabsTrigger>
+                <TabsTrigger value="estimates">{t('taskForm.tabs.estimates')}</TabsTrigger>
+              </TabsList>
 
-                <div className="grid grid-cols-1 gap-3 text-sm">
-                  {task.product_objective && (
-                    <div>
-                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.objective')}: </span>
-                      <span className="text-foreground">{task.product_objective}</span>
-                    </div>
-                  )}
-                  {task.business_goal && (
-                    <div>
-                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.businessGoal')}: </span>
-                      <span className="text-foreground">{task.business_goal}</span>
-                    </div>
-                  )}
-                  {task.user_impact && (
-                    <div>
-                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.userImpact')}: </span>
-                      <span className="text-foreground">{task.user_impact}</span>
-                    </div>
-                  )}
-                  {task.prototype_link && (
-                    <div>
-                      <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.prototype')}: </span>
-                      <a href={task.prototype_link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
-                        {t('taskForm.productContext.viewPrototype')}
-                      </a>
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
+              {/* TAB 1: INFO */}
+              <TabsContent value="info" className="space-y-4 pt-4">
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="space-y-4">
+                    {/* Product Context Review (Compact) */}
+                    {(task?.product_objective || task?.business_goal || task?.user_impact) && (
+                      <div className="bg-muted/50 p-3 rounded-lg border border-border/50">
+                        <h3 className="font-semibold text-sm mb-2 text-primary">{t('taskForm.productContext.title')}</h3>
+                        <p className="text-xs text-muted-foreground truncate">{task.product_objective}</p>
+                      </div>
+                    )}
 
-            {/* Seção 1: Informações Básicas */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">{t('taskForm.sections.basicInfo')}</h3>
+                    <FormField
+                      control={form.control}
+                      name="title"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('taskForm.fields.title')}</FormLabel>
+                          <FormControl>
+                            <Input {...field} placeholder={t('taskForm.placeholders.title')} />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-              <FormField
-                control={form.control}
-                name="title"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('taskForm.fields.title')}</FormLabel>
-                    <FormControl>
-                      <Input {...field} placeholder={t('taskForm.placeholders.title')} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                    <FormField
+                      control={form.control}
+                      name="description"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>{t('taskForm.fields.description')}</FormLabel>
+                          <FormControl>
+                            <Textarea
+                              {...field}
+                              placeholder={t('taskForm.placeholders.description')}
+                              rows={3}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
 
-              <FormField
-                control={form.control}
-                name="description"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>{t('taskForm.fields.description')}</FormLabel>
-                    <FormControl>
-                      <Textarea
-                        {...field}
-                        placeholder={t('taskForm.placeholders.description')}
-                        rows={3}
+                    <div className="grid grid-cols-2 gap-4">
+                      <FormField
+                        control={form.control}
+                        name="task_type"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('taskForm.fields.type')}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="Feature">Feature</SelectItem>
+                                <SelectItem value="Bug">Bug</SelectItem>
+                                <SelectItem value="TechDebt">Tech Debt</SelectItem>
+                                <SelectItem value="Spike">Spike</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="task_type"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('taskForm.fields.type')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="Feature">Feature</SelectItem>
-                          <SelectItem value="Bug">Bug</SelectItem>
-                          <SelectItem value="TechDebt">Tech Debt</SelectItem>
-                          <SelectItem value="Spike">Spike</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <FormField
+                        control={form.control}
+                        name="priority"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>{t('taskForm.fields.priority')}</FormLabel>
+                            <Select onValueChange={field.onChange} value={field.value}>
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="High">High</SelectItem>
+                                <SelectItem value="Medium">Medium</SelectItem>
+                                <SelectItem value="Low">Low</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
 
-                <FormField
-                  control={form.control}
-                  name="priority"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('taskForm.fields.priority')}</FormLabel>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          <SelectItem value="High">High</SelectItem>
-                          <SelectItem value="Medium">Medium</SelectItem>
-                          <SelectItem value="Low">Low</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+                    {/* Seção 2: Datas */}
+                    <div className="space-y-4 pt-2">
+                      <h3 className="font-semibold text-sm">{t('taskForm.sections.dates')}</h3>
 
-            {/* Seção 2: Datas */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">{t('taskForm.sections.dates')}</h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="start_date"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>{t('taskForm.fields.startDate')}</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        'w-full pl-3 text-left font-normal',
+                                        !field.value && 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, 'dd/MM/yyyy')
+                                      ) : (
+                                        <span>{t('taskForm.placeholders.selectDate')}</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value || undefined}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                    className="pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="start_date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>{t('taskForm.fields.startDate')}</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'dd/MM/yyyy')
-                              ) : (
-                                <span>{t('taskForm.placeholders.selectDate')}</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value || undefined}
-                            onSelect={field.onChange}
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormField
+                          control={form.control}
+                          name="end_date"
+                          render={({ field }) => (
+                            <FormItem className="flex flex-col">
+                              <FormLabel>{t('taskForm.fields.endDate')}</FormLabel>
+                              <Popover>
+                                <PopoverTrigger asChild>
+                                  <FormControl>
+                                    <Button
+                                      variant="outline"
+                                      className={cn(
+                                        'w-full pl-3 text-left font-normal',
+                                        !field.value && 'text-muted-foreground'
+                                      )}
+                                    >
+                                      {field.value ? (
+                                        format(field.value, 'dd/MM/yyyy')
+                                      ) : (
+                                        <span>{t('taskForm.placeholders.selectDate')}</span>
+                                      )}
+                                      <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </Button>
+                                  </FormControl>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-auto p-0" align="start">
+                                  <Calendar
+                                    mode="single"
+                                    selected={field.value || undefined}
+                                    onSelect={field.onChange}
+                                    initialFocus
+                                    className="pointer-events-auto"
+                                  />
+                                </PopoverContent>
+                              </Popover>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
 
-                <FormField
-                  control={form.control}
-                  name="end_date"
-                  render={({ field }) => (
-                    <FormItem className="flex flex-col">
-                      <FormLabel>{t('taskForm.fields.endDate')}</FormLabel>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <FormControl>
-                            <Button
-                              variant="outline"
-                              className={cn(
-                                'w-full pl-3 text-left font-normal',
-                                !field.value && 'text-muted-foreground'
-                              )}
-                            >
-                              {field.value ? (
-                                format(field.value, 'dd/MM/yyyy')
-                              ) : (
-                                <span>{t('taskForm.placeholders.selectDate')}</span>
-                              )}
-                              <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                            </Button>
-                          </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar
-                            mode="single"
-                            selected={field.value || undefined}
-                            onSelect={field.onChange}
-                            initialFocus
-                            className="pointer-events-auto"
-                          />
-                        </PopoverContent>
-                      </Popover>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-            </div>
+              {/* TAB 2: ESTIMATES & CONTEXT */}
+              <TabsContent value="estimates" className="space-y-4 pt-4">
+                <ScrollArea className="h-[400px] pr-4">
+                  <div className="space-y-6">
+                    {/* Product Context Expanded */}
+                    {(task?.product_objective || task?.business_goal || task?.user_impact) && (
+                      <div className="bg-muted/30 p-4 rounded-lg space-y-3 border border-border/50">
+                        <h3 className="font-semibold text-base text-primary flex items-center gap-2">
+                          <span className="bg-primary/10 p-1 rounded-full text-primary text-xs">{t('taskForm.productContext.title')}</span>
+                        </h3>
 
-            {/* Seção 3: Estimativas */}
-            <div className="space-y-4">
-              <h3 className="font-semibold text-lg">{t('taskForm.sections.estimates')}</h3>
+                        <div className="grid grid-cols-1 gap-3 text-sm">
+                          {task.product_objective && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.objective')}: </span>
+                              <span className="text-foreground">{task.product_objective}</span>
+                            </div>
+                          )}
+                          {task.business_goal && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.businessGoal')}: </span>
+                              <span className="text-foreground">{task.business_goal}</span>
+                            </div>
+                          )}
+                          {task.user_impact && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.userImpact')}: </span>
+                              <span className="text-foreground">{task.user_impact}</span>
+                            </div>
+                          )}
+                          {task.prototype_link && (
+                            <div>
+                              <span className="font-semibold text-muted-foreground">{t('taskForm.productContext.prototype')}: </span>
+                              <a href={task.prototype_link} target="_blank" rel="noreferrer" className="text-blue-500 hover:underline">
+                                {t('taskForm.productContext.viewPrototype')}
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <FormField
-                  control={form.control}
-                  name="estimate_frontend"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('taskForm.fields.frontend')}</FormLabel>
-                      <Select
-                        onValueChange={(value) =>
-                          field.onChange(value === 'null' ? null : parseInt(value))
-                        }
-                        value={field.value?.toString() || 'null'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {fibonacciOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                    {/* Seção 3: Estimativas */}
+                    <div className="space-y-4">
+                      <h3 className="font-semibold text-lg">{t('taskForm.sections.estimates')}</h3>
 
-                <FormField
-                  control={form.control}
-                  name="estimate_backend"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('taskForm.fields.backend')}</FormLabel>
-                      <Select
-                        onValueChange={(value) =>
-                          field.onChange(value === 'null' ? null : parseInt(value))
-                        }
-                        value={field.value?.toString() || 'null'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {fibonacciOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                      <div className="grid grid-cols-2 gap-4">
+                        <FormField
+                          control={form.control}
+                          name="estimate_frontend"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('taskForm.fields.frontend')}</FormLabel>
+                              <Select
+                                onValueChange={(value) =>
+                                  field.onChange(value === 'null' ? null : parseInt(value))
+                                }
+                                value={field.value?.toString() || 'null'}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {fibonacciOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                <FormField
-                  control={form.control}
-                  name="estimate_qa"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('taskForm.fields.qa')}</FormLabel>
-                      <Select
-                        onValueChange={(value) =>
-                          field.onChange(value === 'null' ? null : parseInt(value))
-                        }
-                        value={field.value?.toString() || 'null'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {fibonacciOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+                        <FormField
+                          control={form.control}
+                          name="estimate_backend"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('taskForm.fields.backend')}</FormLabel>
+                              <Select
+                                onValueChange={(value) =>
+                                  field.onChange(value === 'null' ? null : parseInt(value))
+                                }
+                                value={field.value?.toString() || 'null'}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {fibonacciOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-                <FormField
-                  control={form.control}
-                  name="estimate_design"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>{t('taskForm.fields.design')}</FormLabel>
-                      <Select
-                        onValueChange={(value) =>
-                          field.onChange(value === 'null' ? null : parseInt(value))
-                        }
-                        value={field.value?.toString() || 'null'}
-                      >
-                        <FormControl>
-                          <SelectTrigger>
-                            <SelectValue />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {fibonacciOptions.map((opt) => (
-                            <SelectItem key={opt.value} value={opt.value}>
-                              {opt.label}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
+                        <FormField
+                          control={form.control}
+                          name="estimate_qa"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('taskForm.fields.qa')}</FormLabel>
+                              <Select
+                                onValueChange={(value) =>
+                                  field.onChange(value === 'null' ? null : parseInt(value))
+                                }
+                                value={field.value?.toString() || 'null'}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {fibonacciOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
 
-              <div className="bg-muted p-4 rounded-lg">
-                <p className="text-lg font-semibold">
-                  {t('taskForm.totalEffort', { points: totalEstimate })}
-                </p>
-              </div>
-            </div>
+                        <FormField
+                          control={form.control}
+                          name="estimate_design"
+                          render={({ field }) => (
+                            <FormItem>
+                              <FormLabel>{t('taskForm.fields.design')}</FormLabel>
+                              <Select
+                                onValueChange={(value) =>
+                                  field.onChange(value === 'null' ? null : parseInt(value))
+                                }
+                                value={field.value?.toString() || 'null'}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  {fibonacciOptions.map((opt) => (
+                                    <SelectItem key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
 
-            <div className="flex justify-end gap-2">
+                      <div className="bg-muted p-4 rounded-lg">
+                        <p className="text-lg font-semibold">
+                          {t('taskForm.totalEffort', { points: totalEstimate })}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </ScrollArea>
+              </TabsContent>
+            </Tabs>
+
+            <div className="flex justify-end gap-2 border-t pt-4">
               <Button type="button" variant="outline" onClick={onClose}>
                 {t('common.cancel')}
               </Button>

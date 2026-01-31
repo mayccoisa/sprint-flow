@@ -21,7 +21,8 @@ export const Sidebar = () => {
       toggle: () => setInitiativesOpen(!initiativesOpen),
       children: [
         { name: t('sidebar.allInitiatives'), href: '/initiatives' },
-        { name: 'Strategy & Health', href: '/product-strategy' },
+        { name: t('sidebar.strategy'), href: '/product-strategy' },
+        { name: t('sidebar.modules'), href: '/product-modules' },
         { name: t('sidebar.productBacklog'), href: '/product-backlog' },
         { name: t('sidebar.engineeringBacklog'), href: '/engineering-backlog' },
       ]

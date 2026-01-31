@@ -27,7 +27,10 @@ export const pt = {
             sprints: "Sprints",
             calendar: "Calendário",
             releases: "Lançamentos",
+
             seedData: "Popular Dados",
+            strategy: "Estratégia & Saúde",
+            modules: "Módulos & Features",
         },
         settings: {
             title: "Configurações",
@@ -97,10 +100,15 @@ export const pt = {
         initiativeForm: {
             newTitle: "Nova Iniciativa",
             editTitle: "Editar Iniciativa",
+            tabs: {
+                general: "Geral",
+                details: "Detalhes & Contexto"
+            },
             sections: {
                 whatWhy: "O Quê & Por Quê",
                 discovery: "Descoberta & Validação"
             },
+            productContext: "Contexto do Produto",
             fields: {
                 title: "Título",
                 objective: "Objetivo (Por quê?)",
@@ -109,14 +117,16 @@ export const pt = {
                 hasPrototype: "Tem Protótipo / Mockups?",
                 prototypeLink: "Link do Protótipo",
                 type: "Tipo",
-                priority: "Prioridade"
+                priority: "Prioridade",
+                feature: "Funcionalidade do Produto"
             },
             placeholders: {
                 objective: "Por que estamos construindo isso? Declaração do problema.",
                 userImpact: "Público-alvo e resultado esperado.",
                 businessGoal: "ex: Aumentar conversão em 5%",
                 prototypeLink: "Figma ou link do recurso",
-                title: "Nome da iniciativa"
+                title: "Nome da iniciativa",
+                selectFeature: "Selecione uma funcionalidade..."
             },
             save: "Salvar Iniciativa",
             cancel: "Cancelar"
@@ -124,6 +134,10 @@ export const pt = {
         taskForm: {
             newTitle: "Nova Tarefa",
             editTitle: "Editar Tarefa",
+            tabs: {
+                info: "Informações",
+                estimates: "Estimativas"
+            },
             productContext: {
                 title: "Contexto do Produto",
                 objective: "Objetivo",
@@ -155,6 +169,86 @@ export const pt = {
                 selectDate: "Selecione uma data"
             },
             totalEffort: "Esforço Total: {{points}} pontos"
+        },
+        productModules: {
+            title: "Módulos & Funcionalidades",
+            subtitle: "Gerencie a hierarquia funcional do seu produto.",
+            modules: "Módulos",
+            modulesDesc: "Defina as áreas funcionais de alto nível do seu produto.",
+            addModule: "Adicionar Módulo",
+            newModulePlaceholder: "Nome do Novo Módulo (ex: Checkout)",
+            descPlaceholder: "Descrição (opcional)",
+            features: "Funcionalidades",
+            featuresCount: "{{count}} Funcionalidades",
+            addFeature: "Adicionar Funcionalidade",
+            newFeaturePlaceholder: "Nome da Nova Funcionalidade...",
+            featureDescPlaceholder: "Descrição da Funcionalidade",
+            services: "Serviços",
+            servicesDesc: "Dependências e Serviços Externos.",
+            addService: "Adicionar Serviço",
+            serviceNamePlaceholder: "Nome do Serviço...",
+            coreServices: "Serviços Principais",
+            coreServicesDesc: "Banco de dados, APIs e integrações externas",
+            pressEnterToAdd: "Pressione Enter para adicionar",
+            typePlaceholder: "Tipo",
+            types: {
+                internal: "Serviço Interno",
+                external: "API Externa",
+                database: "Banco de Dados"
+            },
+            delete: {
+                title: "Excluir {{type}}?",
+                description: "Tem certeza que deseja excluir '{{name}}'? Esta ação não pode ser desfeita.",
+                confirm: "Excluir",
+                cancel: "Cancelar",
+                module: "Módulo",
+                feature: "Funcionalidade",
+                service: "Serviço"
+            }
+        },
+        productStrategy: {
+            title: "Estratégia & Saúde do Produto",
+            subtitle: "Raio-X Estratégico: Saúde técnica vs Esforços de investimento.",
+            pickDate: "Selecione uma data",
+            newReport: "Novo Relatório",
+            tabs: {
+                kpi: "Snapshot de KPIs",
+                architecture: "Arquitetura & Módulos"
+            },
+            kpi: {
+                healthScore: "Nota de Saúde",
+                bugs: "bugs",
+                usage: "uso"
+            },
+            charts: {
+                painVsCure: {
+                    title: "Análise Dor vs. Cura",
+                    description: "Comparando volume de problemas (Vermelho) vs. entregas (Violeta)",
+                    bugsReported: "Bugs reportados",
+                    initiativesDone: "Iniciativas Concluídas"
+                },
+                effort: {
+                    title: "Distribuição de Esforço",
+                    description: "Onde estamos investindo tempo?"
+                }
+            },
+            table: {
+                title: "Snapshot Tático",
+                columns: {
+                    type: "Tipo",
+                    title: "Título",
+                    module: "Módulo",
+                    impact: "Impacto",
+                    status: "Status"
+                },
+                empty: "Nenhuma iniciativa encontrada neste período.",
+                estimated: "Est."
+            }
+        },
+        strategyMap: {
+            title: "Mapa de Arquitetura",
+            subtitle: "Visualizando dependências Módulo -> Funcionalidade -> Serviço",
+            resetLayout: "Resetar Layout"
         }
     }
 };
