@@ -33,6 +33,7 @@ export interface TeamMember {
   specialty: MemberSpecialty;
   avatar_url: string | null;
   status: MemberStatus;
+  user_id?: string; // Links member to a system user or pending invite
 }
 
 
@@ -157,4 +158,24 @@ export interface ServiceDependency {
   feature_id: number;
   service_id: number;
   type: DependencyType;
+}
+
+// User Management & RBAC
+export type UserRole = 'Admin' | 'Member';
+export type FeatureAction = 'view' | 'create' | 'edit' | 'delete';
+
+// Features that can have granular permissions
+export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users';
+
+export type FeaturePermission = {
+  [K in AppFeature]?: FeatureAction[];
+};
+
+export interface UserProfile {
+  id: string; // Firebase Auth Uid
+  created_at: string;
+  email: string;
+  name: string | null;
+  role: UserRole;
+  permissions: FeaturePermission;
 }

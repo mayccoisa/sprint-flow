@@ -1,145 +1,132 @@
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Folders, Users, ListTodo, Calendar } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Calendar, Lightbulb, Activity, Code2, Plus } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { useLocalData } from '@/hooks/useLocalData';
+import { useTranslation } from 'react-i18next';
+
 
 const Index = () => {
   const { data } = useLocalData();
+  const navigate = useNavigate();
+  const { t } = useTranslation();
 
-  const activeSquads = data.squads.filter(s => s.status === 'Active').length;
-  const activeMembers = data.members.filter(m => m.status === 'Active').length;
-  const totalCapacity = data.members
-    .filter(m => m.status === 'Active')
-    .reduce((sum, m) => sum + m.capacity, 0);
+  // KPI: Active Sprints
+  const activeSprint = data.sprints.find(s => s.status === 'Active');
+
+  // KPI: Backlog Health
+  const discoveryTasks = data.tasks.filter(t => t.status === 'Discovery').length;
+  const readyTasks = data.tasks.filter(t => t.status === 'ReadyForEng').length;
+  const engineeringTasks = data.tasks.filter(t => t.status === 'Backlog' || t.status === 'InSprint').length;
+
+  // KPI: Strategy Health
+  const healthyModules = data.productModules.filter(m => m.health_score >= 80).length;
+  const totalModules = data.productModules.length;
 
   return (
     <Layout>
-      <div>
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Sprint Capacity Planner</h1>
-          <p className="mt-2 text-muted-foreground">
-            Manage your teams, sprints, and capacity planning
-          </p>
+      <div className="space-y-8">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">{t('dashboard.title')}</h1>
+            <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
+          </div>
         </div>
 
-        <div className="mb-8 grid gap-4 md:grid-cols-3">
+        {/* KPI Cards */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Active Squads</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t('dashboard.activeSprint')}</CardTitle>
+              <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeSquads}</div>
-              <p className="text-xs text-muted-foreground">Development teams</p>
+              <div className="text-2xl font-bold">{activeSprint ? activeSprint.name : t('dashboard.noActiveSprint')}</div>
+              <p className="text-xs text-muted-foreground">
+                {activeSprint
+                  ? t('dashboard.daysRemaining', { days: new Date(activeSprint.end_date!).getDate() - new Date().getDate() })
+                  : t('dashboard.planNextSprint')}
+              </p>
             </CardContent>
           </Card>
+
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Team Members</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t('dashboard.discoveryQueue')}</CardTitle>
+              <Lightbulb className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{activeMembers}</div>
-              <p className="text-xs text-muted-foreground">Active contributors</p>
+              <div className="text-2xl font-bold">{discoveryTasks}</div>
+              <p className="text-xs text-muted-foreground">{t('dashboard.ideasInDiscovery')}</p>
             </CardContent>
           </Card>
+
           <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t('dashboard.engineeringReady')}</CardTitle>
+              <Code2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{totalCapacity} pts</div>
-              <p className="text-xs text-muted-foreground">Per sprint</p>
+              <div className="text-2xl font-bold">{readyTasks}</div>
+              <p className="text-xs text-muted-foreground">{t('dashboard.readyForDev')}</p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">{t('dashboard.strategyHealth')}</CardTitle>
+              <Activity className="h-4 w-4 text-muted-foreground" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{healthyModules}/{totalModules}</div>
+              <p className="text-xs text-muted-foreground">{t('dashboard.modulesScore')}</p>
             </CardContent>
           </Card>
         </div>
 
-        <div className="grid gap-6 md:grid-cols-2">
-          <Card className="transition-shadow hover:shadow-md">
+        {/* Shortcuts & Quick Actions */}
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+          <Card className="col-span-1 bg-primary/5 border-primary/20">
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                  <Folders className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Squads</CardTitle>
-                  <CardDescription>Manage development teams</CardDescription>
-                </div>
-              </div>
+              <CardTitle className="flex items-center gap-2">
+                <Plus className="h-5 w-5" /> {t('dashboard.quickActions')}
+              </CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Create and organize squads, view team composition, and manage squad members.
-              </p>
-              <Button asChild className="w-full">
-                <Link to="/squads">Manage Squads</Link>
+            <CardContent className="grid gap-2">
+              <Button onClick={() => navigate('/initiatives?new=true')} className="w-full justify-start" variant="outline">
+                <Lightbulb className="mr-2 h-4 w-4" /> {t('dashboard.newInitiative')}
+              </Button>
+              <Button onClick={() => navigate('/sprints')} className="w-full justify-start" variant="outline">
+                <Calendar className="mr-2 h-4 w-4" /> {t('dashboard.planSprint')}
               </Button>
             </CardContent>
           </Card>
 
-          <Card className="transition-shadow hover:shadow-md">
+          <Card className="col-span-1 lg:col-span-2">
             <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                  <Users className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Team Members</CardTitle>
-                  <CardDescription>View all team members</CardDescription>
-                </div>
-              </div>
+              <CardTitle>{t('dashboard.recentActivity')}</CardTitle>
+              <CardDescription>{t('dashboard.latestUpdates')}</CardDescription>
             </CardHeader>
             <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                See the complete team roster, capacity breakdown, and manage member assignments.
-              </p>
-              <Button asChild className="w-full">
-                <Link to="/team">View Team</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="transition-shadow hover:shadow-md">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                  <ListTodo className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Backlog</CardTitle>
-                  <CardDescription>Manage tasks and estimates</CardDescription>
-                </div>
+              <div className="flex flex-col gap-4">
+                {data.tasks.slice(-3).reverse().map(task => (
+                  <div key={task.id} className="flex items-center justify-between border-b pb-2 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3">
+                      {task.task_type === 'Feature' ? <Lightbulb className="h-4 w-4 text-yellow-500" /> : <Code2 className="h-4 w-4 text-blue-500" />}
+                      <div className="space-y-1">
+                        <p className="text-sm font-medium leading-none">{task.title}</p>
+                        <p className="text-xs text-muted-foreground">{task.status}</p>
+                      </div>
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(task.created_at).toLocaleDateString()}
+                    </div>
+                  </div>
+                ))}
+                {data.tasks.length === 0 && <p className="text-sm text-muted-foreground">{t('dashboard.noActivity')}</p>}
               </div>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Manage tasks, estimate effort, and organize your backlog.
-              </p>
-              <Button asChild className="w-full">
-                <Link to="/backlog">Manage Backlog</Link>
-              </Button>
-            </CardContent>
-          </Card>
-
-          <Card className="transition-shadow hover:shadow-md">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary/10">
-                  <Calendar className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <CardTitle>Sprints</CardTitle>
-                  <CardDescription>Plan and track sprints</CardDescription>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">
-                Plan sprints, allocate tasks, and track capacity utilization.
-              </p>
-              <Button asChild className="w-full">
-                <Link to="/sprints">Manage Sprints</Link>
-              </Button>
             </CardContent>
           </Card>
         </div>

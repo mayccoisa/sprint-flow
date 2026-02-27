@@ -15,7 +15,8 @@ import {
     Plus,
     AlertCircle,
     TrendingUp,
-    LayoutDashboard
+    LayoutDashboard,
+    Sparkles
 } from 'lucide-react';
 import { format, subDays, isAfter } from 'date-fns';
 
@@ -43,6 +44,7 @@ import { cn } from '@/lib/utils';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { StrategyMap } from "@/components/strategy/StrategyMap";
 import { ModuleConfig } from "@/components/strategy/ModuleConfig";
+import { GenerateNarrativeDialog } from '@/components/ai/GenerateNarrativeDialog';
 
 export default function ProductStrategy() {
     const { t } = useTranslation();
@@ -52,6 +54,7 @@ export default function ProductStrategy() {
         to: new Date()
     });
     const [selectedModuleId, setSelectedModuleId] = useState<number | null>(null);
+    const [isAIOpen, setIsAIOpen] = useState(false);
 
     // --- Data Processing ---
 
@@ -213,6 +216,10 @@ export default function ProductStrategy() {
                                 />
                             </PopoverContent>
                         </Popover>
+
+                        <Button variant="outline" onClick={() => setIsAIOpen(true)} className="gap-2 text-violet-600 border-violet-200 bg-violet-50/50 hover:bg-violet-100">
+                            <Sparkles className="h-4 w-4" /> Draft Narrative
+                        </Button>
 
                         <Button className="bg-violet-600 hover:bg-violet-700">
                             <Plus className="mr-2 h-4 w-4" /> {t('productStrategy.newReport')}
@@ -421,6 +428,8 @@ export default function ProductStrategy() {
                         <ModuleConfig />
                     </TabsContent>
                 </Tabs>
+
+                <GenerateNarrativeDialog open={isAIOpen} onOpenChange={setIsAIOpen} />
             </div>
         </Layout>
     );

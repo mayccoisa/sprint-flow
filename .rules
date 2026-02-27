@@ -1,0 +1,7 @@
+# Project Rules
+
+1. **i18n Support**: Every visible text snippet on the UI must be translated using `react-i18next`. The project has to support English (`en.ts`) and Portuguese (`pt.ts`). Do NOT hardcode strings in the components directly.
+
+2. **Translation Keys**: Always use logical, nested keys to organize translations (e.g., `featureArea.component.text_label`). If a string doesn't exist, you must add it to both `en.ts` and `pt.ts` before using it in a component via the `useTranslation()` hook.
+
+3. **Fallback Languages**: Ensure English is kept as the default/fallback language if a key is exceptionally missing, but never leave `pt.ts` out of sync.

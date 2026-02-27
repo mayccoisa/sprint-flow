@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
+import { GenerateShapeUpDialog } from '@/components/ai/GenerateShapeUpDialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { Task, TaskStatus } from '@/types';
 import { Plus, ArrowRight, Target, Users, MoreHorizontal } from 'lucide-react';
@@ -43,7 +44,7 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Sortable Item Component
-const SortableTaskCard = ({ task, onClick, onPromote }: { task: Task; onClick: () => void; onPromote: () => void }) => {
+const SortableTaskCard = ({ task, onClick, onPromote, onShapeUp }: { task: Task; onClick: () => void; onPromote: () => void; onShapeUp: () => void }) => {
     const {
         attributes,
         listeners,
@@ -71,6 +72,9 @@ const SortableTaskCard = ({ task, onClick, onPromote }: { task: Task; onClick: (
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={onClick}>Edit</DropdownMenuItem>
+                                {['Discovery', 'Refinement'].includes(task.status) && (
+                                    <DropdownMenuItem onClick={onShapeUp} className="text-violet-600">✨ Shape Up (AI)</DropdownMenuItem>
+                                )}
                                 {task.status === 'ReadyForEng' && (
                                     <DropdownMenuItem onClick={onPromote} className="text-blue-600">Promote to Eng</DropdownMenuItem>
                                 )}
@@ -108,6 +112,7 @@ const ProductBacklog = () => {
     const [promoteTaskId, setPromoteTaskId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeId, setActiveId] = useState<number | null>(null);
+    const [shapeUpTask, setShapeUpTask] = useState<Task | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -246,6 +251,7 @@ const ProductBacklog = () => {
                                                     task={task}
                                                     onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}
                                                     onPromote={() => setPromoteTaskId(task.id)}
+                                                    onShapeUp={() => setShapeUpTask(task)}
                                                 />
                                             ))}
                                             {colTasks.length === 0 && (
@@ -297,6 +303,12 @@ const ProductBacklog = () => {
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
+
+            <GenerateShapeUpDialog
+                open={!!shapeUpTask}
+                onOpenChange={(open) => !open && setShapeUpTask(null)}
+                task={shapeUpTask}
+            />
         </Layout>
     );
 };

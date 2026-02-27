@@ -24,25 +24,34 @@ export default function Squads() {
     return data.members.filter(m => m.squad_id === squadId && m.status === 'Active').length;
   };
 
-  const handleSubmit = (formData: { name: string; description?: string; status: 'Active' | 'Inactive' }) => {
-    if (editingSquad) {
-      updateSquad(editingSquad.id, formData);
+  const handleSubmit = async (formData: { name: string; description?: string; status: 'Active' | 'Inactive' }) => {
+    try {
+      if (editingSquad) {
+        await updateSquad(editingSquad.id, formData);
+        toast({
+          title: 'Squad updated',
+          description: 'Squad has been updated successfully.',
+        });
+      } else {
+        await addSquad({
+          name: formData.name,
+          description: formData.description || null,
+          status: formData.status,
+        });
+        toast({
+          title: 'Squad created',
+          description: 'New squad has been created successfully.',
+        });
+      }
+      setEditingSquad(undefined);
+    } catch (error) {
+      console.error('Error saving squad:', error);
       toast({
-        title: 'Squad updated',
-        description: 'Squad has been updated successfully.',
-      });
-    } else {
-      addSquad({
-        name: formData.name,
-        description: formData.description || null,
-        status: formData.status,
-      });
-      toast({
-        title: 'Squad created',
-        description: 'New squad has been created successfully.',
+        title: 'Error',
+        description: 'Failed to save squad. Please try again.',
+        variant: 'destructive',
       });
     }
-    setEditingSquad(undefined);
   };
 
   const handleEdit = (squad: Squad) => {

@@ -4,14 +4,16 @@ import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export const Sidebar = () => {
   const location = useLocation();
   const { t } = useTranslation();
+  const { hasPermission } = useAuth(); // Added useAuth hook
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [initiativesOpen, setInitiativesOpen] = useState(true);
 
-  const navigation = [
+  const baseNavigation = [
     { name: t('sidebar.dashboard'), href: '/', icon: Folders, type: 'link' },
     {
       name: t('sidebar.initiatives'),
@@ -20,19 +22,25 @@ export const Sidebar = () => {
       isOpen: initiativesOpen,
       toggle: () => setInitiativesOpen(!initiativesOpen),
       children: [
-        { name: t('sidebar.allInitiatives'), href: '/initiatives' },
-        { name: t('sidebar.strategy'), href: '/product-strategy' },
-        { name: t('sidebar.modules'), href: '/product-modules' },
-        { name: t('sidebar.productBacklog'), href: '/product-backlog' },
-        { name: t('sidebar.engineeringBacklog'), href: '/engineering-backlog' },
+        { name: t('sidebar.allInitiatives'), href: '/initiatives', feature: 'initiatives' },
+        { name: t('sidebar.strategy'), href: '/product-strategy', feature: 'strategy' },
+        { name: t('sidebar.modules'), href: '/product-modules', feature: 'strategy' },
+        { name: t('sidebar.productBacklog'), href: '/product-backlog', feature: 'backlog' },
+        { name: t('sidebar.engineeringBacklog'), href: '/engineering-backlog', feature: 'backlog' },
       ]
     },
-    { name: t('sidebar.squads'), href: '/squads', icon: Folders, type: 'link' },
-    { name: t('sidebar.sprints'), href: '/sprints', icon: CalendarIcon, type: 'link' },
-    { name: t('sidebar.calendar'), href: '/calendar', icon: CalendarIcon, type: 'link' },
-    { name: t('sidebar.releases'), href: '/releases', icon: Package, type: 'link' },
-    { name: t('sidebar.seedData'), href: '/admin/seed-data', icon: Database, type: 'link' },
+    { name: t('sidebar.squads'), href: '/squads', icon: Folders, type: 'link', feature: 'squads' },
+    { name: t('sidebar.sprints'), href: '/sprints', icon: CalendarIcon, type: 'link', feature: 'sprints' },
+    { name: t('sidebar.calendar'), href: '/calendar', icon: CalendarIcon, type: 'link', feature: 'sprints' },
+    { name: t('sidebar.releases'), href: '/releases', icon: Package, type: 'link', feature: 'releases' },
   ];
+
+  const adminNavigation = [];
+  if (hasPermission('users', 'view')) {
+    adminNavigation.push({ name: t('sidebar.usersManagement') || 'Users Management', href: '/users', icon: Users, type: 'link' });
+  }
+
+  const navigation = [...baseNavigation, ...adminNavigation]; // Combine navigation items
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-card">
@@ -42,6 +50,13 @@ export const Sidebar = () => {
       <nav className="space-y-1 p-4">
         {navigation.map((item, index) => {
           if (item.type === 'group' && item.children) {
+            // Filter children based on permission
+            const visibleChildren = item.children.filter((child: any) =>
+              !child.feature || hasPermission(child.feature, 'view')
+            );
+
+            if (visibleChildren.length === 0) return null;
+
             return (
               <div key={index} className="space-y-1">
                 <button
@@ -60,7 +75,7 @@ export const Sidebar = () => {
 
                 {item.isOpen && (
                   <div className="pl-9 space-y-1">
-                    {item.children.map((child) => {
+                    {visibleChildren.map((child: any) => {
                       const isActive = location.pathname === child.href;
                       return (
                         <Link
@@ -81,6 +96,11 @@ export const Sidebar = () => {
                 )}
               </div>
             );
+          }
+
+          // Filter main links based on permission
+          if ((item as any).feature && !hasPermission((item as any).feature, 'view')) {
+            return null;
           }
 
           const isActive = location.pathname === item.href;

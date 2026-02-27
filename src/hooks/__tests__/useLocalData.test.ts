@@ -19,7 +19,7 @@ describe('useLocalData (via Firestore)', () => {
         renderHook(() => useLocalData());
 
         // Expect onSnapshot to be called for each collection
-        expect(firestore.onSnapshot).toHaveBeenCalledTimes(11); // 11 collections in useFirestoreData
+        expect(firestore.onSnapshot).toHaveBeenCalledTimes(12); // 12 collections in useFirestoreData
     });
 
     it('should add a task by calling setDoc', async () => {

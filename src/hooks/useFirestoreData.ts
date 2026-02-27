@@ -10,7 +10,12 @@ import {
     updateDoc
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
-import type { Squad, TeamMember, Task, Sprint, SprintTask, TaskAssignment, ModuleMetric, ProductModule, ProductService, ProductFeature, ServiceDependency } from '@/types';
+import type {
+    Squad, TeamMember, Task, Sprint, SprintTask,
+    TaskAssignment, ModuleMetric, ProductModule,
+    ProductService, ProductFeature, ServiceDependency,
+    UserProfile, UserRole, FeaturePermission
+} from '@/types';
 // Reuse existing types, but we handle them in Firestore collections
 
 interface FirestoreData {
@@ -25,6 +30,7 @@ interface FirestoreData {
     productServices: ProductService[];
     productFeatures: ProductFeature[];
     serviceDependencies: ServiceDependency[];
+    users: UserProfile[];
 }
 
 const initialData: FirestoreData = {
@@ -38,7 +44,8 @@ const initialData: FirestoreData = {
     moduleMetrics: [],
     productServices: [],
     productFeatures: [],
-    serviceDependencies: []
+    serviceDependencies: [],
+    users: []
 };
 
 
@@ -52,6 +59,8 @@ export const useFirestoreData = () => {
         return onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: Number(doc.id) || doc.id, ...doc.data() }));
             setData(prev => ({ ...prev, [stateKey]: items }));
+        }, (error) => {
+            console.error(`Error subscribing to ${collectionName}:`, error);
         });
     };
 
@@ -68,6 +77,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('product_services', 'productServices'),
             subscribeToCollection('product_features', 'productFeatures'),
             subscribeToCollection('service_dependencies', 'serviceDependencies'),
+            subscribeToCollection('users', 'users'),
         ];
 
         setLoading(false);
@@ -138,5 +148,26 @@ export const useFirestoreData = () => {
 
         addServiceDependency: (item: Omit<ServiceDependency, 'id'>) => addItem('service_dependencies', item),
         // Missing deleteDependency in local hook, skipping for now
+
+        // User Management (Admin)
+        updateUserRole: (id: string, role: UserRole) => updateItem('users', id, { role }),
+        updateUserPermissions: (id: string, permissions: FeaturePermission) => updateItem('users', id, { permissions }),
+        inviteUser: async (email: string, role: UserRole, permissions: FeaturePermission) => {
+            // Generate a random ID for the pending invite
+            const inviteId = `invite_${Date.now()}`;
+            const docRef = doc(db, 'users', inviteId);
+
+            const pendingProfile: UserProfile = {
+                id: inviteId,
+                email: email.toLowerCase(),
+                role,
+                permissions,
+                name: 'Pending Invite', // Placeholder name
+                created_at: new Date().toISOString()
+            };
+
+            await setDoc(docRef, pendingProfile);
+            return pendingProfile;
+        },
     };
 };

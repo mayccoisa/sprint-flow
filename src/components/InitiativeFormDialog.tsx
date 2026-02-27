@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -33,6 +33,9 @@ import {
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useTranslation } from 'react-i18next';
+import { Sparkles } from 'lucide-react';
+import { GeneratePRDDialog } from './ai/GeneratePRDDialog';
+import { PRDSection } from '@/services/aiService';
 
 interface InitiativeFormDialogProps {
     open: boolean;
@@ -44,6 +47,7 @@ interface InitiativeFormDialogProps {
 export const InitiativeFormDialog = ({ open, onClose, onSave, task }: InitiativeFormDialogProps) => {
     const { t } = useTranslation();
     const { data: localData } = useLocalData();
+    const [isAIOpen, setIsAIOpen] = useState(false);
 
     const initiativeSchema = useMemo(() => z.object({
         title: z.string().min(1, t('validation.required')),
@@ -124,11 +128,24 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
         onClose();
     };
 
+    const handleAIGenerated = (data: PRDSection) => {
+        form.setValue('title', data.title);
+        form.setValue('product_objective', data.product_objective);
+        form.setValue('business_goal', data.business_goal);
+        form.setValue('user_impact', data.user_impact);
+    };
+
     return (
         <Dialog open={open} onOpenChange={onClose}>
             <DialogContent className="max-w-3xl">
-                <DialogHeader>
+                <DialogHeader className="flex flex-row justify-between items-center pr-8">
                     <DialogTitle>{task ? t('initiativeForm.editTitle') : t('initiativeForm.newTitle')}</DialogTitle>
+                    {!task && (
+                        <Button variant="outline" size="sm" onClick={() => setIsAIOpen(true)} className="gap-2 text-blue-600 border-blue-200 bg-blue-50/50 hover:bg-blue-100">
+                            <Sparkles className="h-4 w-4" />
+                            Draft with Agent
+                        </Button>
+                    )}
                 </DialogHeader>
 
                 <Form {...form}>
@@ -344,6 +361,11 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                         </div>
                     </form>
                 </Form>
+                <GeneratePRDDialog
+                    open={isAIOpen}
+                    onOpenChange={setIsAIOpen}
+                    onGenerated={handleAIGenerated}
+                />
             </DialogContent>
         </Dialog >
     );

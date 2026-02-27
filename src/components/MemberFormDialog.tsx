@@ -8,10 +8,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import type { TeamMember, MemberSpecialty, Squad } from '@/types';
+import type { TeamMember, MemberSpecialty, Squad, UserProfile } from '@/types';
 
 const memberSchema = z.object({
-  name: z.string().trim().min(1, 'Name is required').max(100, 'Name must be less than 100 characters'),
+  user_id: z.string().min(1, 'User selection is required'),
+  name: z.string().max(100, 'Name must be less than 100 characters').optional(),
   squad_id: z.number().min(1, 'Squad is required'),
   capacity: z.number().min(1, 'Capacity must be at least 1'),
   specialty: z.enum(['Frontend', 'Backend', 'QA', 'Design']),
@@ -27,6 +28,7 @@ interface MemberFormDialogProps {
   onSubmit: (data: MemberFormData) => void;
   existingMember?: TeamMember;
   squads: Squad[];
+  users: UserProfile[];
   preselectedSquadId?: number;
 }
 
@@ -45,6 +47,7 @@ export const MemberFormDialog = ({
   onSubmit,
   existingMember,
   squads,
+  users,
   preselectedSquadId,
 }: MemberFormDialogProps) => {
   const {
@@ -57,6 +60,7 @@ export const MemberFormDialog = ({
   } = useForm<MemberFormData>({
     resolver: zodResolver(memberSchema),
     defaultValues: {
+      user_id: '',
       name: '',
       squad_id: preselectedSquadId || 0,
       capacity: 13,
@@ -69,6 +73,7 @@ export const MemberFormDialog = ({
   useEffect(() => {
     if (existingMember) {
       reset({
+        user_id: existingMember.user_id || '',
         name: existingMember.name,
         squad_id: existingMember.squad_id,
         capacity: existingMember.capacity,
@@ -78,6 +83,7 @@ export const MemberFormDialog = ({
       });
     } else {
       reset({
+        user_id: '',
         name: '',
         squad_id: preselectedSquadId || (squads.length > 0 ? squads[0].id : 0),
         capacity: 13,
@@ -89,9 +95,13 @@ export const MemberFormDialog = ({
   }, [existingMember, preselectedSquadId, squads, reset, open]);
 
   const handleFormSubmit = (data: MemberFormData) => {
+    const selectedUser = users.find(u => u.id === data.user_id);
+    const resolvedName = selectedUser?.name || selectedUser?.email || 'Unknown User';
+
     onSubmit({
       ...data,
-      name: data.name.trim(),
+      name: resolvedName,
+      user_id: data.user_id,
       avatar_url: data.avatar_url?.trim() || '',
     });
     onOpenChange(false);
@@ -116,14 +126,25 @@ export const MemberFormDialog = ({
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Name</Label>
-              <Input
-                id="name"
-                placeholder="e.g., John Doe"
-                {...register('name')}
-              />
-              {errors.name && (
-                <p className="text-sm text-destructive">{errors.name.message}</p>
+              <Label htmlFor="user">Platform User</Label>
+              <Select
+                value={watch('user_id')}
+                onValueChange={(value) => setValue('user_id', value)}
+                disabled={!!existingMember}
+              >
+                <SelectTrigger id="user">
+                  <SelectValue placeholder="Select an invited or registered user" />
+                </SelectTrigger>
+                <SelectContent>
+                  {users.map((user) => (
+                    <SelectItem key={user.id} value={user.id}>
+                      {user.name || user.email} {user.id.startsWith('invite_') && '(Pending Invite)'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {errors.user_id && (
+                <p className="text-sm text-destructive">{errors.user_id.message}</p>
               )}
             </div>
 

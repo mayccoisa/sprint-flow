@@ -26,7 +26,7 @@ export default function SquadMembers() {
   const { id } = useParams<{ id: string }>();
   const squadId = parseInt(id || '0');
   const { data, addMember, updateMember } = useLocalData();
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | undefined>();
   const [showInactive, setShowInactive] = useState(false);
@@ -34,36 +34,36 @@ export default function SquadMembers() {
   const [deactivatingMember, setDeactivatingMember] = useState<TeamMember | null>(null);
 
   const squad = data.squads.find(s => s.id === squadId);
-  
+
   const filteredMembers = useMemo(() => {
     let members = data.members.filter(m => m.squad_id === squadId);
-    
+
     if (!showInactive) {
       members = members.filter(m => m.status === 'Active');
     }
-    
+
     if (specialtyFilter !== 'all') {
       members = members.filter(m => m.specialty === specialtyFilter);
     }
-    
+
     return members;
   }, [data.members, squadId, showInactive, specialtyFilter]);
 
   const stats = useMemo(() => {
     const activeMembers = data.members.filter(m => m.squad_id === squadId && m.status === 'Active');
     const totalCapacity = activeMembers.reduce((sum, m) => sum + m.capacity, 0);
-    
+
     const bySpecialty: Record<MemberSpecialty, number> = {
       Frontend: 0,
       Backend: 0,
       QA: 0,
       Design: 0,
     };
-    
+
     activeMembers.forEach(m => {
       bySpecialty[m.specialty]++;
     });
-    
+
     return {
       totalMembers: activeMembers.length,
       totalCapacity,
@@ -186,7 +186,7 @@ export default function SquadMembers() {
             />
             <Label htmlFor="show-inactive-members">Show inactive</Label>
           </div>
-          
+
           <Select value={specialtyFilter} onValueChange={setSpecialtyFilter}>
             <SelectTrigger className="w-48">
               <SelectValue />
@@ -281,6 +281,7 @@ export default function SquadMembers() {
           onSubmit={handleSubmit}
           existingMember={editingMember}
           squads={data.squads}
+          users={data.users}
           preselectedSquadId={squadId}
         />
 
