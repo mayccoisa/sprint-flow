@@ -165,7 +165,7 @@ export type UserRole = 'Admin' | 'Member';
 export type FeatureAction = 'view' | 'create' | 'edit' | 'delete';
 
 // Features that can have granular permissions
-export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users';
+export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users' | 'documents';
 
 export type FeaturePermission = {
   [K in AppFeature]?: FeatureAction[];
@@ -178,4 +178,35 @@ export interface UserProfile {
   name: string | null;
   role: UserRole;
   permissions: FeaturePermission;
+}
+
+// Documentation Hub Types
+export type DocumentType =
+  | 'PRD'
+  | 'JTBD'
+  | 'WorkingBackwards'
+  | 'Technical'
+  | 'Persona'
+  | 'Interview'
+  | 'Custom';
+
+export interface DocumentTemplate {
+  id: string;
+  type: DocumentType;
+  title: string;
+  description: string;
+  content: string; // Markdown structure
+  icon?: string; // Lucide icon name
+}
+
+export interface ProductDocument {
+  id: number;
+  created_at: string;
+  updated_at: string;
+  title: string;
+  type: DocumentType;
+  content: string; // Markdown content
+  author_id: string; // UserProfile id
+  status: 'Draft' | 'Published' | 'Archived';
+  tags?: string[];
 }

@@ -1,4 +1,4 @@
-import { Users, ListTodo, Calendar as CalendarIcon, Folders, Database, Package, Settings, LogOut, Lightbulb, ChevronDown, ChevronRight } from 'lucide-react';
+import { Users, ListTodo, Calendar as CalendarIcon, Folders, Database, Package, Settings, LogOut, Lightbulb, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -27,6 +27,7 @@ export const Sidebar = () => {
         { name: t('sidebar.modules'), href: '/product-modules', feature: 'strategy' },
         { name: t('sidebar.productBacklog'), href: '/product-backlog', feature: 'backlog' },
         { name: t('sidebar.engineeringBacklog'), href: '/engineering-backlog', feature: 'backlog' },
+        { name: t('sidebar.documentation', 'Documentation'), href: '/docs', feature: 'documents' },
       ]
     },
     { name: t('sidebar.squads'), href: '/squads', icon: Folders, type: 'link', feature: 'squads' },

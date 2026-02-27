@@ -14,7 +14,7 @@ import type {
     Squad, TeamMember, Task, Sprint, SprintTask,
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
-    UserProfile, UserRole, FeaturePermission
+    UserProfile, UserRole, FeaturePermission, ProductDocument
 } from '@/types';
 // Reuse existing types, but we handle them in Firestore collections
 
@@ -31,6 +31,7 @@ interface FirestoreData {
     productFeatures: ProductFeature[];
     serviceDependencies: ServiceDependency[];
     users: UserProfile[];
+    documents: ProductDocument[];
 }
 
 const initialData: FirestoreData = {
@@ -45,7 +46,8 @@ const initialData: FirestoreData = {
     productServices: [],
     productFeatures: [],
     serviceDependencies: [],
-    users: []
+    users: [],
+    documents: []
 };
 
 
@@ -78,6 +80,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('product_features', 'productFeatures'),
             subscribeToCollection('service_dependencies', 'serviceDependencies'),
             subscribeToCollection('users', 'users'),
+            subscribeToCollection('documents', 'documents'),
         ];
 
         setLoading(false);
@@ -150,9 +153,11 @@ export const useFirestoreData = () => {
         // Missing deleteDependency in local hook, skipping for now
 
         // User Management (Admin)
+        updateUser: (id: string, updates: Partial<UserProfile>) => updateItem('users', id, updates),
+        deleteUser: (id: string) => deleteItem('users', id),
         updateUserRole: (id: string, role: UserRole) => updateItem('users', id, { role }),
         updateUserPermissions: (id: string, permissions: FeaturePermission) => updateItem('users', id, { permissions }),
-        inviteUser: async (email: string, role: UserRole, permissions: FeaturePermission) => {
+        inviteUser: async (email: string, role: UserRole, permissions: FeaturePermission, name?: string) => {
             // Generate a random ID for the pending invite
             const inviteId = `invite_${Date.now()}`;
             const docRef = doc(db, 'users', inviteId);
@@ -162,12 +167,19 @@ export const useFirestoreData = () => {
                 email: email.toLowerCase(),
                 role,
                 permissions,
-                name: 'Pending Invite', // Placeholder name
+                name: name || 'Pending Invite', // Provided or placeholder name
                 created_at: new Date().toISOString()
             };
 
             await setDoc(docRef, pendingProfile);
             return pendingProfile;
         },
+
+        // Documentation Hub
+        addDocument: (docData: Omit<ProductDocument, 'id' | 'created_at' | 'updated_at'>) =>
+            addItem('documents', { ...docData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
+        updateDocument: (id: number, updates: Partial<ProductDocument>) =>
+            updateItem('documents', id, { ...updates, updated_at: new Date().toISOString() }),
+        deleteDocument: (id: number) => deleteItem('documents', id),
     };
 };

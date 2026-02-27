@@ -26,7 +26,9 @@ export default function UsersManagement() {
 
     // Invite state
     const [isInviteOpen, setIsInviteOpen] = useState(false);
+    const [inviteId, setInviteId] = useState<string | null>(null);
     const [inviteEmail, setInviteEmail] = useState('');
+    const [inviteName, setInviteName] = useState('');
     const [inviteRole, setInviteRole] = useState<UserRole>('Member');
     const [isInviting, setIsInviting] = useState(false);
 
@@ -84,11 +86,32 @@ export default function UsersManagement() {
         setSelectedUser({ ...selectedUser, permissions: newPermissions });
     };
 
+    const { updateUser, deleteUser } = useLocalData();
+
+    const handleEditUser = (user: UserProfile) => {
+        setInviteId(user.id);
+        setInviteEmail(user.email);
+        setInviteName(user.name || '');
+        setInviteRole(user.role);
+        setIsInviteOpen(true);
+    };
+
+    const handleDeleteUser = async (userId: string) => {
+        if (confirm(t('usersManagement.confirmDelete', 'Are you sure you want to delete this user?'))) {
+            try {
+                await deleteUser(userId);
+                toast({ title: t('usersManagement.userDeleted', 'User deleted successfully') });
+            } catch (error: any) {
+                toast({ title: t('usersManagement.deleteFailed', 'Failed to delete user'), description: error.message, variant: 'destructive' });
+            }
+        }
+    };
+
     const handleInviteUser = async (e: React.FormEvent) => {
         e.preventDefault();
 
         // Simple check if user already exists
-        const existingUser = data.users.find(u => u.email.toLowerCase() === inviteEmail.toLowerCase());
+        const existingUser = data.users.find(u => u.email.toLowerCase() === inviteEmail.toLowerCase() && u.id !== inviteId);
         if (existingUser && !existingUser.id.startsWith('invite_')) {
             toast({ title: t('usersManagement.userExists'), description: t('usersManagement.userExistsDesc'), variant: 'destructive' });
             return;
@@ -96,23 +119,42 @@ export default function UsersManagement() {
 
         setIsInviting(true);
         try {
-            await inviteUser(inviteEmail, inviteRole, {
-                squads: ['view'],
-                initiatives: ['view'],
-                backlog: ['view'],
-                strategy: ['view'],
-                sprints: ['view'],
-                releases: ['view'],
-            });
-            toast({ title: t('usersManagement.invitePrepared'), description: t('usersManagement.invitePreparedDesc', { email: inviteEmail, role: inviteRole }) });
+            if (inviteId) {
+                await updateUser(inviteId, {
+                    email: inviteEmail.toLowerCase(),
+                    name: inviteName || 'Pending Invite',
+                    role: inviteRole
+                });
+                toast({ title: t('usersManagement.userUpdated', 'User updated successfully') });
+            } else {
+                await inviteUser(inviteEmail, inviteRole, {
+                    squads: ['view'],
+                    initiatives: ['view'],
+                    backlog: ['view'],
+                    strategy: ['view'],
+                    sprints: ['view'],
+                    releases: ['view'],
+                }, inviteName);
+                toast({ title: t('usersManagement.invitePrepared'), description: t('usersManagement.invitePreparedDesc', { email: inviteEmail, role: inviteRole }) });
+            }
             setIsInviteOpen(false);
+            setInviteId(null);
             setInviteEmail('');
+            setInviteName('');
             setInviteRole('Member');
         } catch (error: any) {
-            toast({ title: t('usersManagement.inviteFailed'), description: error.message, variant: 'destructive' });
+            toast({ title: inviteId ? t('usersManagement.updateFailed', 'Failed to update user') : t('usersManagement.inviteFailed'), description: error.message, variant: 'destructive' });
         } finally {
             setIsInviting(false);
         }
+    };
+
+    const openNewInvite = () => {
+        setInviteId(null);
+        setInviteEmail('');
+        setInviteName('');
+        setInviteRole('Member');
+        setIsInviteOpen(true);
     };
 
     return (
@@ -123,7 +165,7 @@ export default function UsersManagement() {
                         <h1 className="text-3xl font-bold">{t('usersManagement.title')}</h1>
                         <p className="text-muted-foreground">{t('usersManagement.subtitle')}</p>
                     </div>
-                    <Button onClick={() => setIsInviteOpen(true)} className="bg-violet-600 hover:bg-violet-700">
+                    <Button onClick={openNewInvite} className="bg-violet-600 hover:bg-violet-700">
                         <UserPlus className="h-4 w-4 mr-2" />
                         {t('usersManagement.inviteUser')}
                     </Button>
@@ -181,7 +223,7 @@ export default function UsersManagement() {
                                                 </SelectContent>
                                             </Select>
                                         </TableCell>
-                                        <TableCell className="text-right">
+                                        <TableCell className="text-right flex items-center justify-end gap-2">
                                             {user.role === 'Admin' ? (
                                                 <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">{t('usersManagement.fullAccess')}</Badge>
                                             ) : (
@@ -194,6 +236,26 @@ export default function UsersManagement() {
                                                     <Settings2 className="h-3 w-3 mr-1" />
                                                     {t('usersManagement.configure')}
                                                 </Button>
+                                            )}
+                                            {user.id !== userProfile.id && (
+                                                <>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 text-xs"
+                                                        onClick={() => handleEditUser(user)}
+                                                    >
+                                                        {t('usersManagement.actions.edit', 'Edit')}
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                        onClick={() => handleDeleteUser(user.id)}
+                                                    >
+                                                        {t('usersManagement.actions.delete', 'Delete')}
+                                                    </Button>
+                                                </>
                                             )}
                                         </TableCell>
                                     </TableRow>
@@ -261,13 +323,24 @@ export default function UsersManagement() {
             <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
                 <DialogContent>
                     <DialogHeader>
-                        <DialogTitle>{t('usersManagement.inviteNewUser')}</DialogTitle>
+                        <DialogTitle>{inviteId ? t('usersManagement.editUser', 'Edit User') : t('usersManagement.inviteNewUser')}</DialogTitle>
                         <DialogDescription>
-                            {t('usersManagement.preProvisionRole')}
+                            {inviteId ? t('usersManagement.editUserDesc', 'Update user details.') : t('usersManagement.preProvisionRole')}
                         </DialogDescription>
                     </DialogHeader>
 
                     <form onSubmit={handleInviteUser} className="space-y-6 py-4">
+                        <div className="space-y-2">
+                            <Label htmlFor="inviteName">{t('usersManagement.nameAddress', 'Name')}</Label>
+                            <Input
+                                id="inviteName"
+                                type="text"
+                                placeholder={t('usersManagement.namePlaceholder', 'Enter user name')}
+                                value={inviteName}
+                                onChange={(e) => setInviteName(e.target.value)}
+                            />
+                        </div>
+
                         <div className="space-y-2">
                             <Label htmlFor="inviteEmail">{t('usersManagement.emailAddress')}</Label>
                             <Input
@@ -297,7 +370,7 @@ export default function UsersManagement() {
                             <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)} disabled={isInviting}>{t('usersManagement.cancel')}</Button>
                             <Button type="submit" className="bg-violet-600 hover:bg-violet-700" disabled={isInviting}>
                                 {isInviting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <UserPlus className="mr-2 h-4 w-4" />}
-                                {t('usersManagement.prepareInvitation')}
+                                {inviteId ? t('common.save', 'Save') : t('usersManagement.prepareInvitation')}
                             </Button>
                         </DialogFooter>
                     </form>

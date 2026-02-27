@@ -23,6 +23,8 @@ import Calendar from "./pages/Calendar";
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
 import SeedData from "./pages/SeedData";
+import DocumentationHub from "./pages/DocumentationHub";
+import DocumentEditor from "./pages/DocumentEditor";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -63,6 +65,9 @@ const App = () => (
 
             <Route path="/releases" element={<ProtectedRoute feature="releases"><Releases /></ProtectedRoute>} />
             <Route path="/releases/:id" element={<ProtectedRoute feature="releases"><ReleaseDetail /></ProtectedRoute>} />
+
+            <Route path="/docs" element={<ProtectedRoute feature="documents"><DocumentationHub /></ProtectedRoute>} />
+            <Route path="/docs/:id" element={<ProtectedRoute feature="documents"><DocumentEditor /></ProtectedRoute>} />
 
             {/* Admin Routes */}
             <Route path="/users" element={<ProtectedRoute requiredRole="Admin"><UsersManagement /></ProtectedRoute>} />

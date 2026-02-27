@@ -31,6 +31,7 @@ export const pt = {
             seedData: "Popular Dados",
             strategy: "Estratégia & Saúde",
             modules: "Módulos & Features",
+            documentation: "Documentação",
         },
         settings: {
             title: "Configurações",
@@ -344,6 +345,8 @@ export const pt = {
             preProvisionRole: "Pré-provisione um cargo para um membro da equipe. Quando ele se inscrever, herdará automaticamente essas configurações.",
             emailAddress: "Endereço de E-mail",
             emailPlaceholder: "nome@empresa.com",
+            nameAddress: "Nome",
+            namePlaceholder: "Digite o nome do usuário",
             initialRole: "Cargo Inicial",
             cancel: "Cancelar",
             prepareInvitation: "Preparar Convite",
@@ -360,6 +363,34 @@ export const pt = {
                 edit: "Editar",
                 delete: "Excluir"
             }
+        },
+        docs: {
+            title: "Hub de Documentação",
+            subtitle: "Crie, gerencie e descubra a documentação do produto.",
+            new: "Novo Documento",
+            searchPlaceholder: "Buscar documentos...",
+            emptyTitle: "Nenhum documento encontrado",
+            emptyDesc: "Comece criando um novo documento de produto ou usando um dos nossos templates predefinidos.",
+            createTitle: "Criar Novo Documento",
+            createDesc: "Comece do zero ou escolha um template para começar a escrever.",
+            docTitle: "Título do Documento",
+            titlePlaceholder: "ex: PRD Gateway de Pagamento Q3",
+            templates: "Selecione um Template",
+            blankDoc: "Documento em Branco",
+            blankDesc: "Comece do zero com uma folha em branco.",
+            createBtn: "Criar Documento",
+            created: "Documento criado com sucesso",
+            createError: "Falha ao criar documento",
+            confirmDelete: "Tem certeza que deseja excluir este documento?",
+            deleted: "Documento excluído",
+            deleteError: "Falha ao excluir",
+            notFound: "Documento não encontrado",
+            backToHub: "Voltar para o Hub de Documentação",
+            lastUpdated: "Última atualização:",
+            write: "Escrever",
+            preview: "Visualizar",
+            editorPlaceholder: "Comece a escrever seu documento usando Markdown...",
+            emptyPreview: "Nada para visualizar. Mude para a aba Escrever para adicionar conteúdo."
         }
     }
 };

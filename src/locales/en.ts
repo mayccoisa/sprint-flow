@@ -28,6 +28,7 @@ export const en = {
             calendar: "Calendar",
             releases: "Releases",
             seedData: "Seed Data",
+            documentation: "Documentation",
         },
         settings: {
             title: "Settings",
@@ -250,6 +251,8 @@ export const en = {
             preProvisionRole: "Pre-provision a role for a team member. When they sign up, they will automatically inherit these settings.",
             emailAddress: "Email Address",
             emailPlaceholder: "name@company.com",
+            nameAddress: "Name",
+            namePlaceholder: "Enter user name",
             initialRole: "Initial Role",
             cancel: "Cancel",
             prepareInvitation: "Prepare Invitation",
@@ -266,6 +269,34 @@ export const en = {
                 edit: "Edit",
                 delete: "Delete"
             }
+        },
+        docs: {
+            title: "Documentation Hub",
+            subtitle: "Create, manage, and discover product documentation.",
+            new: "New Document",
+            searchPlaceholder: "Search documents...",
+            emptyTitle: "No documents found",
+            emptyDesc: "Get started by creating a new product document or using one of our predefined templates.",
+            createTitle: "Create New Document",
+            createDesc: "Start from scratch or choose a template to begin writing.",
+            docTitle: "Document Title",
+            titlePlaceholder: "e.g., Q3 Payment Gateway PRD",
+            templates: "Select a Template",
+            blankDoc: "Blank Document",
+            blankDesc: "Start from scratch with an empty canvas.",
+            createBtn: "Create Document",
+            created: "Document created successfully",
+            createError: "Failed to create document",
+            confirmDelete: "Are you sure you want to delete this document?",
+            deleted: "Document deleted",
+            deleteError: "Failed to delete",
+            notFound: "Document not found",
+            backToHub: "Back to Documentation Hub",
+            lastUpdated: "Last updated:",
+            write: "Write",
+            preview: "Preview",
+            editorPlaceholder: "Start writing your document using Markdown...",
+            emptyPreview: "Nothing to preview. Switch to the Write tab to add content."
         }
     }
 };
