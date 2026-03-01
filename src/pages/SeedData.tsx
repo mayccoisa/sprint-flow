@@ -219,7 +219,7 @@ export default function SeedData() {
 
   return (
     <div className="container mx-auto p-6 max-w-4xl">
-      <h1 className="text-3xl font-bold mb-2">Administração - Dados de Exemplo</h1>
+      <h1 className="text-2xl font-semibold tracking-tight mb-2">Administração - Dados de Exemplo</h1>
       <p className="text-muted-foreground mb-8">
         Popule o banco com dados realistas para demonstração ou limpe todos os dados.
       </p>

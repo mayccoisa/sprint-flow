@@ -43,6 +43,10 @@ export const pt = {
 
             seedData: "Popular Dados",
             strategy: "Estratégia & Saúde",
+            productAndStrategy: "Produto & Estratégia",
+            planningAndExecution: "Planejamento & Execução",
+            teamAndAdmin: "Equipe & Admin",
+            users: "Usuários",
             modules: "Módulos & Features",
             documentation: "Documentação",
         },

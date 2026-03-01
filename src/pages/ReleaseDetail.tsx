@@ -151,24 +151,24 @@ export default function ReleaseDetail() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/releases')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-3xl font-bold">{release.version_name}</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{release.version_name}</h1>
           <Badge>{release.status}</Badge>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
           <Card className="p-6">
             <div className="text-sm text-muted-foreground mb-2">Total de Tarefas</div>
-            <div className="text-3xl font-bold">{tasks.length}</div>
+            <div className="text-2xl font-semibold tracking-tight">{tasks.length}</div>
           </Card>
 
           <Card className="p-6">
             <div className="text-sm text-muted-foreground mb-2">Pontos Totais</div>
-            <div className="text-3xl font-bold">{totalPoints}</div>
+            <div className="text-2xl font-semibold tracking-tight">{totalPoints}</div>
           </Card>
 
           <Card className="p-6">
             <div className="text-sm text-muted-foreground mb-2">Progresso</div>
-            <div className="text-3xl font-bold">
+            <div className="text-2xl font-semibold tracking-tight">
               {progress.done}/{progress.total} ({progress.percentage}%)
             </div>
           </Card>

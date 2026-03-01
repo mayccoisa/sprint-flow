@@ -205,7 +205,7 @@ const ProductBacklog = () => {
             <div className="space-y-6 h-full flex flex-col">
                 <div className="flex items-center justify-between shrink-0">
                     <div>
-                        <h1 className="text-3xl font-bold">Product Backlog</h1>
+                        <h1 className="text-2xl font-semibold tracking-tight">Product Backlog</h1>
                         <p className="text-muted-foreground">Manage initiatives and discovery.</p>
                     </div>
                     <div className="flex gap-2">

@@ -178,7 +178,7 @@ export default function ProductStrategy() {
                 {/* Header */}
                 <div className="flex items-center justify-between">
                     <div>
-                        <h1 className="text-3xl font-bold flex items-center gap-2">
+                        <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
                             <LayoutDashboard className="h-8 w-8 text-violet-600" />
                             {t('productStrategy.title')}
                         </h1>

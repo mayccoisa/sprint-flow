@@ -42,6 +42,11 @@ export const en = {
             releases: "Releases",
             seedData: "Seed Data",
             documentation: "Documentation",
+            strategy: "Strategy & Health",
+            productAndStrategy: "Product & Strategy",
+            planningAndExecution: "Planning & Execution",
+            teamAndAdmin: "Team & Admin",
+            users: "Users",
         },
         settings: {
             title: "Settings",

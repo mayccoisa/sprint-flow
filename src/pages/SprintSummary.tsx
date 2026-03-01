@@ -220,7 +220,7 @@ const SprintSummary = () => {
         <div className="flex items-start justify-between">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold">
+              <h1 className="text-2xl font-semibold tracking-tight">
                 {sprint.name} - {sprint.squad.name}
               </h1>
               <Badge
@@ -256,7 +256,7 @@ const SprintSummary = () => {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">Pontos Planejados</p>
-                <p className="text-3xl font-bold text-primary">{totalPlannedPoints}</p>
+                <p className="text-2xl font-semibold tracking-tight text-primary">{totalPlannedPoints}</p>
               </div>
             </CardContent>
           </Card>
@@ -265,7 +265,7 @@ const SprintSummary = () => {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">Pontos Completados</p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                <p className="text-2xl font-semibold tracking-tight text-green-600 dark:text-green-400">
                   {completedPoints}
                 </p>
                 <p className="text-xs text-muted-foreground mt-1">{completionPercentage}% do planejado</p>
@@ -277,7 +277,7 @@ const SprintSummary = () => {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">Tarefas Planejadas</p>
-                <p className="text-3xl font-bold">{totalTasks}</p>
+                <p className="text-2xl font-semibold tracking-tight">{totalTasks}</p>
               </div>
             </CardContent>
           </Card>
@@ -286,7 +286,7 @@ const SprintSummary = () => {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">Tarefas Completadas</p>
-                <p className="text-3xl font-bold text-green-600 dark:text-green-400">
+                <p className="text-2xl font-semibold tracking-tight text-green-600 dark:text-green-400">
                   {completedTasks}
                 </p>
               </div>
@@ -297,7 +297,7 @@ const SprintSummary = () => {
             <CardContent className="pt-6">
               <div className="text-center">
                 <p className="text-sm text-muted-foreground mb-1">Velocidade da Sprint</p>
-                <p className="text-4xl font-bold text-primary">{completedPoints} pontos</p>
+                <p className="text-3xl font-semibold tracking-tight text-primary">{completedPoints} pontos</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Use esta velocidade para estimar próximas sprints
                 </p>

@@ -162,7 +162,7 @@ export default function UsersManagement() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-3xl font-bold">{t('usersManagement.title')}</h1>
+                        <h1 className="text-2xl font-semibold tracking-tight">{t('usersManagement.title')}</h1>
                         <p className="text-muted-foreground">{t('usersManagement.subtitle')}</p>
                     </div>
                     <Button onClick={openNewInvite} className="bg-violet-600 hover:bg-violet-700">

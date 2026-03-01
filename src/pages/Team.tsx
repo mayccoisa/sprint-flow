@@ -152,7 +152,7 @@ export default function Team() {
       <div>
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold text-foreground">Team Members</h1>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Team Members</h1>
             <p className="mt-2 text-muted-foreground">View and manage all team members across squads</p>
           </div>
           <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>

@@ -1,4 +1,4 @@
-import { Users, ListTodo, Calendar as CalendarIcon, Folders, Database, Package, Settings, LogOut, Lightbulb, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { Users, ListTodo, Calendar as CalendarIcon, LayoutDashboard, Target, Package, Settings, LogOut, Lightbulb, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -12,37 +12,60 @@ export const Sidebar = () => {
   const { t } = useTranslation();
   const { hasPermission } = useAuth(); // Added useAuth hook
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [initiativesOpen, setInitiativesOpen] = useState(true);
+  const [productOpen, setProductOpen] = useState(() => JSON.parse(localStorage.getItem('sidebar_productOpen') ?? 'true'));
+  const [executionOpen, setExecutionOpen] = useState(() => JSON.parse(localStorage.getItem('sidebar_executionOpen') ?? 'true'));
+  const [teamOpen, setTeamOpen] = useState(() => JSON.parse(localStorage.getItem('sidebar_teamOpen') ?? 'true'));
 
-  const baseNavigation = [
-    { name: t('sidebar.dashboard'), href: '/', icon: Folders, type: 'link' },
+  const toggleProduct = () => { const val = !productOpen; setProductOpen(val); localStorage.setItem('sidebar_productOpen', JSON.stringify(val)); };
+  const toggleExecution = () => { const val = !executionOpen; setExecutionOpen(val); localStorage.setItem('sidebar_executionOpen', JSON.stringify(val)); };
+  const toggleTeam = () => { const val = !teamOpen; setTeamOpen(val); localStorage.setItem('sidebar_teamOpen', JSON.stringify(val)); };
+
+  const teamChildren: any[] = [
+    { name: t('sidebar.squads'), href: '/squads', feature: 'squads' }
+  ];
+
+  if (hasPermission('users', 'view')) {
+    teamChildren.push({ name: t('sidebar.users') || 'Users', href: '/users', feature: 'users' });
+  }
+
+  const navigation = [
+    { name: t('sidebar.dashboard'), href: '/', icon: LayoutDashboard, type: 'link' },
     {
-      name: t('sidebar.initiatives'),
-      icon: Lightbulb,
+      name: t('sidebar.productAndStrategy') || 'Product & Strategy',
+      icon: Target,
       type: 'group',
-      isOpen: initiativesOpen,
-      toggle: () => setInitiativesOpen(!initiativesOpen),
+      isOpen: productOpen,
+      toggle: toggleProduct,
       children: [
         { name: t('sidebar.allInitiatives'), href: '/initiatives', feature: 'initiatives' },
         { name: t('sidebar.strategy'), href: '/product-strategy', feature: 'strategy' },
         { name: t('sidebar.modules'), href: '/product-modules', feature: 'strategy' },
-        { name: t('sidebar.productBacklog'), href: '/product-backlog', feature: 'backlog' },
-        { name: t('sidebar.engineeringBacklog'), href: '/engineering-backlog', feature: 'backlog' },
         { name: t('sidebar.documentation', 'Documentation'), href: '/docs', feature: 'documents' },
       ]
     },
-    { name: t('sidebar.squads'), href: '/squads', icon: Folders, type: 'link', feature: 'squads' },
-    { name: t('sidebar.sprints'), href: '/sprints', icon: CalendarIcon, type: 'link', feature: 'sprints' },
-    { name: t('sidebar.calendar'), href: '/calendar', icon: CalendarIcon, type: 'link', feature: 'sprints' },
-    { name: t('sidebar.releases'), href: '/releases', icon: Package, type: 'link', feature: 'releases' },
+    {
+      name: t('sidebar.planningAndExecution') || 'Planning & Execution',
+      icon: ListTodo,
+      type: 'group',
+      isOpen: executionOpen,
+      toggle: toggleExecution,
+      children: [
+        { name: t('sidebar.productBacklog'), href: '/product-backlog', feature: 'backlog' },
+        { name: t('sidebar.engineeringBacklog'), href: '/engineering-backlog', feature: 'backlog' },
+        { name: t('sidebar.sprints'), href: '/sprints', feature: 'sprints' },
+        { name: t('sidebar.calendar'), href: '/calendar', feature: 'sprints' },
+        { name: t('sidebar.releases'), href: '/releases', feature: 'releases' },
+      ]
+    },
+    {
+      name: t('sidebar.teamAndAdmin') || 'Team & Admin',
+      icon: Users,
+      type: 'group',
+      isOpen: teamOpen,
+      toggle: toggleTeam,
+      children: teamChildren
+    }
   ];
-
-  const adminNavigation = [];
-  if (hasPermission('users', 'view')) {
-    adminNavigation.push({ name: t('sidebar.usersManagement') || 'Users Management', href: '/users', icon: Users, type: 'link' });
-  }
-
-  const navigation = [...baseNavigation, ...adminNavigation]; // Combine navigation items
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-card">

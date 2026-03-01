@@ -261,7 +261,7 @@ export default function Backlog() {
       <div className="h-full flex flex-col space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">{t('engineeringBacklog.title')}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight tracking-tight">{t('engineeringBacklog.title')}</h1>
             <p className="text-muted-foreground">{t('engineeringBacklog.subtitle')}</p>
           </div>
           <div className="flex items-center space-x-2">
