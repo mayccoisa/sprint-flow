@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { WorkspaceSelector } from './workspace/WorkspaceSelector';
 
 export const Sidebar = () => {
   const location = useLocation();
@@ -45,10 +46,13 @@ export const Sidebar = () => {
 
   return (
     <aside className="fixed left-0 top-0 h-screen w-64 border-r border-border bg-card">
-      <div className="flex h-16 items-center border-b border-border px-6">
+      <div className="flex h-16 flex-col justify-center border-b border-border px-6">
         <h1 className="text-xl font-bold text-primary">Sprint Planner</h1>
       </div>
-      <nav className="space-y-1 p-4">
+      <div className="px-4 pt-2">
+        <WorkspaceSelector />
+      </div>
+      <nav className="space-y-1 px-4 pb-4">
         {navigation.map((item, index) => {
           if (item.type === 'group' && item.children) {
             // Filter children based on permission

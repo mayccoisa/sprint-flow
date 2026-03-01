@@ -7,18 +7,22 @@ import {
     setDoc,
     deleteDoc,
     addDoc,
-    updateDoc
+    updateDoc,
+    where,
+    getDocs,
+    writeBatch
 } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import type {
-    Squad, TeamMember, Task, Sprint, SprintTask,
+    Workspace, Squad, TeamMember, Task, Sprint, SprintTask,
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument
 } from '@/types';
-// Reuse existing types, but we handle them in Firestore collections
+import { useWorkspace } from '@/contexts/WorkspaceContext';
 
 interface FirestoreData {
+    workspaces: Workspace[];
     squads: Squad[];
     members: TeamMember[];
     tasks: Task[];
@@ -35,6 +39,7 @@ interface FirestoreData {
 }
 
 const initialData: FirestoreData = {
+    workspaces: [],
     squads: [],
     members: [],
     tasks: [],
@@ -48,16 +53,25 @@ const initialData: FirestoreData = {
     serviceDependencies: [],
     users: [],
     documents: []
-};
-
+}
 
 export const useFirestoreData = () => {
     const [data, setData] = useState<FirestoreData>(initialData);
     const [loading, setLoading] = useState(true);
+    const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspace();
 
     // Generic subscription helper
-    const subscribeToCollection = (collectionName: string, stateKey: keyof FirestoreData) => {
-        const q = query(collection(db, collectionName));
+    const subscribeToCollection = (collectionName: string, stateKey: keyof FirestoreData, filterByWorkspace: boolean = true) => {
+        let q = query(collection(db, collectionName));
+
+        if (filterByWorkspace && currentWorkspaceId) {
+            q = query(collection(db, collectionName), where('workspace_id', '==', currentWorkspaceId));
+        } else if (filterByWorkspace && !currentWorkspaceId) {
+            // If it should be filtered but no workspace is selected, we don't fetch or we fetch nothing
+            // For now, let's fetch where workspace_id is some impossible value to return empty
+            q = query(collection(db, collectionName), where('workspace_id', '==', 'NONE'));
+        }
+
         return onSnapshot(q, (snapshot) => {
             const items = snapshot.docs.map(doc => ({ id: Number(doc.id) || doc.id, ...doc.data() }));
             setData(prev => ({ ...prev, [stateKey]: items }));
@@ -66,35 +80,112 @@ export const useFirestoreData = () => {
         });
     };
 
+    // Migration and fetching logic
     useEffect(() => {
+        // First we subscribe to workspaces and users (global)
         const unsubs = [
-            subscribeToCollection('squads', 'squads'),
-            subscribeToCollection('members', 'members'),
-            subscribeToCollection('tasks', 'tasks'),
-            subscribeToCollection('sprints', 'sprints'),
-            subscribeToCollection('sprint_tasks', 'sprintTasks'),
-            subscribeToCollection('task_assignments', 'taskAssignments'),
-            subscribeToCollection('product_modules', 'productModules'),
-            subscribeToCollection('module_metrics', 'moduleMetrics'),
-            subscribeToCollection('product_services', 'productServices'),
-            subscribeToCollection('product_features', 'productFeatures'),
-            subscribeToCollection('service_dependencies', 'serviceDependencies'),
-            subscribeToCollection('users', 'users'),
-            subscribeToCollection('documents', 'documents'),
+            subscribeToCollection('workspaces', 'workspaces', false),
+            subscribeToCollection('users', 'users', false),
         ];
-
-        setLoading(false);
 
         return () => unsubs.forEach(unsub => unsub());
     }, []);
 
+    // Subscriptions for workspace-specific data
+    useEffect(() => {
+        if (!currentWorkspaceId) {
+            setLoading(false);
+            return;
+        }
+
+        setLoading(true);
+        const unsubs = [
+            subscribeToCollection('squads', 'squads', true),
+            subscribeToCollection('members', 'members', true),
+            subscribeToCollection('tasks', 'tasks', true),
+            subscribeToCollection('sprints', 'sprints', true),
+            subscribeToCollection('sprint_tasks', 'sprintTasks', true),
+            subscribeToCollection('task_assignments', 'taskAssignments', true),
+            subscribeToCollection('product_modules', 'productModules', true),
+            subscribeToCollection('module_metrics', 'moduleMetrics', true),
+            subscribeToCollection('product_services', 'productServices', true),
+            subscribeToCollection('product_features', 'productFeatures', true),
+            subscribeToCollection('service_dependencies', 'serviceDependencies', true),
+            subscribeToCollection('documents', 'documents', true),
+        ];
+
+        setLoading(false);
+        return () => unsubs.forEach(unsub => unsub());
+    }, [currentWorkspaceId]);
+
+    // Migration logic
+    useEffect(() => {
+        const checkAndMigrate = async () => {
+            // Check if workspaces exist at all
+            const wsSnap = await getDocs(collection(db, 'workspaces'));
+            let defaultWsId = currentWorkspaceId;
+
+            if (wsSnap.empty) {
+                // No workspaces exist, create a default one
+                defaultWsId = `ws_${Date.now()}`;
+                await setDoc(doc(db, 'workspaces', defaultWsId), {
+                    id: defaultWsId,
+                    name: 'Meu Workspace',
+                    created_at: new Date().toISOString(),
+                    owner_id: 'system'
+                });
+                setCurrentWorkspaceId(defaultWsId);
+            } else if (!currentWorkspaceId) {
+                // If workspaces exist but none selected, select the first one
+                setCurrentWorkspaceId(wsSnap.docs[0].id);
+                defaultWsId = wsSnap.docs[0].id;
+            }
+
+            // Perform migration on old data that lacks workspace_id
+            if (defaultWsId) {
+                const collectionsToMigrate = [
+                    'squads', 'members', 'tasks', 'sprints', 'sprint_tasks',
+                    'task_assignments', 'product_modules', 'module_metrics',
+                    'product_services', 'product_features', 'service_dependencies', 'documents'
+                ];
+
+                for (const colName of collectionsToMigrate) {
+                    const snap = await getDocs(collection(db, colName));
+                    const batch = writeBatch(db);
+                    let migratedCount = 0;
+
+                    snap.docs.forEach(d => {
+                        const dat = d.data();
+                        if (!dat.workspace_id) {
+                            batch.update(d.ref, { workspace_id: defaultWsId });
+                            migratedCount++;
+                        }
+                    });
+
+                    if (migratedCount > 0) {
+                        console.log(`Migrated ${migratedCount} items in ${colName}`);
+                        await batch.commit();
+                    }
+                }
+            }
+        };
+
+        checkAndMigrate();
+    }, []); // Run only once on mount
+
     // Helper Generic Actions
     const addItem = async (collectionName: string, item: any) => {
-        // Use ID if provided, otherwise generic auto-id (converted to string for firestore doc)
         const id = item.id ? String(item.id) : String(Date.now());
         const docRef = doc(db, collectionName, id);
-        await setDoc(docRef, { ...item, id: Number(id) }); // Keep ID as number in data if types require it
-        return { ...item, id: Number(id) };
+
+        // Inject workspace_id automatically except for users and workspaces
+        const payload = { ...item, id: Number(id) || id };
+        if (collectionName !== 'users' && collectionName !== 'workspaces') {
+            payload.workspace_id = currentWorkspaceId;
+        }
+
+        await setDoc(docRef, payload);
+        return payload;
     };
 
     const updateItem = async (collectionName: string, id: number | string, updates: any) => {
@@ -111,6 +202,15 @@ export const useFirestoreData = () => {
     return {
         data,
         loading,
+
+        // Workspaces
+        addWorkspace: (workspace: Omit<Workspace, 'id' | 'created_at'>) => {
+            const id = `ws_${Date.now()}`;
+            return addItem('workspaces', { ...workspace, id, created_at: new Date().toISOString() });
+        },
+        updateWorkspace: (id: string, updates: Partial<Workspace>) => updateItem('workspaces', id, updates),
+        deleteWorkspace: (id: string) => deleteItem('workspaces', id),
+
         // Tasks
         addTask: (task: Omit<Task, 'id' | 'created_at'>) => addItem('tasks', { ...task, created_at: new Date().toISOString() }),
         updateTask: (id: number, updates: Partial<Task>) => updateItem('tasks', id, updates),
@@ -124,8 +224,6 @@ export const useFirestoreData = () => {
         // Sprint Tasks
         addSprintTask: (st: Omit<SprintTask, 'id' | 'created_at'>) => addItem('sprint_tasks', { ...st, created_at: new Date().toISOString() }),
         removeSprintTask: async (sprintId: number, taskId: number) => {
-            // Complex delete: find doc by sprint_id and task_id then delete
-            // For now, naive implementation: iterate local data to find ID (optimistic)
             const item = data.sprintTasks.find(st => st.sprint_id === sprintId && st.task_id === taskId);
             if (item) await deleteItem('sprint_tasks', item.id);
         },
@@ -150,7 +248,6 @@ export const useFirestoreData = () => {
         deleteProductService: (id: number) => deleteItem('product_services', id),
 
         addServiceDependency: (item: Omit<ServiceDependency, 'id'>) => addItem('service_dependencies', item),
-        // Missing deleteDependency in local hook, skipping for now
 
         // User Management (Admin)
         updateUser: (id: string, updates: Partial<UserProfile>) => updateItem('users', id, updates),
@@ -158,7 +255,6 @@ export const useFirestoreData = () => {
         updateUserRole: (id: string, role: UserRole) => updateItem('users', id, { role }),
         updateUserPermissions: (id: string, permissions: FeaturePermission) => updateItem('users', id, { permissions }),
         inviteUser: async (email: string, role: UserRole, permissions: FeaturePermission, name?: string) => {
-            // Generate a random ID for the pending invite
             const inviteId = `invite_${Date.now()}`;
             const docRef = doc(db, 'users', inviteId);
 
@@ -167,7 +263,7 @@ export const useFirestoreData = () => {
                 email: email.toLowerCase(),
                 role,
                 permissions,
-                name: name || 'Pending Invite', // Provided or placeholder name
+                name: name || 'Pending Invite',
                 created_at: new Date().toISOString()
             };
 
@@ -183,3 +279,4 @@ export const useFirestoreData = () => {
         deleteDocument: (id: number) => deleteItem('documents', id),
     };
 };
+

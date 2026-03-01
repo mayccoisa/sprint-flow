@@ -16,8 +16,17 @@ export type TaskSprintStatus = 'Todo' | 'InProgress' | 'Done' | 'Blocked';
 export type SprintStatus = 'Planning' | 'Active' | 'Completed' | 'Cancelled';
 export type VersionStatus = 'Planned' | 'InProgress' | 'Released' | 'Cancelled';
 
+export interface Workspace {
+  id: string;
+  name: string;
+  created_at: string;
+  owner_id: string; // The user profile string ID who created it
+}
+
+
 export interface Squad {
   id: number;
+  workspace_id?: string;
   created_at: string;
   name: string;
   description: string | null;
@@ -26,6 +35,7 @@ export interface Squad {
 
 export interface TeamMember {
   id: number;
+  workspace_id?: string;
   created_at: string;
   name: string;
   squad_id: number;
@@ -40,6 +50,7 @@ export interface TeamMember {
 
 export interface Sprint {
   id: number;
+  workspace_id?: string;
   created_at: string;
   name: string;
   squad_id: number;
@@ -50,6 +61,7 @@ export interface Sprint {
 
 export interface SprintTask {
   id: number;
+  workspace_id?: string;
   created_at: string;
   sprint_id: number;
   task_id: number;
@@ -59,6 +71,7 @@ export interface SprintTask {
 
 export interface TaskAssignment {
   id: number;
+  workspace_id?: string;
   created_at: string;
   task_id: number;
   member_id: number;
@@ -66,6 +79,7 @@ export interface TaskAssignment {
 
 export interface Release {
   id: number;
+  workspace_id?: string;
   created_at: string;
   version_name: string;
   release_date: string;
@@ -78,6 +92,7 @@ export interface Release {
 
 export interface ReleaseTask {
   id: number;
+  workspace_id?: string;
   created_at: string;
   release_id: number;
   task_id: number;
@@ -88,6 +103,7 @@ export interface ReleaseTask {
 // Update Task interface with area_id
 export interface Task {
   id: number;
+  workspace_id?: string;
   created_at: string;
   title: string;
   description: string | null;
@@ -115,6 +131,7 @@ export interface Task {
 // Product Architecture Types
 export interface ProductModule {
   id: number;
+  workspace_id?: string;
   name: string;
   description: string | null;
   area_id: number; // Keep for backward compatibility or grouping
@@ -126,6 +143,7 @@ export type MetricType = 'bug_count' | 'nps' | 'usage_rate';
 
 export interface ModuleMetric {
   id: number;
+  workspace_id?: string;
   module_id: number;
   metric_type: MetricType;
   value: number;
@@ -136,6 +154,7 @@ export type ServiceType = 'Internal' | 'External' | 'Database' | 'Queue' | 'Gate
 
 export interface ProductService {
   id: number;
+  workspace_id?: string;
   name: string;
   description: string | null;
   type: ServiceType;
@@ -145,6 +164,7 @@ export type FeatureStatus = 'Live' | 'Beta' | 'Development' | 'Concept' | 'Depre
 
 export interface ProductFeature {
   id: number;
+  workspace_id?: string;
   module_id: number;
   name: string;
   description: string | null;
@@ -155,6 +175,7 @@ export type DependencyType = 'Read' | 'Write' | 'ReadWrite' | 'DependsOn';
 
 export interface ServiceDependency {
   id: number;
+  workspace_id?: string;
   feature_id: number;
   service_id: number;
   type: DependencyType;
@@ -201,6 +222,7 @@ export interface DocumentTemplate {
 
 export interface ProductDocument {
   id: number;
+  workspace_id?: string;
   created_at: string;
   updated_at: string;
   title: string;
