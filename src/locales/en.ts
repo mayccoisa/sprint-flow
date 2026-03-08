@@ -47,6 +47,7 @@ export const en = {
             planningAndExecution: "Planning & Execution",
             teamAndAdmin: "Team & Admin",
             users: "Users",
+            forms: "Forms",
         },
         settings: {
             title: "Settings",
@@ -315,6 +316,87 @@ export const en = {
             preview: "Preview",
             editorPlaceholder: "Start writing your document using Markdown...",
             emptyPreview: "Nothing to preview. Switch to the Write tab to add content."
+        },
+        forms: {
+            management: {
+                title: "Forms Management",
+                subtitle: "Manage intake forms for Product and Engineering backlogs",
+                newForm: "New Form",
+                activeForms: "Active Forms",
+                activeFormsDesc: "Forms configured in this workspace",
+                noForms: "No forms created yet.",
+                createFirst: "Create your first form",
+                table: {
+                    name: "Form Name",
+                    destination: "Destination",
+                    status: "Status",
+                    created: "Created",
+                    actions: "Actions"
+                },
+                badges: {
+                    active: "Active",
+                    draft: "Draft"
+                },
+                confirmDelete: "Are you sure you want to delete this form?",
+                deleted: "Form deleted successfully",
+                deleteFailed: "Failed to delete form",
+                saved: "Form saved successfully",
+                saveFailed: "Failed to save form"
+            },
+            builder: {
+                newTitle: "New Form",
+                editTitle: "Edit Form",
+                subtitle: "Configure form fields and settings",
+                formTitle: "Form Title",
+                formTitlePlaceholder: "E.g. Support Tickets",
+                description: "Description",
+                descriptionOptional: "(Optional)",
+                descriptionPlaceholder: "Guidelines for filling out this form...",
+                fieldsTitle: "Form Fields",
+                addField: "Add Field",
+                questionLabel: "Question Label",
+                type: "Type",
+                types: {
+                    shortText: "Short Text",
+                    longText: "Long Text",
+                    date: "Date",
+                    selector: "Dropdown"
+                },
+                required: "Required",
+                options: "Options (comma separated)",
+                optionsPlaceholder: "Option A, Option B, Option C",
+                slug: "Custom URL Slug",
+                slugPlaceholder: "custom-form-url",
+                destination: "Destination",
+                destinations: {
+                    product: "Product Backlog (Discovery)",
+                    engineering: "Engineering Backlog (Todo)"
+                },
+                destinationDesc: "Where should submissions be added by default?",
+                active: "Active",
+                activeDesc: "Accept submissions",
+                saveForm: "Save Form",
+                cancel: "Cancel"
+            },
+            public: {
+                notFound: "Form Not Found",
+                notFoundDesc: "This form may not exist or is currently inactive.",
+                success: "Success!",
+                successProduct: "Your request has been sent to the Product team and will be reviewed shortly.",
+                successEngineering: "Your request has been sent to the Engineering team and will be reviewed shortly.",
+                sendNew: "Send New Request",
+                submit: "Submit Request",
+                submitting: "Submitting...",
+                requiredError: "Field '{{label}}' is required.",
+                submitError: "Failed to submit form",
+                datePlaceholder: "Select a date",
+                placeholderShort: "Your answer",
+                placeholderLong: "Your detailed answer",
+                selectPlaceholder: "Select an option",
+                notAnswered: "_Not answered_",
+                taskSubtitle: "Answers from Form",
+                taskTitlePrefix: "Form Request"
+            }
         }
     }
 };

@@ -232,3 +232,39 @@ export interface ProductDocument {
   status: 'Draft' | 'Published' | 'Archived';
   tags?: string[];
 }
+
+// Custom Forms
+export type FormFieldType = 'ShortText' | 'LongText' | 'Date' | 'Selector';
+
+export interface FormField {
+  id: string;          // ID único do campo para referência
+  label: string;       // Nome do campo exibido para o usuário
+  type: FormFieldType;
+  options?: string[];  // Opções, usado apenas quando type === 'Selector'
+  required: boolean;
+  order: number;
+}
+
+export type FormDestination = 'Product' | 'Engineering';
+
+export interface CustomForm {
+  id: string;
+  workspace_id?: string;
+  created_at: string;
+  title: string;
+  description: string | null;
+  fields: FormField[];
+  destination: FormDestination;
+  is_active: boolean;
+  slug: string; // URL amigável para acesso ao formulário
+}
+
+export interface FormSubmission {
+  id: string;
+  workspace_id?: string;
+  form_id: string;
+  created_at: string;
+  submitted_by?: string; // ID do usuário se estiver logado
+  data: Record<string, any>; // Respostas chaveadas pelo ID do `FormField`
+  task_id?: number | null; // ID da Task gerada automaticamente
+}

@@ -49,6 +49,7 @@ export const pt = {
             users: "Usuários",
             modules: "Módulos & Features",
             documentation: "Documentação",
+            forms: "Formulários",
         },
         settings: {
             title: "Configurações",
@@ -408,6 +409,87 @@ export const pt = {
             preview: "Visualizar",
             editorPlaceholder: "Comece a escrever seu documento usando Markdown...",
             emptyPreview: "Nada para visualizar. Mude para a aba Escrever para adicionar conteúdo."
+        },
+        forms: {
+            management: {
+                title: "Gestão de Formulários",
+                subtitle: "Gerencie formulários de entrada para backlogs de Produto e Engenharia",
+                newForm: "Novo Formulário",
+                activeForms: "Formulários Ativos",
+                activeFormsDesc: "Formulários configurados neste workspace",
+                noForms: "Nenhum formulário criado ainda.",
+                createFirst: "Crie seu primeiro formulário",
+                table: {
+                    name: "Nome do Form",
+                    destination: "Destino",
+                    status: "Status",
+                    created: "Criado em",
+                    actions: "Ações"
+                },
+                badges: {
+                    active: "Ativo",
+                    draft: "Rascunho"
+                },
+                confirmDelete: "Tem certeza que deseja excluir este formulário?",
+                deleted: "Formulário excluído com sucesso",
+                deleteFailed: "Falha ao excluir formulário",
+                saved: "Formulário salvo com sucesso",
+                saveFailed: "Falha ao salvar formulário"
+            },
+            builder: {
+                newTitle: "Novo Formulário",
+                editTitle: "Editar Formulário",
+                subtitle: "Configure campos e opções do formulário",
+                formTitle: "Título do Formulário",
+                formTitlePlaceholder: "ex: Problemas de Suporte",
+                description: "Descrição",
+                descriptionOptional: "(Opcional)",
+                descriptionPlaceholder: "Diretrizes para preenchimento deste formulário...",
+                fieldsTitle: "Campos do Formulário",
+                addField: "Adicionar Campo",
+                questionLabel: "Rótulo da Pergunta",
+                type: "Tipo",
+                types: {
+                    shortText: "Texto Curto",
+                    longText: "Texto Longo",
+                    date: "Data",
+                    selector: "Lista de Seleção"
+                },
+                required: "Obrigatório",
+                options: "Opções (separadas por vírgula)",
+                optionsPlaceholder: "Opção A, Opção B, Opção C",
+                slug: "URL Personalizada (Slug)",
+                slugPlaceholder: "url-do-form",
+                destination: "Destino",
+                destinations: {
+                    product: "Backlog de Produto (Discovery)",
+                    engineering: "Backlog de Engenharia (A Fazer)"
+                },
+                destinationDesc: "Onde as demandas preenchidas devem ser adicionadas por padrão?",
+                active: "Ativo",
+                activeDesc: "Aceitar respostas",
+                saveForm: "Salvar Formulário",
+                cancel: "Cancelar"
+            },
+            public: {
+                notFound: "Formulário Não Encontrado",
+                notFoundDesc: "Este formulário pode não existir ou não estar ativo no momento.",
+                success: "Sucesso!",
+                successProduct: "Sua solicitação foi enviada para o time de Produto e será analisada em breve.",
+                successEngineering: "Sua solicitação foi enviada para o time de Engenharia e será analisada em breve.",
+                sendNew: "Enviar Nova Solicitação",
+                submit: "Enviar Solicitação",
+                submitting: "Enviando...",
+                requiredError: "O campo '{{label}}' é obrigatório.",
+                submitError: "Falha ao enviar o formulário",
+                datePlaceholder: "Selecione uma data",
+                placeholderShort: "Sua resposta",
+                placeholderLong: "Sua resposta detalhada",
+                selectPlaceholder: "Selecione uma opção",
+                notAnswered: "_Não respondido_",
+                taskSubtitle: "Respostas do Formulário",
+                taskTitlePrefix: "Demanda via Form"
+            }
         }
     }
 };

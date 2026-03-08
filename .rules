@@ -5,3 +5,5 @@
 2. **Translation Keys**: Always use logical, nested keys to organize translations (e.g., `featureArea.component.text_label`). If a string doesn't exist, you must add it to both `en.ts` and `pt.ts` before using it in a component via the `useTranslation()` hook.
 
 3. **Fallback Languages**: Ensure English is kept as the default/fallback language if a key is exceptionally missing, but never leave `pt.ts` out of sync.
+
+4. **New Features**: Every new feature implemented MUST support both English and Portuguese (pt-BR) fully before being considered complete. No new feature is allowed to be single-language.

@@ -17,7 +17,8 @@ import type {
     Workspace, Squad, TeamMember, Task, Sprint, SprintTask,
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
-    UserProfile, UserRole, FeaturePermission, ProductDocument
+    UserProfile, UserRole, FeaturePermission, ProductDocument,
+    CustomForm, FormSubmission
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 
@@ -36,6 +37,8 @@ interface FirestoreData {
     serviceDependencies: ServiceDependency[];
     users: UserProfile[];
     documents: ProductDocument[];
+    forms: CustomForm[];
+    formSubmissions: FormSubmission[];
 }
 
 const initialData: FirestoreData = {
@@ -52,7 +55,9 @@ const initialData: FirestoreData = {
     productFeatures: [],
     serviceDependencies: [],
     users: [],
-    documents: []
+    documents: [],
+    forms: [],
+    formSubmissions: []
 }
 
 export const useFirestoreData = () => {
@@ -112,6 +117,8 @@ export const useFirestoreData = () => {
             subscribeToCollection('product_features', 'productFeatures', true),
             subscribeToCollection('service_dependencies', 'serviceDependencies', true),
             subscribeToCollection('documents', 'documents', true),
+            subscribeToCollection('forms', 'forms', true),
+            subscribeToCollection('form_submissions', 'formSubmissions', true),
         ];
 
         setLoading(false);
@@ -146,7 +153,8 @@ export const useFirestoreData = () => {
                 const collectionsToMigrate = [
                     'squads', 'members', 'tasks', 'sprints', 'sprint_tasks',
                     'task_assignments', 'product_modules', 'module_metrics',
-                    'product_services', 'product_features', 'service_dependencies', 'documents'
+                    'product_services', 'product_features', 'service_dependencies', 'documents',
+                    'forms', 'form_submissions'
                 ];
 
                 for (const colName of collectionsToMigrate) {
@@ -277,6 +285,16 @@ export const useFirestoreData = () => {
         updateDocument: (id: number, updates: Partial<ProductDocument>) =>
             updateItem('documents', id, { ...updates, updated_at: new Date().toISOString() }),
         deleteDocument: (id: number) => deleteItem('documents', id),
+
+        // Forms
+        addForm: (formData: Omit<CustomForm, 'id' | 'created_at'>) =>
+            addItem('forms', { ...formData, id: `form_${Date.now()}`, created_at: new Date().toISOString() }),
+        updateForm: (id: string, updates: Partial<CustomForm>) =>
+            updateItem('forms', id, updates),
+        deleteForm: (id: string) => deleteItem('forms', id),
+
+        addFormSubmission: (submissionData: Omit<FormSubmission, 'id' | 'created_at'>) =>
+            addItem('form_submissions', { ...submissionData, id: `sub_${Date.now()}`, created_at: new Date().toISOString() }),
     };
 };
 

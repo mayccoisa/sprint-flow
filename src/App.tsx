@@ -26,6 +26,8 @@ import ReleaseDetail from "./pages/ReleaseDetail";
 import SeedData from "./pages/SeedData";
 import DocumentationHub from "./pages/DocumentationHub";
 import DocumentEditor from "./pages/DocumentEditor";
+import FormsManagement from "./pages/FormsManagement";
+import PublicFormView from "./pages/PublicFormView";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,9 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/login" element={<Login />} />
+
+              {/* Public Form Viewer */}
+              <Route path="/f/:slug" element={<PublicFormView />} />
 
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
 
@@ -73,6 +78,7 @@ const App = () => (
 
               {/* Admin Routes */}
               <Route path="/users" element={<ProtectedRoute requiredRole="Admin"><UsersManagement /></ProtectedRoute>} />
+              <Route path="/forms" element={<ProtectedRoute requiredRole="Admin"><FormsManagement /></ProtectedRoute>} />
               <Route path="/admin/seed-data" element={<ProtectedRoute requiredRole="Admin"><SeedData /></ProtectedRoute>} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

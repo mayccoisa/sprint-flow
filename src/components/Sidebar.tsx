@@ -21,7 +21,8 @@ export const Sidebar = () => {
   const toggleTeam = () => { const val = !teamOpen; setTeamOpen(val); localStorage.setItem('sidebar_teamOpen', JSON.stringify(val)); };
 
   const teamChildren: any[] = [
-    { name: t('sidebar.squads'), href: '/squads', feature: 'squads' }
+    { name: t('sidebar.squads'), href: '/squads', feature: 'squads' },
+    { name: t('sidebar.forms', 'Forms'), href: '/forms', feature: 'strategy' } // Forms management
   ];
 
   if (hasPermission('users', 'view')) {
