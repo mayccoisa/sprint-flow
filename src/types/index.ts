@@ -21,6 +21,7 @@ export interface Workspace {
   name: string;
   created_at: string;
   owner_id: string; // The user profile string ID who created it
+  jira_config?: JiraConfig;
 }
 
 
@@ -100,7 +101,9 @@ export interface ReleaseTask {
 
 
 
-// Update Task interface with area_id
+export type PrioritizationModel = 'ICE' | 'RICE' | 'BRICE';
+
+// Update Task interface with area_id and prioritization metrics
 export interface Task {
   id: number;
   workspace_id?: string;
@@ -126,6 +129,43 @@ export interface Task {
   // Strategy
   area_id: number | null;
   feature_id: number | null;
+  // Prioritization
+  prioritization_model?: PrioritizationModel;
+  ice_impact?: number | null;
+  ice_confidence?: number | null;
+  ice_ease?: number | null;
+  rice_reach?: number | null;
+  rice_impact?: number | null;
+  rice_confidence?: number | null;
+  rice_effort?: number | null;
+  brice_business_value?: number | null;
+  brice_reach?: number | null;
+  brice_impact?: number | null;
+  brice_confidence?: number | null;
+  brice_effort?: number | null;
+  // Jira Integration
+  jira_key?: string | null;
+}
+
+export interface JiraConfig {
+  url: string;
+  email: string;
+  apiToken: string;
+  projectKey: string;
+  isEnabled: boolean;
+  productIssueType?: string;
+  engIssueType?: string;
+}
+
+export interface JiraSyncLog {
+  id: string;
+  workspace_id?: string;
+  timestamp: string;
+  jira_key: string;
+  task_title: string;
+  action: 'Created' | 'Updated' | 'StatusSync' | 'Imported';
+  details: string;
+  status: 'Success' | 'Error';
 }
 
 // Product Architecture Types

@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { Task } from '@/types';
+import { Task, PrioritizationModel } from '@/types';
 import { useLocalData } from '@/hooks/useLocalData';
 import {
     Dialog,
@@ -60,6 +60,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
         has_prototype: z.boolean(),
         prototype_link: z.string().optional(),
         feature_id: z.string().min(1, t('validation.required')),
+        prioritization_model: z.enum(['ICE', 'RICE', 'BRICE'] as const).optional(),
+        ice_impact: z.number().min(0).max(10).optional(),
+        ice_confidence: z.number().min(0).max(10).optional(),
+        ice_ease: z.number().min(0).max(10).optional(),
+        rice_reach: z.number().min(0).optional(),
+        rice_impact: z.number().min(0).max(10).optional(),
+        rice_confidence: z.number().min(0).max(10).optional(),
+        rice_effort: z.number().min(0).optional(),
+        brice_business_value: z.number().min(0).optional(),
+        brice_reach: z.number().min(0).optional(),
+        brice_impact: z.number().min(0).max(10).optional(),
+        brice_confidence: z.number().min(0).max(10).optional(),
+        brice_effort: z.number().min(0).optional(),
     }), [t]);
 
     type InitiativeFormValues = z.infer<typeof initiativeSchema>;
@@ -77,6 +90,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
             has_prototype: false,
             prototype_link: '',
             feature_id: '',
+            prioritization_model: 'ICE',
+            ice_impact: 0,
+            ice_confidence: 0,
+            ice_ease: 0,
+            rice_reach: 0,
+            rice_impact: 0,
+            rice_confidence: 0,
+            rice_effort: 0,
+            brice_business_value: 0,
+            brice_reach: 0,
+            brice_impact: 0,
+            brice_confidence: 0,
+            brice_effort: 0,
         },
     });
 
@@ -93,6 +119,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 has_prototype: task.has_prototype || false,
                 prototype_link: task.prototype_link || '',
                 feature_id: task.feature_id ? String(task.feature_id) : '',
+                prioritization_model: task.prioritization_model || 'ICE',
+                ice_impact: task.ice_impact ?? 0,
+                ice_confidence: task.ice_confidence ?? 0,
+                ice_ease: task.ice_ease ?? 0,
+                rice_reach: task.rice_reach ?? 0,
+                rice_impact: task.rice_impact ?? 0,
+                rice_confidence: task.rice_confidence ?? 0,
+                rice_effort: task.rice_effort ?? 0,
+                brice_business_value: task.brice_business_value ?? 0,
+                brice_reach: task.brice_reach ?? 0,
+                brice_impact: task.brice_impact ?? 0,
+                brice_confidence: task.brice_confidence ?? 0,
+                brice_effort: task.brice_effort ?? 0,
             });
         } else {
             form.reset({
@@ -106,6 +145,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 has_prototype: false,
                 prototype_link: '',
                 feature_id: '',
+                prioritization_model: 'ICE',
+                ice_impact: 0,
+                ice_confidence: 0,
+                ice_ease: 0,
+                rice_reach: 0,
+                rice_impact: 0,
+                rice_confidence: 0,
+                rice_effort: 0,
+                brice_business_value: 0,
+                brice_reach: 0,
+                brice_impact: 0,
+                brice_confidence: 0,
+                brice_effort: 0,
             });
         }
     }, [task, form, open]);
@@ -152,9 +204,10 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
 
                         <Tabs defaultValue="general" className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
+                            <TabsList className="grid w-full grid-cols-3">
                                 <TabsTrigger value="general">{t('initiativeForm.tabs.general')}</TabsTrigger>
                                 <TabsTrigger value="details">{t('initiativeForm.tabs.details')}</TabsTrigger>
+                                <TabsTrigger value="prioritization">{t('prioritization.title')}</TabsTrigger>
                             </TabsList>
 
                             {/* TAB 1: GENERAL */}
@@ -348,6 +401,179 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                 />
                                             )}
                                         </div>
+                                    </div>
+                                </ScrollArea>
+                            </TabsContent>
+
+                            {/* TAB 3: PRIORITIZATION */}
+                            <TabsContent value="prioritization" className="space-y-4 pt-4">
+                                <ScrollArea className="h-[400px] pr-4">
+                                    <div className="space-y-6">
+                                        <FormField
+                                            control={form.control}
+                                            name="prioritization_model"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t('prioritization.model')}</FormLabel>
+                                                    <Select onValueChange={field.onChange} value={field.value}>
+                                                        <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
+                                                        <SelectContent>
+                                                            <SelectItem value="ICE">ICE</SelectItem>
+                                                            <SelectItem value="RICE">RICE</SelectItem>
+                                                            <SelectItem value="BRICE">BRICE</SelectItem>
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
+                                        {form.watch('prioritization_model') === 'ICE' && (
+                                            <div className="grid grid-cols-3 gap-4 border p-4 rounded-lg bg-slate-50/50">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="ice_impact"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.impact')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="ice_confidence"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.confidence')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="ice_ease"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.ease')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {form.watch('prioritization_model') === 'RICE' && (
+                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="rice_reach"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.reach')}</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="rice_impact"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.impact')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="rice_confidence"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.confidence')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="rice_effort"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.effort')}</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        )}
+
+                                        {form.watch('prioritization_model') === 'BRICE' && (
+                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50">
+                                                <FormField
+                                                    control={form.control}
+                                                    name="brice_business_value"
+                                                    render={({ field }) => (
+                                                        <FormItem className="col-span-2">
+                                                            <FormLabel>{t('prioritization.metrics.businessValue')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="brice_reach"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.reach')}</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="brice_impact"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.impact')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="brice_confidence"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.confidence')} (1-10)</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="brice_effort"
+                                                    render={({ field }) => (
+                                                        <FormItem>
+                                                            <FormLabel>{t('prioritization.metrics.effort')}</FormLabel>
+                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormMessage />
+                                                        </FormItem>
+                                                    )}
+                                                />
+                                            </div>
+                                        )}
                                     </div>
                                 </ScrollArea>
                             </TabsContent>

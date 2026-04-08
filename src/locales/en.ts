@@ -84,10 +84,20 @@ export const en = {
             subtitle: "Manage initiatives and discovery.",
             newInitiative: "New Initiative",
             searchPlaceholder: "Search...",
+            view: "View",
+            kanban: "Kanban",
+            table: "Table",
             columns: {
                 discovery: "Discovery",
                 refinement: "Refinement",
                 readyForEng: "Ready for Eng"
+            },
+            tableHeaders: {
+                title: "Title",
+                status: "Status",
+                priority: "Priority",
+                type: "Type",
+                score: "Score"
             },
             promote: "Promote to Engineering",
             promoteConfirmTitle: "Promote to Engineering Backlog?",
@@ -396,6 +406,24 @@ export const en = {
                 notAnswered: "_Not answered_",
                 taskSubtitle: "Answers from Form",
                 taskTitlePrefix: "Form Request"
+            }
+        },
+        prioritization: {
+            title: "Prioritization",
+            model: "Prioritization Model",
+            score: "Score",
+            metrics: {
+                impact: "Impact",
+                confidence: "Confidence",
+                ease: "Ease",
+                reach: "Reach",
+                effort: "Effort",
+                businessValue: "Business Value"
+            },
+            models: {
+                ice: "ICE",
+                rice: "RICE",
+                brice: "BRICE"
             }
         }
     }

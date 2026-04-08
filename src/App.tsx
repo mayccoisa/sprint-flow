@@ -28,6 +28,7 @@ import DocumentationHub from "./pages/DocumentationHub";
 import DocumentEditor from "./pages/DocumentEditor";
 import FormsManagement from "./pages/FormsManagement";
 import PublicFormView from "./pages/PublicFormView";
+import JiraSettings from "./pages/JiraSettings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -79,6 +80,7 @@ const App = () => (
               {/* Admin Routes */}
               <Route path="/users" element={<ProtectedRoute requiredRole="Admin"><UsersManagement /></ProtectedRoute>} />
               <Route path="/forms" element={<ProtectedRoute requiredRole="Admin"><FormsManagement /></ProtectedRoute>} />
+              <Route path="/admin/jira" element={<ProtectedRoute requiredRole="Admin"><JiraSettings /></ProtectedRoute>} />
               <Route path="/admin/seed-data" element={<ProtectedRoute requiredRole="Admin"><SeedData /></ProtectedRoute>} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}

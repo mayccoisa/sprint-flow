@@ -2,13 +2,31 @@ import { useState, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
 import { GenerateShapeUpDialog } from '@/components/ai/GenerateShapeUpDialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { Task, TaskStatus } from '@/types';
-import { Plus, ArrowRight, Target, Users, MoreHorizontal } from 'lucide-react';
+import { Plus, ArrowRight, Target, Users, MoreHorizontal, BarChart2, LayoutList, Columns, RefreshCw } from 'lucide-react';
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from '@/hooks/use-toast';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { getTaskScore } from '@/utils/prioritization';
+import { PrioritizationModel } from '@/types';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -44,7 +62,19 @@ import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 // Sortable Item Component
-const SortableTaskCard = ({ task, onClick, onPromote, onShapeUp }: { task: Task; onClick: () => void; onPromote: () => void; onShapeUp: () => void }) => {
+const SortableTaskCard = ({ 
+    task, 
+    onClick, 
+    onPromote, 
+    onShapeUp, 
+    activeModel 
+}: { 
+    task: Task; 
+    onClick: () => void; 
+    onPromote: () => void; 
+    onShapeUp: () => void;
+    activeModel: PrioritizationModel;
+}) => {
     const {
         attributes,
         listeners,
@@ -59,6 +89,8 @@ const SortableTaskCard = ({ task, onClick, onPromote, onShapeUp }: { task: Task;
         transition,
         opacity: isDragging ? 0.3 : 1,
     };
+
+    const score = getTaskScore(task, activeModel);
 
     return (
         <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-3 touch-none">
@@ -85,6 +117,9 @@ const SortableTaskCard = ({ task, onClick, onPromote, onShapeUp }: { task: Task;
                     <div className="flex flex-wrap gap-2 text-xs">
                         <Badge variant="outline">{task.task_type}</Badge>
                         <Badge variant="secondary">{task.priority}</Badge>
+                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                            {activeModel}: {score.toFixed(1)}
+                        </Badge>
                         {task.has_prototype && <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50">Proto</Badge>}
                     </div>
 
@@ -106,13 +141,16 @@ const SortableTaskCard = ({ task, onClick, onPromote, onShapeUp }: { task: Task;
 
 const ProductBacklog = () => {
     const { t } = useTranslation();
-    const { data, addTask, updateTask } = useLocalData();
+    const { data, addTask, updateTask, syncWithJira } = useLocalData();
+    const [isSyncing, setIsSyncing] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
     const [promoteTaskId, setPromoteTaskId] = useState<number | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [activeId, setActiveId] = useState<number | null>(null);
     const [shapeUpTask, setShapeUpTask] = useState<Task | null>(null);
+    const [activeModel, setActiveModel] = useState<PrioritizationModel>('ICE');
+    const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -131,8 +169,17 @@ const ProductBacklog = () => {
         return data.tasks.filter(t =>
             ['Discovery', 'Refinement', 'ReadyForEng'].includes(t.status) &&
             t.title.toLowerCase().includes(searchQuery.toLowerCase())
-        ).sort((a, b) => a.order_index - b.order_index);
-    }, [data.tasks, searchQuery]);
+        ).sort((a, b) => {
+            const scoreA = getTaskScore(a, activeModel);
+            const scoreB = getTaskScore(b, activeModel);
+
+            if (scoreA !== scoreB) {
+                return scoreB - scoreA;
+            }
+
+            return a.order_index - b.order_index;
+        });
+    }, [data.tasks, searchQuery, activeModel]);
 
     const handleSave = (taskData: Partial<Task>) => {
         if (editingTask) {
@@ -153,8 +200,13 @@ const ProductBacklog = () => {
                 title: 'Promoted to Engineering',
                 description: 'The initiative has been moved to the Engineering Backlog.',
             });
-            setPromoteTaskId(null);
         }
+    };
+
+    const handleJiraSync = async () => {
+        setIsSyncing(true);
+        await syncWithJira();
+        setIsSyncing(false);
     };
 
     const handleDragStart = (event: DragStartEvent) => {
@@ -206,80 +258,192 @@ const ProductBacklog = () => {
                 <div className="flex items-center justify-between shrink-0">
                     <div>
                         <h1 className="text-2xl font-semibold tracking-tight">Product Backlog</h1>
-                        <p className="text-muted-foreground">Manage initiatives and discovery.</p>
+                        <p className="text-muted-foreground">{t('productBacklog.subtitle')}</p>
                     </div>
-                    <div className="flex gap-2">
-                        <Input
-                            placeholder="Search..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-[200px]"
-                        />
-                        <Button onClick={() => setIsDialogOpen(true)}>
-                            <Plus className="mr-2 h-4 w-4" />
-                            New Initiative
-                        </Button>
+                    <div className="flex items-center gap-4">
+                        <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'table')} className="w-auto">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="kanban" className="flex items-center gap-2">
+                                    <Columns className="h-4 w-4" />
+                                    <span className="hidden sm:inline">{t('productBacklog.kanban')}</span>
+                                </TabsTrigger>
+                                <TabsTrigger value="table" className="flex items-center gap-2">
+                                    <LayoutList className="h-4 w-4" />
+                                    <span className="hidden sm:inline">{t('productBacklog.table')}</span>
+                                </TabsTrigger>
+                            </TabsList>
+                        </Tabs>
+
+                        <div className="flex gap-2">
+                            <div className="flex items-center gap-2 border rounded-md px-3 h-10 bg-background">
+                                <BarChart2 className="h-4 w-4 text-muted-foreground" />
+                                <Select value={activeModel} onValueChange={(v) => setActiveModel(v as PrioritizationModel)}>
+                                    <SelectTrigger className="border-0 focus:ring-0 w-[100px] h-8 p-0">
+                                        <SelectValue placeholder="Model" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="ICE">ICE</SelectItem>
+                                        <SelectItem value="RICE">RICE</SelectItem>
+                                        <SelectItem value="BRICE">BRICE</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <Input
+                                placeholder={t('productBacklog.searchPlaceholder')}
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-[200px]"
+                            />
+                            <Button variant="outline" onClick={handleJiraSync} disabled={isSyncing}>
+                                <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+                                Sincronizar Jira
+                            </Button>
+                            <Button onClick={() => setIsDialogOpen(true)}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                {t('productBacklog.newInitiative')}
+                            </Button>
+                        </div>
                     </div>
                 </div>
 
-                <DndContext
-                    sensors={sensors}
-                    collisionDetection={closestCorners}
-                    onDragStart={handleDragStart}
-                    onDragEnd={handleDragEnd}
-                >
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden pb-4">
-                        {columns.map((col) => {
-                            const colTasks = tasks.filter(t => t.status === col.id);
-                            return (
-                                <div key={col.id} className={cn("rounded-lg flex flex-col h-full max-h-screen", col.color)}>
-                                    <div className="p-3 font-semibold border-b border-black/5 flex justify-between items-center bg-white/50 rounded-t-lg">
-                                        <span className="flex items-center gap-2">
-                                            {col.title}
-                                            <Badge variant="outline" className="ml-1 bg-white/50">{colTasks.length}</Badge>
-                                        </span>
-                                    </div>
-                                    <CardContent className="p-3 flex-1 overflow-y-auto min-h-[150px]">
-                                        <SortableContext
-                                            id={col.id}
-                                            items={colTasks.map(t => t.id)}
-                                            strategy={verticalListSortingStrategy}
-                                        >
-                                            {colTasks.map(task => (
-                                                <SortableTaskCard
-                                                    key={task.id}
-                                                    task={task}
-                                                    onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}
-                                                    onPromote={() => setPromoteTaskId(task.id)}
-                                                    onShapeUp={() => setShapeUpTask(task)}
-                                                />
-                                            ))}
-                                            {colTasks.length === 0 && (
-                                                <div className="text-center py-8 text-black/20 text-sm dashed border-2 border-black/5 rounded-md">
-                                                    Drop items here
-                                                </div>
-                                            )}
-                                        </SortableContext>
-                                    </CardContent>
-                                    {col.id === 'ReadyForEng' && colTasks.length > 0 && (
-                                        <div className="p-2 border-t border-black/5 bg-white/30 rounded-b-lg">
-                                            <p className="text-xs text-center text-muted-foreground">Ready items can be promoted</p>
+                {viewMode === 'kanban' ? (
+                    <DndContext
+                        sensors={sensors}
+                        collisionDetection={closestCorners}
+                        onDragStart={handleDragStart}
+                        onDragEnd={handleDragEnd}
+                    >
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden pb-4">
+                            {columns.map((col) => {
+                                const colTasks = tasks.filter(t => t.status === col.id);
+                                return (
+                                    <div key={col.id} className={cn("rounded-lg flex flex-col h-full max-h-screen", col.color)}>
+                                        <div className="p-3 font-semibold border-b border-black/5 flex justify-between items-center bg-white/50 rounded-t-lg">
+                                            <span className="flex items-center gap-2">
+                                                {t(`productBacklog.columns.${col.id === 'ReadyForEng' ? 'readyForEng' : col.id.toLowerCase()}`)}
+                                                <Badge variant="outline" className="ml-1 bg-white/50">{colTasks.length}</Badge>
+                                            </span>
                                         </div>
+                                        <CardContent className="p-3 flex-1 overflow-y-auto min-h-[150px]">
+                                            <SortableContext
+                                                id={col.id}
+                                                items={colTasks.map(t => t.id)}
+                                                strategy={verticalListSortingStrategy}
+                                            >
+                                                {colTasks.map(task => (
+                                                    <SortableTaskCard
+                                                        key={task.id}
+                                                        task={task}
+                                                        activeModel={activeModel}
+                                                        onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}
+                                                        onPromote={() => setPromoteTaskId(task.id)}
+                                                        onShapeUp={() => setShapeUpTask(task)}
+                                                    />
+                                                ))}
+                                                {colTasks.length === 0 && (
+                                                    <div className="text-center py-8 text-black/20 text-sm dashed border-2 border-black/5 rounded-md">
+                                                        Drop items here
+                                                    </div>
+                                                )}
+                                            </SortableContext>
+                                        </CardContent>
+                                        {col.id === 'ReadyForEng' && colTasks.length > 0 && (
+                                            <div className="p-2 border-t border-black/5 bg-white/30 rounded-b-lg">
+                                                <p className="text-xs text-center text-muted-foreground">{t('productBacklog.readyMsg')}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                        <DragOverlay>
+                            {activeId ? (
+                                <Card className="opacity-80 rotate-2 cursor-grabbing w-[300px]">
+                                    <CardContent className="p-4">
+                                        Dragging...
+                                    </CardContent>
+                                </Card>
+                            ) : null}
+                        </DragOverlay>
+                    </DndContext>
+                ) : (
+                    <div className="border rounded-lg bg-white overflow-hidden flex-1 flex flex-col">
+                        <div className="overflow-y-auto">
+                            <Table>
+                                <TableHeader className="bg-slate-50 sticky top-0 z-10">
+                                    <TableRow>
+                                        <TableHead className="w-[40%] font-semibold">{t('productBacklog.tableHeaders.title')}</TableHead>
+                                        <TableHead className="w-[15%] font-semibold">{t('productBacklog.tableHeaders.status')}</TableHead>
+                                        <TableHead className="w-[10%] font-semibold">{t('productBacklog.tableHeaders.priority')}</TableHead>
+                                        <TableHead className="w-[10%] font-semibold">{t('productBacklog.tableHeaders.type')}</TableHead>
+                                        <TableHead className="w-[10%] font-semibold text-right">{t('productBacklog.tableHeaders.score')} ({activeModel})</TableHead>
+                                        <TableHead className="w-[15%] text-right"></TableHead>
+                                    </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                    {tasks.map((task) => {
+                                        const score = getTaskScore(task, activeModel);
+                                        const statusColor = columns.find(c => c.id === task.status)?.color || '';
+                                        
+                                        return (
+                                            <TableRow key={task.id} className="hover:bg-slate-50/50">
+                                                <TableCell className="font-medium">
+                                                    <div className="flex flex-col">
+                                                        <span>{task.title}</span>
+                                                        {task.product_objective && (
+                                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                                <Target className="h-3 w-3" /> {task.product_objective}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge className={cn("font-normal border-none", statusColor.replace('bg-', 'bg-').replace('border-', 'text-').replace('50', '200').replace('100', '700'))}>
+                                                        {t(`productBacklog.columns.${task.status === 'ReadyForEng' ? 'readyForEng' : task.status.toLowerCase()}`)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <Badge variant="outline" className="font-normal capitalize">{task.priority}</Badge>
+                                                </TableCell>
+                                                <TableCell>
+                                                    <span className="text-sm text-muted-foreground capitalize">{task.task_type}</span>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                                                        {score.toFixed(1)}
+                                                    </Badge>
+                                                </TableCell>
+                                                <TableCell className="text-right">
+                                                    <DropdownMenu>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end">
+                                                            <DropdownMenuItem onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}>Edit</DropdownMenuItem>
+                                                            {['Discovery', 'Refinement'].includes(task.status) && (
+                                                                <DropdownMenuItem onClick={() => setShapeUpTask(task)} className="text-violet-600">✨ Shape Up (AI)</DropdownMenuItem>
+                                                            )}
+                                                            {task.status === 'ReadyForEng' && (
+                                                                <DropdownMenuItem onClick={() => setPromoteTaskId(task.id)} className="text-blue-600">Promote to Eng</DropdownMenuItem>
+                                                            )}
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </TableCell>
+                                            </TableRow>
+                                        );
+                                    })}
+                                    {tasks.length === 0 && (
+                                        <TableRow>
+                                            <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
+                                                No initiatives found.
+                                            </TableCell>
+                                        </TableRow>
                                     )}
-                                </div>
-                            );
-                        })}
+                                </TableBody>
+                            </Table>
+                        </div>
                     </div>
-                    <DragOverlay>
-                        {activeId ? (
-                            <Card className="opacity-80 rotate-2 cursor-grabbing w-[300px]">
-                                <CardContent className="p-4">
-                                    Dragging...
-                                </CardContent>
-                            </Card>
-                        ) : null}
-                    </DragOverlay>
-                </DndContext>
+                )}
             </div>
 
             <InitiativeFormDialog

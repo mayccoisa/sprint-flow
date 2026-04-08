@@ -1,4 +1,4 @@
-import { Users, ListTodo, Calendar as CalendarIcon, LayoutDashboard, Target, Package, Settings, LogOut, Lightbulb, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { Users, ListTodo, Calendar as CalendarIcon, LayoutDashboard, Target, Package, Settings, LogOut, Lightbulb, ChevronDown, ChevronRight, FileText, Link as LinkIcon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
@@ -22,7 +22,8 @@ export const Sidebar = () => {
 
   const teamChildren: any[] = [
     { name: t('sidebar.squads'), href: '/squads', feature: 'squads' },
-    { name: t('sidebar.forms', 'Forms'), href: '/forms', feature: 'strategy' } // Forms management
+    { name: t('sidebar.forms', 'Forms'), href: '/forms', feature: 'strategy' }, // Forms management
+    { name: 'Integração Jira', href: '/admin/jira' }
   ];
 
   if (hasPermission('users', 'view')) {

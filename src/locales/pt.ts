@@ -86,10 +86,20 @@ export const pt = {
             subtitle: "Gerencie iniciativas e descobertas.",
             newInitiative: "Nova Iniciativa",
             searchPlaceholder: "Buscar...",
+            view: "Visualização",
+            kanban: "Kanban",
+            table: "Tabela",
             columns: {
                 discovery: "Descoberta",
                 refinement: "Refinamento",
                 readyForEng: "Pronto p/ Eng"
+            },
+            tableHeaders: {
+                title: "Título",
+                status: "Status",
+                priority: "Prioridade",
+                type: "Tipo",
+                score: "Score"
             },
             promote: "Promover p/ Engenharia",
             promoteConfirmTitle: "Promover para Backlog de Engenharia?",
@@ -489,6 +499,24 @@ export const pt = {
                 notAnswered: "_Não respondido_",
                 taskSubtitle: "Respostas do Formulário",
                 taskTitlePrefix: "Demanda via Form"
+            }
+        },
+        prioritization: {
+            title: "Priorização",
+            model: "Modelo de Priorização",
+            score: "Pontuação",
+            metrics: {
+                impact: "Impacto",
+                confidence: "Confiança",
+                ease: "Facilidade",
+                reach: "Alcance",
+                effort: "Esforço",
+                businessValue: "Valor de Negócio"
+            },
+            models: {
+                ice: "ICE",
+                rice: "RICE",
+                brice: "BRICE"
             }
         }
     }

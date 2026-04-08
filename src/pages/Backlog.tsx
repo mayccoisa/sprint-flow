@@ -13,6 +13,8 @@ import { TaskFormDialog } from '@/components/TaskFormDialog';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Layout } from '@/components/Layout';
+import { useLocalData } from '@/hooks/useLocalData';
+import { RefreshCw } from 'lucide-react';
 
 // Mock data for initial state
 const INITIAL_TASKS: Task[] = [
@@ -125,11 +127,14 @@ const INITIAL_TASKS: Task[] = [
 
 export default function Backlog() {
   const { t } = useTranslation();
-  const [tasks, setTasks] = useState<Task[]>(INITIAL_TASKS);
+  const { data, addTask, updateTask, syncWithJira } = useLocalData();
   const [searchQuery, setSearchQuery] = useState('');
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
   const { toast } = useToast();
+
+  const tasks = data.tasks;
 
   const handleDragEnd = (result: DropResult) => {
     const { destination, source, draggableId } = result;
@@ -144,32 +149,8 @@ export default function Backlog() {
     }
 
     const draggedTaskId = parseInt(draggableId.toString());
-    const draggedTask = tasks.find((t) => t.id === draggedTaskId);
-    if (!draggedTask) return;
-
-    // Create a new array to avoid mutating state directly
-    const newTasks = Array.from(tasks);
-    const taskIndex = newTasks.findIndex((t) => t.id === draggedTaskId);
-
-    // Update the task status based on the destination column
-    const updatedTask = {
-      ...newTasks[taskIndex],
-      status: destination.droppableId as TaskStatus
-    };
-
-    newTasks.splice(taskIndex, 1); // Remove from old position
-    // In a real app with order index, we would insert at the new index.
-    // For this mock, we just add it back with updated status.
-    newTasks.splice(taskIndex, 0, updatedTask); // Put it back (simplified for state update)
-    // Actually, to simulate moving between lists, we should just update the status map
-    // But since we map by filtering status, updating the status field is enough.
-
-    // Better approach for local state:
-    const updatedTasks = tasks.map(t =>
-      t.id === draggedTaskId ? { ...t, status: destination.droppableId as TaskStatus } : t
-    );
-
-    setTasks(updatedTasks);
+    const updatedStatus = destination.droppableId as TaskStatus;
+    updateTask(draggedTaskId, { status: updatedStatus });
 
     toast({
       title: t('common.saved') || "Saved",
@@ -179,34 +160,18 @@ export default function Backlog() {
 
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'created_at'>) => {
     if (editingTask) {
-      setTasks((prev) =>
-        prev.map((t) =>
-          t.id === editingTask.id ? { ...t, ...taskData } : t
-        )
-      );
+      updateTask(editingTask.id, taskData);
       toast({ title: t('common.updated') || "Updated", description: "Task updated successfully." });
     } else {
-      const newTask: Task = {
-        id: Date.now(), // Generate numeric ID
-        created_at: new Date().toISOString(),
-        order_index: 0,
-        product_objective: null,
-        business_goal: null,
-        user_impact: null,
-        has_prototype: false,
-        prototype_link: null,
-        estimate_frontend: null,
-        estimate_backend: null,
-        estimate_qa: null,
-        estimate_design: null,
-        start_date: null,
-        end_date: null,
-        ...taskData,
-        status: 'Backlog', // Default to backlog for new tasks
-      } as Task;
-      setTasks((prev) => [...prev, newTask]);
+      addTask({ ...taskData, status: 'Backlog' });
       toast({ title: t('common.created'), description: "Task created successfully." });
     }
+  };
+
+  const handleJiraSync = async () => {
+    setIsSyncing(true);
+    await syncWithJira();
+    setIsSyncing(false);
   };
 
   const handleEditTask = (task: Task) => {
@@ -265,6 +230,10 @@ export default function Backlog() {
             <p className="text-muted-foreground">{t('engineeringBacklog.subtitle')}</p>
           </div>
           <div className="flex items-center space-x-2">
+            <Button variant="outline" onClick={handleJiraSync} disabled={isSyncing}>
+              <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+              Sincronizar Jira
+            </Button>
             <Button onClick={() => { setEditingTask(null); setIsTaskDialogOpen(true); }}>
               <Plus className="mr-2 h-4 w-4" /> {t('engineeringBacklog.newTask')}
             </Button>

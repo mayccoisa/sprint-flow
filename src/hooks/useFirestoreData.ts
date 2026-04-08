@@ -18,9 +18,10 @@ import type {
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument,
-    CustomForm, FormSubmission
+    CustomForm, FormSubmission, JiraSyncLog, JiraConfig
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { jiraService } from '@/services/jiraService';
 
 interface FirestoreData {
     workspaces: Workspace[];
@@ -39,6 +40,7 @@ interface FirestoreData {
     documents: ProductDocument[];
     forms: CustomForm[];
     formSubmissions: FormSubmission[];
+    jiraSyncLogs: JiraSyncLog[];
 }
 
 const initialData: FirestoreData = {
@@ -57,7 +59,8 @@ const initialData: FirestoreData = {
     users: [],
     documents: [],
     forms: [],
-    formSubmissions: []
+    formSubmissions: [],
+    jiraSyncLogs: []
 }
 
 export const useFirestoreData = () => {
@@ -119,6 +122,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('documents', 'documents', true),
             subscribeToCollection('forms', 'forms', true),
             subscribeToCollection('form_submissions', 'formSubmissions', true),
+            subscribeToCollection('jira_sync_logs', 'jiraSyncLogs', true),
         ];
 
         setLoading(false);
@@ -154,7 +158,7 @@ export const useFirestoreData = () => {
                     'squads', 'members', 'tasks', 'sprints', 'sprint_tasks',
                     'task_assignments', 'product_modules', 'module_metrics',
                     'product_services', 'product_features', 'service_dependencies', 'documents',
-                    'forms', 'form_submissions'
+                    'forms', 'form_submissions', 'jira_sync_logs'
                 ];
 
                 for (const colName of collectionsToMigrate) {
@@ -218,10 +222,72 @@ export const useFirestoreData = () => {
         },
         updateWorkspace: (id: string, updates: Partial<Workspace>) => updateItem('workspaces', id, updates),
         deleteWorkspace: (id: string) => deleteItem('workspaces', id),
+        updateJiraConfig: (config: JiraConfig) => {
+            if (!currentWorkspaceId) return;
+            return updateItem('workspaces', currentWorkspaceId, { jira_config: config });
+        },
 
         // Tasks
-        addTask: (task: Omit<Task, 'id' | 'created_at'>) => addItem('tasks', { ...task, created_at: new Date().toISOString() }),
-        updateTask: (id: number, updates: Partial<Task>) => updateItem('tasks', id, updates),
+        addTask: async (task: Omit<Task, 'id' | 'created_at'>) => {
+            const workspace = data.workspaces.find(ws => ws.id === currentWorkspaceId);
+            let jiraKey = null;
+
+            if (workspace?.jira_config?.isEnabled) {
+                try {
+                    const jiraIssue = await jiraService.createIssue(task as Task, workspace.jira_config);
+                    jiraKey = jiraIssue.key;
+                } catch (e) {
+                    console.error("Failed to create Jira issue", e);
+                }
+            }
+
+            const newTask = await addItem('tasks', { 
+                ...task, 
+                created_at: new Date().toISOString(),
+                jira_key: jiraKey 
+            });
+
+            if (jiraKey) {
+                addItem('jira_sync_logs', {
+                    timestamp: new Date().toISOString(),
+                    jira_key: jiraKey,
+                    task_title: task.title,
+                    action: 'Created',
+                    details: 'Tarefa criada no Sprintflow e espalhada para o Jira.',
+                    status: 'Success'
+                });
+            }
+            return newTask;
+        },
+        updateTask: async (id: number, updates: Partial<Task>) => {
+            const task = data.tasks.find(t => t.id === id);
+            const workspace = data.workspaces.find(ws => ws.id === currentWorkspaceId);
+
+            await updateItem('tasks', id, updates);
+
+            if (task?.jira_key && workspace?.jira_config?.isEnabled && updates.status) {
+                try {
+                    await jiraService.updateStatus(task.jira_key, updates.status, workspace.jira_config);
+                    addItem('jira_sync_logs', {
+                        timestamp: new Date().toISOString(),
+                        jira_key: task.jira_key,
+                        task_title: task.title,
+                        action: 'StatusSync',
+                        details: `Status atualizado para ${updates.status} no Jira.`,
+                        status: 'Success'
+                    });
+                } catch (e: any) {
+                    addItem('jira_sync_logs', {
+                        timestamp: new Date().toISOString(),
+                        jira_key: task.jira_key,
+                        task_title: task.title,
+                        action: 'StatusSync',
+                        details: `Falha ao sincronizar status: ${e.message}`,
+                        status: 'Error'
+                    });
+                }
+            }
+        },
         deleteTask: (id: number) => deleteItem('tasks', id),
 
         // Sprints
@@ -295,6 +361,56 @@ export const useFirestoreData = () => {
 
         addFormSubmission: (submissionData: Omit<FormSubmission, 'id' | 'created_at'>) =>
             addItem('form_submissions', { ...submissionData, id: `sub_${Date.now()}`, created_at: new Date().toISOString() }),
+
+        addJiraSyncLog: (log: Omit<JiraSyncLog, 'id' | 'workspace_id'>) =>
+            addItem('jira_sync_logs', { ...log, id: `log_${Date.now()}` }),
+
+        // Jira Management
+        updateWorkspaceJiraConfig: async (config: JiraConfig) => {
+            const workspace = data.workspaces.find(ws => ws.id === currentWorkspaceId);
+            if (workspace) {
+                await updateItem('workspaces', workspace.id, { jira_config: config });
+            }
+        },
+        syncWithJira: async () => {
+            const workspace = data.workspaces.find(ws => ws.id === currentWorkspaceId);
+            if (!workspace?.jira_config?.isEnabled) {
+                toast({ title: 'Integração Jira não está habilitada', variant: 'destructive' });
+                return;
+            }
+
+            const tasksToSync = data.tasks.filter(t => t.jira_key);
+            if (tasksToSync.length === 0) {
+                toast({ title: 'Nenhuma tarefa vinculada ao Jira encontrada' });
+                return;
+            }
+
+            let updatedCount = 0;
+            for (const task of tasksToSync) {
+                try {
+                    const jiraStatus = await jiraService.getIssueStatus(task.jira_key!, workspace.jira_config);
+                    if (jiraStatus && jiraStatus !== task.status) {
+                        await updateItem('tasks', task.id, { status: jiraStatus as TaskStatus });
+                        addItem('jira_sync_logs', {
+                            timestamp: new Date().toISOString(),
+                            jira_key: task.jira_key!,
+                            task_title: task.title,
+                            action: 'InboundSync',
+                            details: `Status atualizado de ${task.status} para ${jiraStatus} via Jira.`,
+                            status: 'Success'
+                        });
+                        updatedCount++;
+                    }
+                } catch (e) {
+                    console.error(`Failed to sync task ${task.jira_key}`, e);
+                }
+            }
+
+            toast({ 
+                title: 'Sincronização concluída', 
+                description: `${updatedCount} tarefas foram atualizadas com status do Jira.` 
+            });
+        }
     };
 };
 
