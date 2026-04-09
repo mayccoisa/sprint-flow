@@ -25,10 +25,11 @@ export default function JiraSettings() {
     url: '',
     email: '',
     apiToken: '',
-    projectKey: '',
     isEnabled: false,
-    productIssueType: 'Story',
-    engIssueType: 'Task'
+    productProjectKey: '',
+    productIssueTypes: 'Story',
+    engProjectKey: '',
+    engIssueTypes: 'Task'
   };
 
   const [formData, setFormData] = useState(config);
@@ -65,12 +66,12 @@ export default function JiraSettings() {
       await jiraService.testConnection(formData);
       toast({
         title: "Conexão Bem-sucedida!",
-        description: `Conectado ao projeto ${formData.projectKey} com sucesso.`,
+        description: `Conectado aos projetos ${formData.productProjectKey} e ${formData.engProjectKey} com sucesso.`,
       });
     } catch (error: any) {
       toast({
         title: "Falha na Conexão",
-        description: "Verifique o URL, E-mail e Token de API.",
+        description: error.message || "Verifique o URL, E-mail e Token de API.",
         variant: "destructive"
       });
     } finally {
@@ -145,26 +146,8 @@ export default function JiraSettings() {
                       onChange={(e) => setFormData({...formData, apiToken: e.target.value})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="project">Chave do Projeto (Project Key)</Label>
-                    <Input 
-                      id="project" 
-                      placeholder="PROJ" 
-                      className="uppercase"
-                      value={formData.projectKey}
-                      onChange={(e) => setFormData({...formData, projectKey: e.target.value.toUpperCase()})}
-                    />
-                  </div>
-                </CardContent>
-              </Card>
 
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-lg">Preferências de Sincronização</CardTitle>
-                  <CardDescription>Defina como as tarefas devem ser criadas e mapeadas.</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  <div className="flex items-center justify-between">
+                  <div className="flex items-center justify-between pt-4">
                     <div className="space-y-0.5">
                       <Label>Habilitar Sincronização</Label>
                       <p className="text-sm text-muted-foreground">Ativa criação automática de tarefas.</p>
@@ -174,21 +157,63 @@ export default function JiraSettings() {
                       onCheckedChange={(val) => setFormData({...formData, isEnabled: val})}
                     />
                   </div>
-                  <div className="space-y-2">
-                    <Label>Issue Type para Produto (Discovery)</Label>
-                    <Input 
-                      placeholder="Story" 
-                      value={formData.productIssueType}
-                      onChange={(e) => setFormData({...formData, productIssueType: e.target.value})}
-                    />
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Mapeamento de Áreas</CardTitle>
+                  <CardDescription>Defina os projetos e tipos de issue para cada área.</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  <div className="space-y-4 border-l-2 border-primary/20 pl-4 py-1">
+                    <h3 className="text-sm font-semibold text-primary">Área de Produto (Backlog de Produto)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="prodProject">Chave do Projeto</Label>
+                        <Input 
+                          id="prodProject" 
+                          placeholder="PROD" 
+                          className="uppercase"
+                          value={formData.productProjectKey}
+                          onChange={(e) => setFormData({...formData, productProjectKey: e.target.value.toUpperCase()})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="prodIssues">Issue Types</Label>
+                        <Input 
+                          id="prodIssues" 
+                          placeholder="Story, Epic" 
+                          value={formData.productIssueTypes}
+                          onChange={(e) => setFormData({...formData, productIssueTypes: e.target.value})}
+                        />
+                      </div>
+                    </div>
                   </div>
-                  <div className="space-y-2">
-                    <Label>Issue Type para Engenharia</Label>
-                    <Input 
-                      placeholder="Task" 
-                      value={formData.engIssueType}
-                      onChange={(e) => setFormData({...formData, engIssueType: e.target.value})}
-                    />
+
+                  <div className="space-y-4 border-l-2 border-secondary/20 pl-4 py-1">
+                    <h3 className="text-sm font-semibold text-secondary">Área de Engenharia (Backlog de Sprints)</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="engProject">Chave do Projeto</Label>
+                        <Input 
+                          id="engProject" 
+                          placeholder="ENG" 
+                          className="uppercase"
+                          value={formData.engProjectKey}
+                          onChange={(e) => setFormData({...formData, engProjectKey: e.target.value.toUpperCase()})}
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="engIssues">Issue Types</Label>
+                        <Input 
+                          id="engIssues" 
+                          placeholder="Task, Bug" 
+                          value={formData.engIssueTypes}
+                          onChange={(e) => setFormData({...formData, engIssueTypes: e.target.value})}
+                        />
+                      </div>
+                    </div>
                   </div>
                   
                   <div className="pt-4 flex gap-2">

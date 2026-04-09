@@ -181,6 +181,36 @@ const ProductBacklog = () => {
         });
     }, [data.tasks, searchQuery, activeModel]);
 
+    const getModelFields = () => {
+        switch (activeModel) {
+            case 'ICE':
+                return [
+                    { key: 'ice_impact', label: t('prioritization.metrics.impact') },
+                    { key: 'ice_confidence', label: t('prioritization.metrics.confidence') },
+                    { key: 'ice_ease', label: t('prioritization.metrics.ease') },
+                ] as { key: keyof Task; label: string }[];
+            case 'RICE':
+                return [
+                    { key: 'rice_reach', label: t('prioritization.metrics.reach') },
+                    { key: 'rice_impact', label: t('prioritization.metrics.impact') },
+                    { key: 'rice_confidence', label: t('prioritization.metrics.confidence') },
+                    { key: 'rice_effort', label: t('prioritization.metrics.effort') },
+                ] as { key: keyof Task; label: string }[];
+            case 'BRICE':
+                return [
+                    { key: 'brice_business_value', label: t('prioritization.metrics.businessValue') },
+                    { key: 'brice_reach', label: t('prioritization.metrics.reach') },
+                    { key: 'brice_impact', label: t('prioritization.metrics.impact') },
+                    { key: 'brice_confidence', label: t('prioritization.metrics.confidence') },
+                    { key: 'brice_effort', label: t('prioritization.metrics.effort') },
+                ] as { key: keyof Task; label: string }[];
+            default:
+                return [] as { key: keyof Task; label: string }[];
+        }
+    };
+
+    const modelFields = getModelFields();
+
     const handleSave = (taskData: Partial<Task>) => {
         if (editingTask) {
             updateTask(editingTask.id, taskData);
@@ -371,14 +401,17 @@ const ProductBacklog = () => {
                         <div className="overflow-y-auto">
                             <Table>
                                 <TableHeader className="bg-slate-50 sticky top-0 z-10">
-                                    <TableRow>
-                                        <TableHead className="w-[40%] font-semibold">{t('productBacklog.tableHeaders.title')}</TableHead>
-                                        <TableHead className="w-[15%] font-semibold">{t('productBacklog.tableHeaders.status')}</TableHead>
-                                        <TableHead className="w-[10%] font-semibold">{t('productBacklog.tableHeaders.priority')}</TableHead>
-                                        <TableHead className="w-[10%] font-semibold">{t('productBacklog.tableHeaders.type')}</TableHead>
-                                        <TableHead className="w-[10%] font-semibold text-right">{t('productBacklog.tableHeaders.score')} ({activeModel})</TableHead>
-                                        <TableHead className="w-[15%] text-right"></TableHead>
-                                    </TableRow>
+                                        <TableRow>
+                                            <TableHead className="w-[30%] font-semibold">{t('productBacklog.tableHeaders.title')}</TableHead>
+                                            <TableHead className="w-[12%] font-semibold">{t('productBacklog.tableHeaders.status')}</TableHead>
+                                            <TableHead className="w-[8%] font-semibold">{t('productBacklog.tableHeaders.priority')}</TableHead>
+                                            <TableHead className="w-[8%] font-semibold">{t('productBacklog.tableHeaders.type')}</TableHead>
+                                            {modelFields.map(field => (
+                                                <TableHead key={field.key} className="font-semibold text-center whitespace-nowrap">{field.label}</TableHead>
+                                            ))}
+                                            <TableHead className="w-[10%] font-semibold text-right">{t('productBacklog.tableHeaders.score')}</TableHead>
+                                            <TableHead className="w-[10%] text-right"></TableHead>
+                                        </TableRow>
                                 </TableHeader>
                                 <TableBody>
                                     {tasks.map((task) => {
@@ -408,6 +441,11 @@ const ProductBacklog = () => {
                                                 <TableCell>
                                                     <span className="text-sm text-muted-foreground capitalize">{task.task_type}</span>
                                                 </TableCell>
+                                                {modelFields.map(field => (
+                                                    <TableCell key={field.key} className="text-center font-medium tabular-nums">
+                                                        {task[field.key] || '-'}
+                                                    </TableCell>
+                                                ))}
                                                 <TableCell className="text-right">
                                                     <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
                                                         {score.toFixed(1)}

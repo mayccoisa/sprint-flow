@@ -151,10 +151,13 @@ export interface JiraConfig {
   url: string;
   email: string;
   apiToken: string;
-  projectKey: string;
   isEnabled: boolean;
-  productIssueType?: string;
-  engIssueType?: string;
+  // Configuração de Produto
+  productProjectKey: string;
+  productIssueTypes: string; // Ex: "Story, Initiative"
+  // Configuração de Engenharia
+  engProjectKey: string;
+  engIssueTypes: string; // Ex: "Task, Bug"
 }
 
 export interface JiraSyncLog {

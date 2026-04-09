@@ -379,37 +379,84 @@ export const useFirestoreData = () => {
                 return;
             }
 
-            const tasksToSync = data.tasks.filter(t => t.jira_key);
-            if (tasksToSync.length === 0) {
-                toast({ title: 'Nenhuma tarefa vinculada ao Jira encontrada' });
-                return;
-            }
+            try {
+                const jiraUpdates = await jiraService.fetchUpdates(workspace.jira_config);
+                const jiraIssues = jiraUpdates.issues || [];
+                
+                let updatedCount = 0;
+                let importedCount = 0;
 
-            let updatedCount = 0;
-            for (const task of tasksToSync) {
-                try {
-                    const jiraStatus = await jiraService.getIssueStatus(task.jira_key!, workspace.jira_config);
-                    if (jiraStatus && jiraStatus !== task.status) {
-                        await updateItem('tasks', task.id, { status: jiraStatus as TaskStatus });
+                for (const issue of jiraIssues) {
+                    const jiraKey = issue.key;
+                    const jiraStatus = issue.fields.status.name;
+                    const jiraSummary = issue.fields.summary;
+                    const jiraDesc = issue.fields.description?.content?.[0]?.content?.[0]?.text || "";
+                    const projectKey = issue.fields.project.key;
+                    const issueTypeName = issue.fields.issuetype.name;
+
+                    // 1. Check if task already exists in Sprintflow
+                    const existingTask = data.tasks.find(t => t.jira_key === jiraKey);
+
+                    if (existingTask) {
+                        // Update status if changed
+                        if (jiraStatus !== existingTask.status) {
+                            await updateItem('tasks', existingTask.id, { status: jiraStatus });
+                            addItem('jira_sync_logs', {
+                                timestamp: new Date().toISOString(),
+                                jira_key: jiraKey,
+                                task_title: existingTask.title,
+                                action: 'InboundSync',
+                                details: `Status sincronizado de Jira: ${jiraStatus}`,
+                                status: 'Success'
+                            });
+                            updatedCount++;
+                        }
+                    } else {
+                        // 2. Import as new task if not existing
+                        // Determine area and initial status
+                        const isProduct = projectKey === workspace.jira_config.productProjectKey || 
+                                         workspace.jira_config.productIssueTypes.includes(issueTypeName);
+                        
+                        const area = isProduct ? 'Product' : 'Engineering';
+                        const initialStatus = isProduct ? 'Discovery' : 'Backlog';
+
+                        await addItem('tasks', {
+                            title: jiraSummary,
+                            description: jiraDesc,
+                            status: jiraStatus || initialStatus, // Use Jira status if possible, or default
+                            area,
+                            jira_key: jiraKey,
+                            created_at: new Date().toISOString(),
+                            priority: 'Medium',
+                            impact: 0,
+                            confidence: 0,
+                            ease: 0,
+                            score: 0
+                        });
+
                         addItem('jira_sync_logs', {
                             timestamp: new Date().toISOString(),
-                            jira_key: task.jira_key!,
-                            task_title: task.title,
-                            action: 'InboundSync',
-                            details: `Status atualizado de ${task.status} para ${jiraStatus} via Jira.`,
+                            jira_key: jiraKey,
+                            task_title: jiraSummary,
+                            action: 'Imported',
+                            details: `Nova tarefa importada do Jira (${area}).`,
                             status: 'Success'
                         });
-                        updatedCount++;
+                        importedCount++;
                     }
-                } catch (e) {
-                    console.error(`Failed to sync task ${task.jira_key}`, e);
                 }
-            }
 
-            toast({ 
-                title: 'Sincronização concluída', 
-                description: `${updatedCount} tarefas foram atualizadas com status do Jira.` 
-            });
+                toast({ 
+                    title: 'Sincronização concluída', 
+                    description: `Status atualizados: ${updatedCount}. Novos itens importados: ${importedCount}.` 
+                });
+            } catch (error: any) {
+                toast({ 
+                    title: 'Falha na Sincronização', 
+                    description: error.message,
+                    variant: 'destructive' 
+                });
+            }
         }
     };
 };
