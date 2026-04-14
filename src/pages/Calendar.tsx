@@ -22,6 +22,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
+import { useLocalData } from '@/hooks/useLocalData';
+import { AlertTriangle, History } from 'lucide-react';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 const localizer = momentLocalizer(moment);
 
@@ -37,6 +41,8 @@ interface CalendarEvent {
 
 export default function Calendar() {
   const navigate = useNavigate();
+  const { data: firestoreData } = useLocalData();
+  const taskDateChanges = firestoreData.taskDateChanges;
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
   const [showSprints, setShowSprints] = useState(true);
@@ -107,15 +113,19 @@ export default function Calendar() {
           'Spike': '#8b5cf6',
         };
         
-        const statusIcons: Record<string, string> = {
+          const statusIcons: Record<string, string> = {
           'InSprint': '⏳',
           'Done': '✓',
           'Backlog': '📋',
         };
 
+        const hasChanges = taskDateChanges.some(change => change.task_id === task.id);
+        const titlePrefix = statusIcons[task.status] || '';
+        const titleSuffix = hasChanges ? ' ⚠️' : '';
+
         result.push({
           id: task.id,
-          title: `${statusIcons[task.status] || ''} ${task.title}`,
+          title: `${titlePrefix} ${task.title}${titleSuffix}`,
           start: new Date(task.start_date),
           end: task.end_date ? new Date(task.end_date) : new Date(task.start_date),
           type: 'task',
@@ -179,12 +189,49 @@ export default function Calendar() {
             </div>
           )}
           {event.type === 'task' && (
-            <div className="space-y-2">
-              <h4 className="font-semibold">{(event.data as Task).title}</h4>
-              <div className="text-sm space-y-1">
-                <p>{(event.data as Task).description}</p>
-                <Badge>{(event.data as Task).task_type}</Badge>
-                <Badge variant="outline">{(event.data as Task).priority}</Badge>
+            <div className="space-y-3">
+              <div className="flex items-start justify-between gap-2">
+                <h4 className="font-semibold">{(event.data as Task).title}</h4>
+                {taskDateChanges.some(c => c.task_id === (event.data as Task).id) && (
+                  <Badge variant="destructive" className="flex items-center gap-1 shrink-0">
+                    <AlertTriangle className="h-3 w-3" />
+                    Prazo Alterado
+                  </Badge>
+                )}
+              </div>
+              <div className="text-sm space-y-2">
+                <p className="text-muted-foreground">{(event.data as Task).description}</p>
+                <div className="flex flex-wrap gap-2">
+                  <Badge variant="secondary">{(event.data as Task).task_type}</Badge>
+                  <Badge variant="outline">{(event.data as Task).priority}</Badge>
+                </div>
+
+                {/* Histórico de Alterações */}
+                {taskDateChanges.filter(c => c.task_id === (event.data as Task).id).length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 uppercase tracking-wider">
+                      <History className="h-3 w-3" />
+                      Histórico de Previsibilidade
+                    </div>
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
+                      {taskDateChanges
+                        .filter(c => c.task_id === (event.data as Task).id)
+                        .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime())
+                        .map((change, idx) => (
+                          <div key={idx} className="p-2 rounded-md bg-amber-50 border border-amber-100 text-[11px] space-y-1">
+                            <div className="flex justify-between text-amber-800 font-medium">
+                              <span>De: {format(new Date(change.old_end_date), 'dd/MM/yy')}</span>
+                              <span>Para: {format(new Date(change.new_end_date), 'dd/MM/yy')}</span>
+                            </div>
+                            <p className="italic text-amber-700">"{change.reason}"</p>
+                            <div className="text-[10px] text-amber-600/70 text-right">
+                              {format(new Date(change.changed_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}

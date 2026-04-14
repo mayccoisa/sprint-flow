@@ -147,6 +147,16 @@ export interface Task {
   jira_key?: string | null;
 }
 
+export interface TaskDateChange {
+  id: string;
+  workspace_id?: string;
+  task_id: number;
+  old_end_date: string | null;
+  new_end_date: string | null;
+  reason: string;
+  changed_at: string;
+}
+
 export interface JiraConfig {
   url: string;
   email: string;

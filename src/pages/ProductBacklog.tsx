@@ -60,6 +60,7 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { cn } from '@/lib/utils';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { TaskDateChangeDialog } from '@/components/TaskDateChangeDialog';
 
 // Sortable Item Component
 const SortableTaskCard = ({ 
@@ -151,6 +152,7 @@ const ProductBacklog = () => {
     const [shapeUpTask, setShapeUpTask] = useState<Task | null>(null);
     const [activeModel, setActiveModel] = useState<PrioritizationModel>('ICE');
     const [viewMode, setViewMode] = useState<'kanban' | 'table'>('kanban');
+    const [pendingDateChange, setPendingDateChange] = useState<{ task: Task; newDate: string; data: Partial<Task> } | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor),
@@ -213,6 +215,15 @@ const ProductBacklog = () => {
 
     const handleSave = (taskData: Partial<Task>) => {
         if (editingTask) {
+            // Check if end_date has changed
+            if (taskData.end_date && taskData.end_date !== editingTask.end_date) {
+                setPendingDateChange({
+                    task: editingTask,
+                    newDate: taskData.end_date,
+                    data: taskData
+                });
+                return;
+            }
             updateTask(editingTask.id, taskData);
             toast({ title: 'Initiative updated' });
         } else {
@@ -220,6 +231,28 @@ const ProductBacklog = () => {
             addTask({ ...taskData, status: 'Discovery', order_index: maxOrder + 1 } as unknown as Omit<Task, 'id' | 'created_at'>);
             toast({ title: 'Initiative created' });
         }
+        setEditingTask(null);
+    };
+
+    const handleConfirmDateChange = async (reason: string) => {
+        if (!pendingDateChange) return;
+
+        const { task, data: taskData } = pendingDateChange;
+
+        // 1. Add the tracking record
+        await data.addTaskDateChange({
+            task_id: task.id,
+            workspace_id: task.workspace_id || "1", // Defaulting to "1" if not present
+            old_end_date: task.end_date || "",
+            new_end_date: pendingDateChange.newDate,
+            reason: reason,
+        });
+
+        // 2. Update the task
+        updateTask(task.id, taskData);
+        
+        toast({ title: 'Initiative updated with deadline justification' });
+        setPendingDateChange(null);
         setEditingTask(null);
     };
 
@@ -510,6 +543,14 @@ const ProductBacklog = () => {
                 open={!!shapeUpTask}
                 onOpenChange={(open) => !open && setShapeUpTask(null)}
                 task={shapeUpTask}
+            />
+
+            <TaskDateChangeDialog
+                open={!!pendingDateChange}
+                onOpenChange={(open) => !open && setPendingDateChange(null)}
+                task={pendingDateChange?.task || null}
+                newEndDate={pendingDateChange?.newDate || null}
+                onConfirm={handleConfirmDateChange}
             />
         </Layout>
     );

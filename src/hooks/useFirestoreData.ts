@@ -18,7 +18,7 @@ import type {
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument,
-    CustomForm, FormSubmission, JiraSyncLog, JiraConfig
+    CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { jiraService } from '@/services/jiraService';
@@ -41,6 +41,7 @@ interface FirestoreData {
     forms: CustomForm[];
     formSubmissions: FormSubmission[];
     jiraSyncLogs: JiraSyncLog[];
+    taskDateChanges: TaskDateChange[];
 }
 
 const initialData: FirestoreData = {
@@ -60,7 +61,8 @@ const initialData: FirestoreData = {
     documents: [],
     forms: [],
     formSubmissions: [],
-    jiraSyncLogs: []
+    jiraSyncLogs: [],
+    taskDateChanges: []
 }
 
 export const useFirestoreData = () => {
@@ -123,6 +125,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('forms', 'forms', true),
             subscribeToCollection('form_submissions', 'formSubmissions', true),
             subscribeToCollection('jira_sync_logs', 'jiraSyncLogs', true),
+            subscribeToCollection('task_date_changes', 'taskDateChanges', true),
         ];
 
         setLoading(false);
@@ -158,7 +161,7 @@ export const useFirestoreData = () => {
                     'squads', 'members', 'tasks', 'sprints', 'sprint_tasks',
                     'task_assignments', 'product_modules', 'module_metrics',
                     'product_services', 'product_features', 'service_dependencies', 'documents',
-                    'forms', 'form_submissions', 'jira_sync_logs'
+                    'forms', 'form_submissions', 'jira_sync_logs', 'task_date_changes'
                 ];
 
                 for (const colName of collectionsToMigrate) {
@@ -457,7 +460,11 @@ export const useFirestoreData = () => {
                     variant: 'destructive' 
                 });
             }
-        }
+        },
+
+        // Task Date Changes
+        addTaskDateChange: (change: Omit<TaskDateChange, 'id' | 'changed_at'>) =>
+            addItem('task_date_changes', { ...change, changed_at: new Date().toISOString(), id: `tdc_${Date.now()}` }),
     };
 };
 

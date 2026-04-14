@@ -13,6 +13,7 @@ import { TaskFormDialog } from '@/components/TaskFormDialog';
 import { useTranslation } from 'react-i18next';
 import { cn } from '@/lib/utils';
 import { Layout } from '@/components/Layout';
+import { TaskDateChangeDialog } from '@/components/TaskDateChangeDialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { RefreshCw } from 'lucide-react';
 
@@ -132,6 +133,7 @@ export default function Backlog() {
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [pendingDateChange, setPendingDateChange] = useState<{ task: Task; newDate: string; data: Partial<Task> } | null>(null);
   const { toast } = useToast();
 
   const tasks = data.tasks;
@@ -160,12 +162,44 @@ export default function Backlog() {
 
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'created_at'>) => {
     if (editingTask) {
+      // Check if end_date has changed
+      if (taskData.end_date && taskData.end_date !== editingTask.end_date) {
+        setPendingDateChange({
+          task: editingTask,
+          newDate: taskData.end_date,
+          data: taskData
+        });
+        return;
+      }
       updateTask(editingTask.id, taskData);
       toast({ title: t('common.updated') || "Updated", description: "Task updated successfully." });
     } else {
       addTask({ ...taskData, status: 'Backlog' });
       toast({ title: t('common.created'), description: "Task created successfully." });
     }
+  };
+
+  const handleConfirmDateChange = async (reason: string) => {
+    if (!pendingDateChange) return;
+
+    const { task, data: taskData } = pendingDateChange;
+
+    // 1. Add the tracking record
+    await data.addTaskDateChange({
+      task_id: task.id,
+      workspace_id: task.workspace_id || "1",
+      old_end_date: task.end_date || "",
+      new_end_date: pendingDateChange.newDate,
+      reason: reason,
+    });
+
+    // 2. Update the task
+    updateTask(task.id, taskData as Partial<Task>);
+
+    toast({ title: t('common.updated') || "Updated", description: "Task updated with deadline justification." });
+    setPendingDateChange(null);
+    setEditingTask(null);
+    setIsTaskDialogOpen(false);
   };
 
   const handleJiraSync = async () => {
@@ -390,6 +424,14 @@ export default function Backlog() {
           onClose={() => setIsTaskDialogOpen(false)}
           onSave={handleSaveTask}
           task={editingTask}
+        />
+
+        <TaskDateChangeDialog
+          open={!!pendingDateChange}
+          onOpenChange={(open) => !open && setPendingDateChange(null)}
+          task={pendingDateChange?.task || null}
+          newEndDate={pendingDateChange?.newDate || null}
+          onConfirm={handleConfirmDateChange}
         />
       </div>
     </Layout>
