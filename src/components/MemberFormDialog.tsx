@@ -9,14 +9,15 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import type { TeamMember, MemberSpecialty, Squad, UserProfile } from '@/types';
+import { toast } from '@/hooks/use-toast';
 
 const memberSchema = z.object({
-  user_id: z.string().min(1, 'User selection is required'),
-  name: z.string().max(100, 'Name must be less than 100 characters').optional(),
-  squad_id: z.number().min(1, 'Squad is required'),
-  capacity: z.number().min(1, 'Capacity must be at least 1'),
+  user_id: z.string().optional(),
+  name: z.string().max(100, 'Nome deve ter menos de 100 caracteres').optional(),
+  squad_id: z.number().min(1, 'Squad é obrigatória'),
+  capacity: z.number().min(0, 'Capacidade deve ser positiva'),
   specialty: z.enum(['Frontend', 'Backend', 'QA', 'Design']),
-  avatar_url: z.string().url('Must be a valid URL').optional().or(z.literal('')),
+  avatar_url: z.string().url('URL inválida').optional().or(z.literal('')),
   status: z.enum(['Active', 'Inactive']),
 });
 
@@ -28,7 +29,7 @@ interface MemberFormDialogProps {
   onSubmit: (data: MemberFormData) => void;
   existingMember?: TeamMember;
   squads: Squad[];
-  users: UserProfile[];
+  users?: UserProfile[];
   preselectedSquadId?: number;
 }
 
@@ -95,13 +96,18 @@ export const MemberFormDialog = ({
   }, [existingMember, preselectedSquadId, squads, reset, open]);
 
   const handleFormSubmit = (data: MemberFormData) => {
-    const selectedUser = users.find(u => u.id === data.user_id);
-    const resolvedName = selectedUser?.name || selectedUser?.email || 'Unknown User';
+    const selectedUser = data.user_id ? users?.find(u => u.id === data.user_id) : null;
+    const resolvedName =
+      selectedUser?.name ||
+      selectedUser?.email ||
+      data.name ||
+      existingMember?.name ||
+      'Sem nome';
 
     onSubmit({
       ...data,
       name: resolvedName,
-      user_id: data.user_id,
+      user_id: data.user_id || undefined,
       avatar_url: data.avatar_url?.trim() || '',
     });
     onOpenChange(false);
@@ -113,32 +119,39 @@ export const MemberFormDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        <form onSubmit={handleSubmit(handleFormSubmit)}>
+        <form onSubmit={handleSubmit(handleFormSubmit, (errs) => {
+          const first = Object.values(errs)[0] as { message?: string } | undefined;
+          toast({
+            variant: 'destructive',
+            title: 'Verifique os campos',
+            description: first?.message || 'Há campos obrigatórios em falta.',
+          });
+        })}>
           <DialogHeader>
             <DialogTitle>
-              {existingMember ? 'Edit Team Member' : 'Add Team Member'}
+              {existingMember ? 'Editar Membro' : 'Adicionar Membro'}
             </DialogTitle>
             <DialogDescription>
               {existingMember
-                ? 'Update team member information.'
-                : 'Add a new member to your team.'}
+                ? 'Atualize as informações do membro.'
+                : 'Adicione um novo membro à sua equipe.'}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">
             <div className="space-y-2">
-              <Label htmlFor="user">Platform User</Label>
+              <Label htmlFor="user">Usuário da plataforma</Label>
               <Select
                 value={watch('user_id')}
                 onValueChange={(value) => setValue('user_id', value)}
                 disabled={!!existingMember}
               >
                 <SelectTrigger id="user">
-                  <SelectValue placeholder="Select an invited or registered user" />
+                  <SelectValue placeholder="Selecione um usuário convidado ou registrado" />
                 </SelectTrigger>
                 <SelectContent>
-                  {users.map((user) => (
+                  {(users || []).map((user) => (
                     <SelectItem key={user.id} value={user.id}>
-                      {user.name || user.email} {user.id.startsWith('invite_') && '(Pending Invite)'}
+                      {user.name || user.email} {user.id.startsWith('invite_') && '(Convite pendente)'}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -155,7 +168,7 @@ export const MemberFormDialog = ({
                 onValueChange={(value) => setValue('squad_id', parseInt(value))}
               >
                 <SelectTrigger id="squad">
-                  <SelectValue placeholder="Select a squad" />
+                  <SelectValue placeholder="Selecione uma squad" />
                 </SelectTrigger>
                 <SelectContent>
                   {squads.filter(s => s.status === 'Active').map((squad) => (
@@ -171,7 +184,7 @@ export const MemberFormDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="specialty">Specialty</Label>
+              <Label htmlFor="specialty">Especialidade</Label>
               <Select
                 value={watch('specialty')}
                 onValueChange={(value: MemberSpecialty) => setValue('specialty', value)}
@@ -193,11 +206,11 @@ export const MemberFormDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="capacity">Capacity (points per sprint)</Label>
+              <Label htmlFor="capacity">Capacidade (pontos por sprint)</Label>
               <Input
                 id="capacity"
                 type="number"
-                min="1"
+                min="0"
                 {...register('capacity', { valueAsNumber: true })}
               />
               <div className="flex gap-2">
@@ -219,7 +232,7 @@ export const MemberFormDialog = ({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="avatar">Avatar URL (optional)</Label>
+              <Label htmlFor="avatar">URL do avatar (opcional)</Label>
               <Input
                 id="avatar"
                 type="url"
@@ -232,7 +245,7 @@ export const MemberFormDialog = ({
             </div>
 
             <div className="flex items-center justify-between">
-              <Label htmlFor="status">Active</Label>
+              <Label htmlFor="status">Ativo</Label>
               <Switch
                 id="status"
                 checked={isActive}
@@ -244,10 +257,10 @@ export const MemberFormDialog = ({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+              Cancelar
             </Button>
             <Button type="submit">
-              {existingMember ? 'Save Changes' : 'Add Member'}
+              {existingMember ? 'Salvar Alterações' : 'Adicionar Membro'}
             </Button>
           </DialogFooter>
         </form>

@@ -7,7 +7,11 @@ export const pt = {
             back: "Voltar",
             save: "Salvar",
             cancel: "Cancelar",
+            confirm: "Confirmar",
+            delete: "Excluir",
+            edit: "Editar",
             saved: "Salvo",
+            updated: "Atualizado",
             created: "Criado",
             archived: "Arquivado",
             workspace: "Workspace",
@@ -50,6 +54,9 @@ export const pt = {
             modules: "Módulos & Features",
             documentation: "Documentação",
             forms: "Formulários",
+            jiraIntegration: "Integração Jira",
+            menu: "Menu",
+            openMenu: "Abrir menu",
         },
         settings: {
             title: "Configurações",
@@ -67,6 +74,9 @@ export const pt = {
             subtitle: "Visão geral de todos os itens nos ciclos de Produto e Engenharia.",
             listTitle: "Lista de Iniciativas",
             filterPlaceholder: "Filtrar iniciativas...",
+            createNew: "Nova Iniciativa",
+            emptyTitle: "Nenhuma iniciativa ainda",
+            emptyDesc: "Capture uma ideia, problema ou oportunidade para iniciar seu pipeline de discovery e engenharia.",
             table: {
                 title: "Título",
                 type: "Tipo",
@@ -499,6 +509,138 @@ export const pt = {
                 notAnswered: "_Não respondido_",
                 taskSubtitle: "Respostas do Formulário",
                 taskTitlePrefix: "Demanda via Form"
+            }
+        },
+        releases: {
+            title: "Releases",
+            new: "Nova Release",
+            noDescription: "Sem descrição",
+            empty: "Nenhuma release ainda",
+            emptyDesc: "Planeje e entregue uma release para acompanhar marcos de entrega.",
+            statuses: {
+                Planned: "Planejada",
+                InProgress: "Em Andamento",
+                Released: "Lançada",
+                Cancelled: "Cancelada"
+            }
+        },
+        sprintForm: {
+            editTitle: "Editar Sprint",
+            createTitle: "Nova Sprint",
+            name: "Nome da Sprint",
+            namePlaceholder: "Sprint 24",
+            squad: "Squad",
+            squadPlaceholder: "Selecione uma squad",
+            startDate: "Data de Início",
+            endDate: "Data de Fim",
+            datePlaceholder: "Selecionar",
+            status: "Status",
+            cancel: "Cancelar",
+            save: "Salvar",
+            create: "Criar Sprint",
+            errors: {
+                nameRequired: "Nome é obrigatório",
+                squadRequired: "Squad é obrigatório",
+                startRequired: "Data de início é obrigatória",
+                endRequired: "Data de fim é obrigatória",
+                endAfterStart: "Data de fim deve ser posterior à data de início"
+            }
+        },
+        squadForm: {
+            editTitle: "Editar Squad",
+            createTitle: "Criar Nova Squad",
+            editDesc: "Atualize as informações da squad.",
+            createDesc: "Adicione uma nova equipe de desenvolvimento à sua organização.",
+            name: "Nome da Squad",
+            namePlaceholder: "ex: Time de Growth",
+            description: "Descrição",
+            descriptionPlaceholder: "No que esta squad está focada?",
+            active: "Ativa",
+            cancel: "Cancelar",
+            saveChanges: "Salvar Alterações",
+            create: "Criar Squad",
+            duplicateTitle: "Nome de squad duplicado",
+            duplicateDesc: "Já existe uma squad com este nome.",
+            errors: {
+                nameRequired: "O nome é obrigatório",
+                nameMax: "O nome deve ter menos de 100 caracteres",
+                descMax: "A descrição deve ter menos de 500 caracteres"
+            }
+        },
+        pages: {
+            sprints: {
+                title: "Sprints"
+            },
+            squads: {
+                title: "Squads",
+                subtitle: "Gerencie seus times de desenvolvimento",
+                newSquad: "Nova Squad",
+                createSquad: "Criar Squad",
+                showInactive: "Mostrar squads inativas",
+                emptyTitle: "Nenhuma squad ativa",
+                emptyTitleAll: "Nenhuma squad encontrada",
+                emptyDesc: "Crie uma nova squad ou ative “Mostrar squads inativas”.",
+                emptyDescAll: "Comece criando sua primeira squad.",
+                squadUpdated: "Squad atualizada",
+                squadUpdatedDesc: "A squad foi atualizada com sucesso.",
+                squadCreated: "Squad criada",
+                squadCreatedDesc: "A nova squad foi criada com sucesso.",
+                saveError: "Erro",
+                saveErrorDesc: "Falha ao salvar a squad. Tente novamente."
+            },
+            squadMembers: {
+                notFound: "Squad não encontrada",
+                backToSquads: "Voltar para Squads",
+                breadcrumbMembers: "Membros",
+                heading: "{{squad}} - Membros",
+                subtitle: "Gerencie membros e suas capacidades",
+                addMember: "Adicionar Membro",
+                showInactive: "Mostrar inativos",
+                allSpecialties: "Todas as Especialidades",
+                statTotalMembers: "Total de Membros",
+                statTotalCapacity: "Capacidade Total",
+                statBySpecialty: "Por Especialidade",
+                tableMember: "Membro",
+                tableSpecialty: "Especialidade",
+                tableCapacity: "Capacidade",
+                tableStatus: "Status",
+                tableActions: "Ações",
+                emptyTitle: "Nenhum membro encontrado",
+                emptyDesc: "Adicione o primeiro membro para começar.",
+                deactivateTitle: "Desativar Membro do Time",
+                deactivateDesc: "Tem certeza que deseja desativar {{name}}? Ele(a) não será mais incluído(a) nos cálculos de capacidade.",
+                deactivate: "Desativar",
+                memberDeactivated: "Membro desativado",
+                memberDeactivatedDesc: "{{name}} foi desativado(a)."
+            },
+            team: {
+                title: "Membros da Equipe",
+                subtitle: "Visualize e gerencie todos os membros das squads",
+                addMember: "Adicionar Membro",
+                searchPlaceholder: "Buscar por nome...",
+                allSquads: "Todas as Squads",
+                allSpecialties: "Todas as Especialidades",
+                showInactive: "Mostrar inativos",
+                statTotalMembers: "Total de Membros",
+                statTotalCapacity: "Capacidade Total",
+                statDistribution: "Distribuição",
+                tableMember: "Membro",
+                tableSquad: "Squad",
+                tableSpecialty: "Especialidade",
+                tableCapacity: "Capacidade",
+                tableStatus: "Status",
+                tableActions: "Ações",
+                unknownSquad: "Desconhecida"
+            },
+            calendar: {
+                sprints: "Sprints",
+                releases: "Lançamentos"
+            },
+            productBacklog: {
+                heading: "Backlog de Produto"
+            },
+            jira: {
+                tableStatus: "Status"
             }
         },
         prioritization: {

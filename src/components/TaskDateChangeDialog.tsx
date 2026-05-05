@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Task } from "@/types";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
@@ -26,10 +26,11 @@ interface TaskDateChangeDialogProps {
 export function TaskDateChangeDialog({ open, onOpenChange, task, newEndDate, onConfirm }: TaskDateChangeDialogProps) {
     const [reason, setReason] = useState("");
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
 
     const handleConfirm = async () => {
         if (!reason.trim()) {
-            toast.error("Por favor, informe o motivo da alteração.");
+            toast({ variant: "destructive", title: "Por favor, informe o motivo da alteração." });
             return;
         }
 
@@ -40,7 +41,7 @@ export function TaskDateChangeDialog({ open, onOpenChange, task, newEndDate, onC
             onOpenChange(false);
         } catch (error) {
             console.error(error);
-            toast.error("Erro ao salvar alteração.");
+            toast({ variant: "destructive", title: "Erro ao salvar alteração." });
         } finally {
             setLoading(false);
         }

@@ -12,6 +12,7 @@ const defaultPermissions: Record<AppFeature, FeatureAction[]> = {
     strategy: ['view'],
     sprints: ['view'],
     releases: ['view'],
+    documents: ['view'],
     users: [], // Only admins
 };
 

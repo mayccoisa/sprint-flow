@@ -9,8 +9,10 @@ import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { toast } from '@/hooks/use-toast';
 import type { Squad } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 export default function Squads() {
+  const { t } = useTranslation();
   const { data, addSquad, updateSquad } = useLocalData();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingSquad, setEditingSquad] = useState<Squad | undefined>();
@@ -29,8 +31,8 @@ export default function Squads() {
       if (editingSquad) {
         await updateSquad(editingSquad.id, formData);
         toast({
-          title: 'Squad updated',
-          description: 'Squad has been updated successfully.',
+          title: t('pages.squads.squadUpdated'),
+          description: t('pages.squads.squadUpdatedDesc'),
         });
       } else {
         await addSquad({
@@ -39,16 +41,16 @@ export default function Squads() {
           status: formData.status,
         });
         toast({
-          title: 'Squad created',
-          description: 'New squad has been created successfully.',
+          title: t('pages.squads.squadCreated'),
+          description: t('pages.squads.squadCreatedDesc'),
         });
       }
       setEditingSquad(undefined);
     } catch (error) {
       console.error('Error saving squad:', error);
       toast({
-        title: 'Error',
-        description: 'Failed to save squad. Please try again.',
+        title: t('pages.squads.saveError'),
+        description: t('pages.squads.saveErrorDesc'),
         variant: 'destructive',
       });
     }
@@ -69,12 +71,12 @@ export default function Squads() {
       <div>
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Squads</h1>
-            <p className="mt-2 text-muted-foreground">Manage your development teams</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.squads.title')}</h1>
+            <p className="mt-2 text-muted-foreground">{t('pages.squads.subtitle')}</p>
           </div>
           <Button onClick={handleNewSquad}>
             <Plus className="mr-2 h-4 w-4" />
-            New Squad
+            {t('pages.squads.newSquad')}
           </Button>
         </div>
 
@@ -84,7 +86,7 @@ export default function Squads() {
             checked={showInactive}
             onCheckedChange={setShowInactive}
           />
-          <Label htmlFor="show-inactive">Show inactive squads</Label>
+          <Label htmlFor="show-inactive">{t('pages.squads.showInactive')}</Label>
         </div>
 
         {filteredSquads.length > 0 ? (
@@ -102,16 +104,14 @@ export default function Squads() {
           <div className="flex min-h-[400px] items-center justify-center rounded-lg border border-dashed border-border">
             <div className="text-center">
               <h3 className="text-lg font-semibold text-foreground">
-                {showInactive ? 'No squads found' : 'No active squads'}
+                {showInactive ? t('pages.squads.emptyTitleAll') : t('pages.squads.emptyTitle')}
               </h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {showInactive
-                  ? 'Get started by creating your first squad.'
-                  : 'Create a new squad or enable "Show inactive squads".'}
+                {showInactive ? t('pages.squads.emptyDescAll') : t('pages.squads.emptyDesc')}
               </p>
               <Button className="mt-4" onClick={handleNewSquad}>
                 <Plus className="mr-2 h-4 w-4" />
-                Create Squad
+                {t('pages.squads.createSquad')}
               </Button>
             </div>
           </div>

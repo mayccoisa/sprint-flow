@@ -15,6 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '@/components/ui-patterns';
 import type { UserProfile, UserRole, AppFeature, FeatureAction, FeaturePermission } from '@/types';
 
 export default function UsersManagement() {
@@ -22,6 +23,7 @@ export default function UsersManagement() {
     const { userProfile } = useAuth();
     const { toast } = useToast();
     const { t } = useTranslation();
+    const confirm = useConfirm();
     const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
     // Invite state
@@ -97,13 +99,17 @@ export default function UsersManagement() {
     };
 
     const handleDeleteUser = async (userId: string) => {
-        if (confirm(t('usersManagement.confirmDelete', 'Are you sure you want to delete this user?'))) {
-            try {
-                await deleteUser(userId);
-                toast({ title: t('usersManagement.userDeleted', 'User deleted successfully') });
-            } catch (error: any) {
-                toast({ title: t('usersManagement.deleteFailed', 'Failed to delete user'), description: error.message, variant: 'destructive' });
-            }
+        const ok = await confirm({
+            title: t('usersManagement.confirmDeleteTitle', 'Delete user?'),
+            description: t('usersManagement.confirmDelete', 'This user will lose access to the workspace. This action cannot be undone.'),
+            confirmLabel: t('common.delete', 'Delete'),
+        });
+        if (!ok) return;
+        try {
+            await deleteUser(userId);
+            toast({ title: t('usersManagement.userDeleted', 'User deleted successfully') });
+        } catch (error: any) {
+            toast({ title: t('usersManagement.deleteFailed', 'Failed to delete user'), description: error.message, variant: 'destructive' });
         }
     };
 

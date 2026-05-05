@@ -36,15 +36,16 @@ import {
 import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from '@/hooks/use-toast';
 
 const releaseSchema = z.object({
   version_name: z.string().min(1, 'Nome da versão é obrigatório'),
   release_date: z.date({ message: 'Data de lançamento é obrigatória' }),
-  squad_id: z.number().nullable(),
+  squad_id: z.number().nullable().optional(),
   status: z.enum(['Planned', 'InProgress', 'Released', 'Cancelled'] as const),
-  description: z.string().max(200, 'Máximo 200 caracteres').nullable(),
-  release_notes: z.string().max(1000, 'Máximo 1000 caracteres').nullable(),
-  color: z.string().nullable(),
+  description: z.string().max(200, 'Máximo 200 caracteres').nullable().optional(),
+  release_notes: z.string().max(1000, 'Máximo 1000 caracteres').nullable().optional(),
+  color: z.string().nullable().optional(),
 });
 
 type ReleaseFormValues = z.infer<typeof releaseSchema>;
@@ -128,7 +129,14 @@ export function ReleaseFormDialog({
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <form onSubmit={form.handleSubmit(onSubmit, (errs) => {
+            const first = Object.values(errs)[0] as { message?: string } | undefined;
+            toast({
+              title: 'Verifique os campos',
+              description: first?.message || 'Há campos obrigatórios em falta.',
+              variant: 'destructive',
+            });
+          })} className="space-y-4">
             <FormField
               control={form.control}
               name="version_name"

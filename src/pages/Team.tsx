@@ -14,6 +14,7 @@ import { MemberFormDialog } from '@/components/MemberFormDialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { toast } from '@/hooks/use-toast';
 import type { TeamMember, MemberSpecialty } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 const SPECIALTY_COLORS: Record<MemberSpecialty, string> = {
   Frontend: 'bg-specialty-frontend/10 text-specialty-frontend border-specialty-frontend/20',
@@ -26,6 +27,7 @@ type SortField = 'name' | 'capacity';
 type SortOrder = 'asc' | 'desc';
 
 export default function Team() {
+  const { t } = useTranslation();
   const { data, addMember, updateMember } = useLocalData();
   
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -102,19 +104,13 @@ export default function Team() {
   const handleSubmit = (formData: any) => {
     if (editingMember) {
       updateMember(editingMember.id, formData);
-      toast({
-        title: 'Member updated',
-        description: 'Team member has been updated successfully.',
-      });
+      toast({ title: t('common.updated') });
     } else {
       addMember({
         ...formData,
         avatar_url: formData.avatar_url || null,
       });
-      toast({
-        title: 'Member added',
-        description: 'New team member has been added successfully.',
-      });
+      toast({ title: t('common.created') });
     }
     setEditingMember(undefined);
   };
@@ -127,8 +123,8 @@ export default function Team() {
     if (deactivatingMember) {
       updateMember(deactivatingMember.id, { status: 'Inactive' });
       toast({
-        title: 'Member deactivated',
-        description: `${deactivatingMember.name} has been deactivated.`,
+        title: t('pages.squadMembers.memberDeactivated'),
+        description: t('pages.squadMembers.memberDeactivatedDesc', { name: deactivatingMember.name }),
       });
       setDeactivatingMember(null);
     }
@@ -144,7 +140,7 @@ export default function Team() {
   };
 
   const getSquadName = (squadId: number) => {
-    return data.squads.find(s => s.id === squadId)?.name || 'Unknown';
+    return data.squads.find(s => s.id === squadId)?.name || t('pages.team.unknownSquad');
   };
 
   return (
@@ -152,19 +148,19 @@ export default function Team() {
       <div>
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">Team Members</h1>
-            <p className="mt-2 text-muted-foreground">View and manage all team members across squads</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.team.title')}</h1>
+            <p className="mt-2 text-muted-foreground">{t('pages.team.subtitle')}</p>
           </div>
           <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Member
+            {t('pages.team.addMember')}
           </Button>
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('pages.team.statTotalMembers')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalMembers}</div>
@@ -172,7 +168,7 @@ export default function Team() {
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('pages.team.statTotalCapacity')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalCapacity} pts</div>
@@ -180,7 +176,7 @@ export default function Team() {
           </Card>
           <Card className="md:col-span-2">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Distribution</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('pages.team.statDistribution')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -203,19 +199,19 @@ export default function Team() {
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
-              placeholder="Search by name..."
+              placeholder={t('pages.team.searchPlaceholder')}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10"
             />
           </div>
-          
+
           <Select value={squadFilter} onValueChange={setSquadFilter}>
             <SelectTrigger className="w-48">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Squads</SelectItem>
+              <SelectItem value="all">{t('pages.team.allSquads')}</SelectItem>
               {data.squads.filter(s => s.status === 'Active').map((squad) => (
                 <SelectItem key={squad.id} value={squad.id.toString()}>
                   {squad.name}
@@ -229,21 +225,21 @@ export default function Team() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Specialties</SelectItem>
+              <SelectItem value="all">{t('pages.team.allSpecialties')}</SelectItem>
               <SelectItem value="Frontend">Frontend</SelectItem>
               <SelectItem value="Backend">Backend</SelectItem>
               <SelectItem value="QA">QA</SelectItem>
               <SelectItem value="Design">Design</SelectItem>
             </SelectContent>
           </Select>
-          
+
           <div className="flex items-center gap-2">
             <Switch
               id="show-inactive-all"
               checked={showInactive}
               onCheckedChange={setShowInactive}
             />
-            <Label htmlFor="show-inactive-all">Show inactive</Label>
+            <Label htmlFor="show-inactive-all">{t('pages.team.showInactive')}</Label>
           </div>
         </div>
 
@@ -256,18 +252,18 @@ export default function Team() {
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => toggleSort('name')}
                   >
-                    Member {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    {t('pages.team.tableMember')} {sortField === 'name' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </TableHead>
-                  <TableHead>Squad</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead 
+                  <TableHead>{t('pages.team.tableSquad')}</TableHead>
+                  <TableHead>{t('pages.team.tableSpecialty')}</TableHead>
+                  <TableHead
                     className="cursor-pointer hover:bg-muted/50"
                     onClick={() => toggleSort('capacity')}
                   >
-                    Capacity {sortField === 'capacity' && (sortOrder === 'asc' ? '↑' : '↓')}
+                    {t('pages.team.tableCapacity')} {sortField === 'capacity' && (sortOrder === 'asc' ? '↑' : '↓')}
                   </TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('pages.team.tableStatus')}</TableHead>
+                  <TableHead className="text-right">{t('pages.team.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -325,16 +321,14 @@ export default function Team() {
         ) : (
           <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed">
             <div className="text-center">
-              <h3 className="text-lg font-semibold">No members found</h3>
+              <h3 className="text-lg font-semibold">{t('pages.squadMembers.emptyTitle')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                {searchQuery || specialtyFilter !== 'all' || squadFilter !== 'all'
-                  ? 'Try adjusting your filters.'
-                  : 'Add your first team member to get started.'}
+                {t('pages.squadMembers.emptyDesc')}
               </p>
               {!searchQuery && specialtyFilter === 'all' && squadFilter === 'all' && (
                 <Button className="mt-4" onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
                   <Plus className="mr-2 h-4 w-4" />
-                  Add Member
+                  {t('pages.team.addMember')}
                 </Button>
               )}
             </div>
@@ -352,14 +346,14 @@ export default function Team() {
         <AlertDialog open={!!deactivatingMember} onOpenChange={() => setDeactivatingMember(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Deactivate Team Member</AlertDialogTitle>
+              <AlertDialogTitle>{t('pages.squadMembers.deactivateTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to deactivate {deactivatingMember?.name}? They will no longer be included in capacity calculations.
+                {t('pages.squadMembers.deactivateDesc', { name: deactivatingMember?.name || '' })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeactivate}>Deactivate</AlertDialogAction>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeactivate}>{t('pages.squadMembers.deactivate')}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

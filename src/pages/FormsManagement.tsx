@@ -12,11 +12,13 @@ import type { CustomForm } from '@/types';
 import FormBuilder from '@/components/forms/FormBuilder';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '@/components/ui-patterns';
 
 export default function FormsManagement() {
     const { t } = useTranslation();
     const { data, addForm, updateForm, deleteForm } = useLocalData();
     const { toast } = useToast();
+    const confirm = useConfirm();
     const [editingForm, setEditingForm] = useState<CustomForm | null>(null);
     const [isCreating, setIsCreating] = useState(false);
 
@@ -31,13 +33,17 @@ export default function FormsManagement() {
     };
 
     const handleDeleteForm = async (id: string) => {
-        if (confirm(t('forms.management.confirmDelete'))) {
-            try {
-                await deleteForm(id);
-                toast({ title: t('forms.management.deleted') });
-            } catch (error: any) {
-                toast({ title: t('forms.management.deleteFailed'), description: error.message, variant: 'destructive' });
-            }
+        const ok = await confirm({
+            title: t('forms.management.confirmDeleteTitle', 'Delete form?'),
+            description: t('forms.management.confirmDelete'),
+            confirmLabel: t('common.delete', 'Delete'),
+        });
+        if (!ok) return;
+        try {
+            await deleteForm(id);
+            toast({ title: t('forms.management.deleted') });
+        } catch (error: any) {
+            toast({ title: t('forms.management.deleteFailed'), description: error.message, variant: 'destructive' });
         }
     };
 

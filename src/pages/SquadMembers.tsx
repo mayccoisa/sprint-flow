@@ -14,6 +14,7 @@ import { MemberFormDialog } from '@/components/MemberFormDialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { toast } from '@/hooks/use-toast';
 import type { TeamMember, MemberSpecialty } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 const SPECIALTY_COLORS: Record<MemberSpecialty, string> = {
   Frontend: 'bg-specialty-frontend/10 text-specialty-frontend border-specialty-frontend/20',
@@ -23,6 +24,7 @@ const SPECIALTY_COLORS: Record<MemberSpecialty, string> = {
 };
 
 export default function SquadMembers() {
+  const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
   const squadId = parseInt(id || '0');
   const { data, addMember, updateMember } = useLocalData();
@@ -74,19 +76,13 @@ export default function SquadMembers() {
   const handleSubmit = (formData: any) => {
     if (editingMember) {
       updateMember(editingMember.id, formData);
-      toast({
-        title: 'Member updated',
-        description: 'Team member has been updated successfully.',
-      });
+      toast({ title: t('common.updated') });
     } else {
       addMember({
         ...formData,
         avatar_url: formData.avatar_url || null,
       });
-      toast({
-        title: 'Member added',
-        description: 'New team member has been added successfully.',
-      });
+      toast({ title: t('common.created') });
     }
     setEditingMember(undefined);
   };
@@ -99,8 +95,8 @@ export default function SquadMembers() {
     if (deactivatingMember) {
       updateMember(deactivatingMember.id, { status: 'Inactive' });
       toast({
-        title: 'Member deactivated',
-        description: `${deactivatingMember.name} has been deactivated.`,
+        title: t('pages.squadMembers.memberDeactivated'),
+        description: t('pages.squadMembers.memberDeactivatedDesc', { name: deactivatingMember.name }),
       });
       setDeactivatingMember(null);
     }
@@ -110,9 +106,9 @@ export default function SquadMembers() {
     return (
       <Layout>
         <div className="text-center">
-          <h1 className="text-2xl font-bold">Squad not found</h1>
+          <h1 className="text-2xl font-bold">{t('pages.squadMembers.notFound')}</h1>
           <Link to="/squads" className="text-primary hover:underline">
-            Back to Squads
+            {t('pages.squadMembers.backToSquads')}
           </Link>
         </div>
       </Layout>
@@ -123,28 +119,28 @@ export default function SquadMembers() {
     <Layout>
       <div>
         <div className="mb-6 flex items-center gap-2 text-sm text-muted-foreground">
-          <Link to="/squads" className="hover:text-foreground">Squads</Link>
+          <Link to="/squads" className="hover:text-foreground">{t('pages.squads.title')}</Link>
           <ChevronRight className="h-4 w-4" />
           <span className="text-foreground font-medium">{squad.name}</span>
           <ChevronRight className="h-4 w-4" />
-          <span className="text-foreground font-medium">Members</span>
+          <span className="text-foreground font-medium">{t('pages.squadMembers.breadcrumbMembers')}</span>
         </div>
 
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{squad.name} - Members</h1>
-            <p className="mt-2 text-muted-foreground">Manage team members and their capacity</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.squadMembers.heading', { squad: squad.name })}</h1>
+            <p className="mt-2 text-muted-foreground">{t('pages.squadMembers.subtitle')}</p>
           </div>
           <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
             <Plus className="mr-2 h-4 w-4" />
-            Add Member
+            {t('pages.squadMembers.addMember')}
           </Button>
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Members</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('pages.squadMembers.statTotalMembers')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalMembers}</div>
@@ -152,7 +148,7 @@ export default function SquadMembers() {
           </Card>
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">Total Capacity</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('pages.squadMembers.statTotalCapacity')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{stats.totalCapacity} pts</div>
@@ -160,7 +156,7 @@ export default function SquadMembers() {
           </Card>
           <Card className="md:col-span-2">
             <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-medium">By Specialty</CardTitle>
+              <CardTitle className="text-sm font-medium">{t('pages.squadMembers.statBySpecialty')}</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex gap-4">
@@ -184,7 +180,7 @@ export default function SquadMembers() {
               checked={showInactive}
               onCheckedChange={setShowInactive}
             />
-            <Label htmlFor="show-inactive-members">Show inactive</Label>
+            <Label htmlFor="show-inactive-members">{t('pages.squadMembers.showInactive')}</Label>
           </div>
 
           <Select value={specialtyFilter} onValueChange={setSpecialtyFilter}>
@@ -192,7 +188,7 @@ export default function SquadMembers() {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Specialties</SelectItem>
+              <SelectItem value="all">{t('pages.squadMembers.allSpecialties')}</SelectItem>
               <SelectItem value="Frontend">Frontend</SelectItem>
               <SelectItem value="Backend">Backend</SelectItem>
               <SelectItem value="QA">QA</SelectItem>
@@ -206,11 +202,11 @@ export default function SquadMembers() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Member</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Capacity</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t('pages.squadMembers.tableMember')}</TableHead>
+                  <TableHead>{t('pages.squadMembers.tableSpecialty')}</TableHead>
+                  <TableHead>{t('pages.squadMembers.tableCapacity')}</TableHead>
+                  <TableHead>{t('pages.squadMembers.tableStatus')}</TableHead>
+                  <TableHead className="text-right">{t('pages.squadMembers.tableActions')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -263,13 +259,13 @@ export default function SquadMembers() {
         ) : (
           <div className="flex min-h-[300px] items-center justify-center rounded-lg border border-dashed">
             <div className="text-center">
-              <h3 className="text-lg font-semibold">No members found</h3>
+              <h3 className="text-lg font-semibold">{t('pages.squadMembers.emptyTitle')}</h3>
               <p className="mt-2 text-sm text-muted-foreground">
-                Add your first team member to get started.
+                {t('pages.squadMembers.emptyDesc')}
               </p>
               <Button className="mt-4" onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
                 <Plus className="mr-2 h-4 w-4" />
-                Add Member
+                {t('pages.squadMembers.addMember')}
               </Button>
             </div>
           </div>
@@ -288,14 +284,14 @@ export default function SquadMembers() {
         <AlertDialog open={!!deactivatingMember} onOpenChange={() => setDeactivatingMember(null)}>
           <AlertDialogContent>
             <AlertDialogHeader>
-              <AlertDialogTitle>Deactivate Team Member</AlertDialogTitle>
+              <AlertDialogTitle>{t('pages.squadMembers.deactivateTitle')}</AlertDialogTitle>
               <AlertDialogDescription>
-                Are you sure you want to deactivate {deactivatingMember?.name}? They will no longer be included in capacity calculations.
+                {t('pages.squadMembers.deactivateDesc', { name: deactivatingMember?.name || '' })}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Cancel</AlertDialogCancel>
-              <AlertDialogAction onClick={confirmDeactivate}>Deactivate</AlertDialogAction>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={confirmDeactivate}>{t('pages.squadMembers.deactivate')}</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

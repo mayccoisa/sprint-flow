@@ -14,7 +14,7 @@ import { useTranslation } from "react-i18next";
 import { useFirestoreData } from "@/hooks/useFirestoreData";
 import { useWorkspace } from "@/contexts/WorkspaceContext";
 import { Workspace } from "@/types";
-import { toast } from "sonner";
+import { useToast } from "@/hooks/use-toast";
 
 interface WorkspaceDialogProps {
     open: boolean;
@@ -29,6 +29,7 @@ export function WorkspaceDialog({ open, onOpenChange, mode, workspace }: Workspa
     const { setCurrentWorkspaceId } = useWorkspace();
     const [name, setName] = useState("");
     const [loading, setLoading] = useState(false);
+    const { toast } = useToast();
 
     useEffect(() => {
         if (open) {
@@ -43,15 +44,15 @@ export function WorkspaceDialog({ open, onOpenChange, mode, workspace }: Workspa
             if (mode === 'create') {
                 const newWs = await addWorkspace({ name: name.trim(), owner_id: 'current_user' });
                 if (newWs && newWs.id) setCurrentWorkspaceId(newWs.id);
-                toast.success(t("common.created"));
+                toast({ title: t("common.created") });
             } else if (mode === 'edit' && workspace) {
                 await updateWorkspace(workspace.id, { name: name.trim() });
-                toast.success(t("workspace.renamed"));
+                toast({ title: t("workspace.renamed") });
             }
             onOpenChange(false);
         } catch (error) {
             console.error(error);
-            toast.error("Error saving workspace");
+            toast({ variant: "destructive", title: "Error saving workspace" });
         } finally {
             setLoading(false);
         }
