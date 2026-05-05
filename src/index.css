@@ -47,6 +47,16 @@
     --specialty-backend: 142 71% 45%;
     --specialty-qa: 24 90% 53%;
     --specialty-design: 280 65% 60%;
+
+    /* Sidebar tokens (mirrors card surface) */
+    --sidebar-background: 0 0% 100%;
+    --sidebar-foreground: 222 47% 11%;
+    --sidebar-primary: 215 100% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 210 17% 95%;
+    --sidebar-accent-foreground: 222 47% 11%;
+    --sidebar-border: 214 15% 91%;
+    --sidebar-ring: 215 100% 40%;
   }
 
   .dark {
@@ -82,6 +92,15 @@
     --status-warning: 38 92% 50%;
     --status-danger: 0 84% 60%;
     --status-info: 215 100% 50%;
+
+    --sidebar-background: 217 33% 17%;
+    --sidebar-foreground: 210 17% 95%;
+    --sidebar-primary: 215 100% 50%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 217 33% 23%;
+    --sidebar-accent-foreground: 210 17% 95%;
+    --sidebar-border: 217 33% 23%;
+    --sidebar-ring: 215 100% 50%;
   }
 }
 

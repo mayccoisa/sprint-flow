@@ -21,9 +21,10 @@ import {
     DropdownMenuItem,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { useConfirm, PageSkeleton } from "@/components/ui-patterns";
 
 export default function DocumentationHub() {
-    const { data, addDocument, deleteDocument } = useLocalData();
+    const { data, loading, addDocument, deleteDocument } = useLocalData();
     const { userProfile } = useAuth();
     const { toast } = useToast();
     const { t } = useTranslation();
@@ -33,6 +34,7 @@ export default function DocumentationHub() {
     const [isCreateOpen, setIsCreateOpen] = useState(false);
     const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null);
     const [newDocTitle, setNewDocTitle] = useState('');
+    const confirm = useConfirm();
 
     // Filter documents
     const filteredDocs = useMemo(() => {
@@ -76,13 +78,17 @@ export default function DocumentationHub() {
     };
 
     const handleDelete = async (id: number) => {
-        if (confirm(t('docs.confirmDelete', 'Are you sure you want to delete this document?'))) {
-            try {
-                await deleteDocument(id);
-                toast({ title: t('docs.deleted', 'Document deleted') });
-            } catch (error: any) {
-                toast({ title: t('docs.deleteError', 'Failed to delete'), description: error.message, variant: 'destructive' });
-            }
+        const ok = await confirm({
+            title: t('docs.confirmDeleteTitle', 'Delete document?'),
+            description: t('docs.confirmDeleteDesc', 'This document will be permanently removed. This action cannot be undone.'),
+            confirmLabel: t('common.delete', 'Delete'),
+        });
+        if (!ok) return;
+        try {
+            await deleteDocument(id);
+            toast({ title: t('docs.deleted', 'Document deleted') });
+        } catch (error: any) {
+            toast({ title: t('docs.deleteError', 'Failed to delete'), description: error.message, variant: 'destructive' });
         }
     };
 
@@ -96,6 +102,16 @@ export default function DocumentationHub() {
             case 'MessageSquare': return <FileText className="h-5 w-5 text-pink-600" />;
             default: return <File className="h-5 w-5 text-muted-foreground" />;
         }
+    }
+
+    if (loading) {
+        return (
+            <Layout>
+                <div className="space-y-6">
+                    <PageSkeleton variant="cards" count={6} />
+                </div>
+            </Layout>
+        );
     }
 
     return (
@@ -152,7 +168,7 @@ export default function DocumentationHub() {
                                                     {t('common.edit', 'Edit')}
                                                 </DropdownMenuItem>
                                                 <DropdownMenuItem
-                                                    className="text-red-600"
+                                                    className="text-destructive focus:text-destructive"
                                                     onClick={(e) => { e.stopPropagation(); handleDelete(doc.id); }}
                                                 >
                                                     <Trash className="h-4 w-4 mr-2" />

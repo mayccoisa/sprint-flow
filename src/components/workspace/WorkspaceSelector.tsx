@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { Check, ChevronsUpDown, Plus, Settings } from 'lucide-react';
+import { Building2, Check, ChevronsUpDown, Plus, Settings } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useFirestoreData } from '@/hooks/useFirestoreData';
-import { cn } from '@/lib/utils';
 import {
     DropdownMenu,
     DropdownMenuContent,
@@ -13,7 +12,8 @@ import {
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { WorkspaceDialog } from './WorkspaceDialog'; // We will create this
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { WorkspaceDialog } from './WorkspaceDialog';
 
 export function WorkspaceSelector() {
     const { t } = useTranslation();
@@ -38,23 +38,34 @@ export function WorkspaceSelector() {
     return (
         <>
             <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                    <Button
-                        variant="outline"
-                        role="combobox"
-                        className="w-full justify-between mt-2 mb-4 bg-background/50 border-input hover:bg-accent hover:text-accent-foreground"
-                    >
-                        <div className="flex flex-col items-start overflow-hidden text-left w-[180px]">
-                            <span className="text-xs text-muted-foreground uppercase font-semibold">
-                                {t('workspace.current', 'Workspace')}
-                            </span>
-                            <span className="truncate font-medium text-sm w-full block">
-                                {currentWorkspace?.name || t('workspace.select', 'Select Workspace')}
-                            </span>
-                        </div>
-                        <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                </DropdownMenuTrigger>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="outline"
+                                role="combobox"
+                                aria-label={t('workspace.switch', 'Switch Workspace')}
+                                className="mb-4 mt-2 h-auto w-full justify-between bg-background/50 px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+                            >
+                                <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                        <Building2 className="h-4 w-4" />
+                                    </span>
+                                    <div className="flex min-w-0 flex-col overflow-hidden">
+                                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                            {t('workspace.current', 'Workspace')}
+                                        </span>
+                                        <span className="block w-full truncate text-sm font-medium">
+                                            {currentWorkspace?.name || t('workspace.select', 'Select Workspace')}
+                                        </span>
+                                    </div>
+                                </div>
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">{t('workspace.switch', 'Switch Workspace')}</TooltipContent>
+                </Tooltip>
                 <DropdownMenuContent className="w-[220px]" align="start">
                     <DropdownMenuLabel>{t('workspace.switch', 'Switch Workspace')}</DropdownMenuLabel>
                     <DropdownMenuSeparator />

@@ -1,9 +1,8 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Calendar as BigCalendar, momentLocalizer, View } from 'react-big-calendar';
 import moment from 'moment';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Layout } from '@/components/Layout';
-import { supabase } from '@/integrations/supabase/client';
 import { Task, Sprint, Release, Squad } from '@/types';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Label } from '@/components/ui/label';
@@ -23,6 +22,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { useLocalData } from '@/hooks/useLocalData';
+import { useTranslation } from 'react-i18next';
 import { AlertTriangle, History } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -40,6 +40,7 @@ interface CalendarEvent {
 }
 
 export default function Calendar() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: firestoreData } = useLocalData();
   const taskDateChanges = firestoreData.taskDateChanges;
@@ -49,29 +50,14 @@ export default function Calendar() {
   const [showTasks, setShowTasks] = useState(true);
   const [showReleases, setShowReleases] = useState(true);
   const [selectedSquad, setSelectedSquad] = useState<string>('all');
-  
-  const [sprints, setSprints] = useState<Sprint[]>([]);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [releases, setReleases] = useState<Release[]>([]);
-  const [squads, setSquads] = useState<Squad[]>([]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
-    const [sprintsRes, tasksRes, releasesRes, squadsRes] = await Promise.all([
-      supabase.from('sprints').select('*'),
-      supabase.from('tasks').select('*').not('start_date', 'is', null),
-      supabase.from('releases').select('*'),
-      supabase.from('squads').select('*'),
-    ]);
-
-    if (sprintsRes.data) setSprints(sprintsRes.data);
-    if (tasksRes.data) setTasks(tasksRes.data);
-    if (releasesRes.data) setReleases(releasesRes.data);
-    if (squadsRes.data) setSquads(squadsRes.data);
-  };
+  const sprints: Sprint[] = firestoreData.sprints;
+  const tasks: Task[] = useMemo(
+    () => firestoreData.tasks.filter((t) => t.start_date),
+    [firestoreData.tasks]
+  );
+  const releases: Release[] = firestoreData.releases;
+  const squads: Squad[] = firestoreData.squads;
 
   const squadColors: Record<string, string> = {
     'Growth': '#3b82f6',
@@ -271,7 +257,7 @@ export default function Calendar() {
                 checked={showSprints}
                 onCheckedChange={(checked) => setShowSprints(checked as boolean)}
               />
-              <Label htmlFor="sprints">Sprints</Label>
+              <Label htmlFor="sprints">{t('pages.calendar.sprints')}</Label>
             </div>
             
             <div className="flex items-center space-x-2">
@@ -289,7 +275,7 @@ export default function Calendar() {
                 checked={showReleases}
                 onCheckedChange={(checked) => setShowReleases(checked as boolean)}
               />
-              <Label htmlFor="releases">Releases</Label>
+              <Label htmlFor="releases">{t('pages.calendar.releases')}</Label>
             </div>
           </div>
 

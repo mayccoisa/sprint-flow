@@ -81,9 +81,9 @@ export function StrategyMap() {
                 data: { label: mod.name },
                 position: { x: 0, y: 0 }, // Set by layout
                 style: {
-                    background: '#f5f3ff',
-                    border: '1px solid #7c3aed',
-                    color: '#7c3aed',
+                    background: 'hsl(var(--specialty-frontend) / 0.1)',
+                    border: '1px solid hsl(var(--specialty-frontend))',
+                    color: 'hsl(var(--specialty-frontend))',
                     fontWeight: 'bold',
                     borderRadius: '8px'
                 },
@@ -97,8 +97,9 @@ export function StrategyMap() {
                 data: { label: feat.name },
                 position: { x: 0, y: 0 },
                 style: {
-                    background: '#fff',
-                    border: '1px solid #e2e8f0',
+                    background: 'hsl(var(--card))',
+                    border: '1px solid hsl(var(--border))',
+                    color: 'hsl(var(--card-foreground))',
                     width: 180,
                     borderRadius: '8px',
                     fontSize: '12px'
@@ -112,21 +113,21 @@ export function StrategyMap() {
                 target: `feat-${feat.id}`,
                 type: 'smoothstep',
                 animated: true,
-                style: { stroke: '#cbd5e1' },
+                style: { stroke: 'hsl(var(--border))' },
             });
         });
 
         // Add Service Nodes
         data.productServices.forEach(srv => {
-            let bg = '#ecfdf5'; // green/internal
-            let border = '#10b981';
+            let bg = 'hsl(var(--status-success) / 0.1)';
+            let border = 'hsl(var(--status-success))';
 
             if (srv.type === 'External') {
-                bg = '#fef2f2'; // red/external
-                border = '#ef4444';
+                bg = 'hsl(var(--status-danger) / 0.1)';
+                border = 'hsl(var(--status-danger))';
             } else if (srv.type === 'Database') {
-                bg = '#eff6ff'; // blue/db
-                border = '#3b82f6';
+                bg = 'hsl(var(--status-info) / 0.1)';
+                border = 'hsl(var(--status-info))';
             }
 
             flowNodes.push({
@@ -155,8 +156,8 @@ export function StrategyMap() {
                 markerEnd: {
                     type: MarkerType.ArrowClosed,
                 },
-                style: { stroke: '#64748b' },
-                labelStyle: { fill: '#64748b', fontSize: 10 }
+                style: { stroke: 'hsl(var(--muted-foreground))' },
+                labelStyle: { fill: 'hsl(var(--muted-foreground))', fontSize: 10 }
             });
         });
 
@@ -203,7 +204,7 @@ export function StrategyMap() {
                         fitView
                         attributionPosition="bottom-right"
                     >
-                        <Background color="#aaa" gap={16} />
+                        <Background color="hsl(var(--muted-foreground))" gap={16} />
                         <Controls />
                     </ReactFlow>
                 </div>

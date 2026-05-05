@@ -11,6 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useConfirm } from '@/components/ui-patterns';
 
 export default function DocumentEditor() {
     const { id } = useParams();
@@ -18,6 +19,7 @@ export default function DocumentEditor() {
     const { data, updateDocument, deleteDocument } = useLocalData();
     const { toast } = useToast();
     const { t } = useTranslation();
+    const confirm = useConfirm();
 
     const [title, setTitle] = useState('');
     const [content, setContent] = useState('');
@@ -64,14 +66,18 @@ export default function DocumentEditor() {
     };
 
     const handleDelete = async () => {
-        if (confirm(t('docs.confirmDelete', 'Are you sure you want to delete this document?'))) {
-            try {
-                await deleteDocument(document.id);
-                toast({ title: t('docs.deleted', 'Document deleted') });
-                navigate('/docs');
-            } catch (error: any) {
-                toast({ title: t('docs.deleteError', 'Failed to delete'), description: error.message, variant: 'destructive' });
-            }
+        const ok = await confirm({
+            title: t('docs.confirmDeleteTitle', 'Delete document?'),
+            description: t('docs.confirmDeleteDesc', 'This document will be permanently removed. This action cannot be undone.'),
+            confirmLabel: t('common.delete', 'Delete'),
+        });
+        if (!ok) return;
+        try {
+            await deleteDocument(document.id);
+            toast({ title: t('docs.deleted', 'Document deleted') });
+            navigate('/docs');
+        } catch (error: any) {
+            toast({ title: t('docs.deleteError', 'Failed to delete'), description: error.message, variant: 'destructive' });
         }
     };
 

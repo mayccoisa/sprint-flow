@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useLocalData } from '@/hooks/useLocalData';
 import { Task, Sprint, Squad } from '@/types';
 import { format } from 'date-fns';
 import { ArrowLeft, Download } from 'lucide-react';
@@ -37,84 +37,41 @@ interface TaskWithStatus extends Task {
 const SprintSummary = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { data, loading } = useLocalData() as any;
 
-  const [sprint, setSprint] = useState<SprintWithSquad | null>(null);
-  const [sprintTasks, setSprintTasks] = useState<TaskWithStatus[]>([]);
-  const [loading, setLoading] = useState(true);
+  const sprintId = id ? parseInt(id) : null;
 
+  const sprint = useMemo<SprintWithSquad | null>(() => {
+    const s: Sprint | undefined = data.sprints.find((s: Sprint) => s.id === sprintId);
+    if (!s) return null;
+    const squad: Squad | undefined = data.squads.find((sq: Squad) => sq.id === s.squad_id);
+    return { ...s, squad: squad as Squad };
+  }, [data.sprints, data.squads, sprintId]);
+
+  const sprintTasks = useMemo<TaskWithStatus[]>(() => {
+    if (!sprintId) return [];
+    return data.sprintTasks
+      .filter((st: any) => st.sprint_id === sprintId)
+      .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0))
+      .map((st: any) => {
+        const task = data.tasks.find((t: Task) => t.id === st.task_id);
+        if (!task) return null;
+        return { ...task, task_status: st.task_status || 'Todo' } as TaskWithStatus;
+      })
+      .filter(Boolean) as TaskWithStatus[];
+  }, [data.sprintTasks, data.tasks, sprintId]);
+
+  // Redirect if sprint isn't completed
   useEffect(() => {
-    loadData();
-  }, [id]);
-
-  const loadData = async () => {
-    if (!id) return;
-
-    try {
-      setLoading(true);
-
-      // Load sprint with squad
-      const { data: sprintData, error: sprintError } = await supabase
-        .from('sprints')
-        .select(`
-          *,
-          squad:squads(*)
-        `)
-        .eq('id', parseInt(id))
-        .single();
-
-      if (sprintError) throw sprintError;
-      if (!sprintData) {
-        toast({
-          title: 'Sprint não encontrada',
-          variant: 'destructive',
-        });
-        navigate('/sprints');
-        return;
-      }
-
-      // Check if sprint is completed
-      if (sprintData.status !== 'Completed') {
-        toast({
-          title: 'Sprint ainda não foi completada',
-          description: 'O resumo está disponível apenas para sprints completadas',
-          variant: 'destructive',
-        });
-        navigate(`/sprints/${id}/planning`);
-        return;
-      }
-
-      setSprint(sprintData as any);
-
-      // Load sprint tasks
-      const { data: sprintTasksData, error: sprintTasksError } = await supabase
-        .from('sprint_tasks')
-        .select(`
-          id,
-          order_index,
-          task_status,
-          task:tasks(*)
-        `)
-        .eq('sprint_id', parseInt(id))
-        .order('order_index');
-
-      if (sprintTasksError) throw sprintTasksError;
-
-      const tasksWithStatus = (sprintTasksData || []).map((st: any) => ({
-        ...st.task,
-        task_status: st.task_status || 'Todo',
-      }));
-
-      setSprintTasks(tasksWithStatus as TaskWithStatus[]);
-    } catch (error) {
-      console.error('Error loading data:', error);
+    if (!loading && sprint && sprint.status !== 'Completed') {
       toast({
-        title: 'Erro ao carregar dados',
+        title: 'Sprint ainda não foi completada',
+        description: 'O resumo está disponível apenas para sprints completadas',
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
+      navigate(`/sprints/${id}/planning`);
     }
-  };
+  }, [loading, sprint, id, navigate]);
 
   if (loading) {
     return (

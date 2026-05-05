@@ -1,13 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { supabase } from '@/integrations/supabase/client';
-import { Release, Task, Squad } from '@/types';
+import { useLocalData } from '@/hooks/useLocalData';
+import { Task } from '@/types';
 import { format } from 'date-fns';
-import { ArrowLeft, Edit, Plus, X } from 'lucide-react';
+import { ArrowLeft, Plus, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -22,100 +22,61 @@ export default function ReleaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [release, setRelease] = useState<Release | null>(null);
-  const [squad, setSquad] = useState<Squad | null>(null);
-  const [tasks, setTasks] = useState<Task[]>([]);
-  const [allTasks, setAllTasks] = useState<Task[]>([]);
+  const { data, addReleaseTask, removeReleaseTask } = useLocalData() as any;
+
+  const releaseId = id ? parseInt(id) : null;
   const [isAddTasksOpen, setIsAddTasksOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
-
-  const loadData = async () => {
-    if (!id) return;
-
-    const [releaseRes, releaseTasksRes, allTasksRes] = await Promise.all([
-      supabase.from('releases').select('*').eq('id', parseInt(id)).single(),
-      supabase
-        .from('release_tasks')
-        .select('task_id')
-        .eq('release_id', parseInt(id)),
-      supabase.from('tasks').select('*'),
-    ]);
-
-    if (releaseRes.data) {
-      setRelease(releaseRes.data);
-      
-      if (releaseRes.data.squad_id) {
-        const squadRes = await supabase
-          .from('squads')
-          .select('*')
-          .eq('id', releaseRes.data.squad_id)
-          .single();
-        if (squadRes.data) setSquad(squadRes.data);
-      }
-    }
-
-    if (allTasksRes.data) {
-      setAllTasks(allTasksRes.data);
-      
-      if (releaseTasksRes.data) {
-        const taskIds = releaseTasksRes.data.map(rt => rt.task_id);
-        const releaseTasks = allTasksRes.data.filter(t => taskIds.includes(t.id));
-        setTasks(releaseTasks);
-      }
-    }
-  };
+  const release = useMemo(
+    () => data.releases.find((r: any) => r.id === releaseId),
+    [data.releases, releaseId]
+  );
+  const squad = useMemo(
+    () => (release?.squad_id ? data.squads.find((s: any) => s.id === release.squad_id) : null),
+    [data.squads, release]
+  );
+  const taskIdsInRelease = useMemo(
+    () =>
+      data.releaseTasks
+        .filter((rt: any) => rt.release_id === releaseId)
+        .map((rt: any) => rt.task_id),
+    [data.releaseTasks, releaseId]
+  );
+  const tasks: Task[] = useMemo(
+    () => data.tasks.filter((t: Task) => taskIdsInRelease.includes(t.id)),
+    [data.tasks, taskIdsInRelease]
+  );
+  const allTasks: Task[] = data.tasks;
 
   const handleAddTasks = async () => {
-    if (!id || selectedTaskIds.length === 0) return;
+    if (!releaseId || selectedTaskIds.length === 0) return;
 
-    const inserts = selectedTaskIds.map(taskId => ({
-      release_id: parseInt(id),
-      task_id: taskId,
-    }));
-
-    const { error } = await supabase.from('release_tasks').insert(inserts);
-
-    if (error) {
-      toast({
-        title: 'Erro ao adicionar tarefas',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } else {
+    try {
+      await Promise.all(
+        selectedTaskIds.map((taskId) => addReleaseTask({ release_id: releaseId, task_id: taskId }))
+      );
       toast({
         title: 'Tarefas adicionadas',
         description: `${selectedTaskIds.length} tarefa(s) adicionada(s) à release`,
       });
       setIsAddTasksOpen(false);
       setSelectedTaskIds([]);
-      loadData();
+    } catch (e: any) {
+      toast({ title: 'Erro ao adicionar tarefas', description: e.message, variant: 'destructive' });
     }
   };
 
   const handleRemoveTask = async (taskId: number) => {
-    if (!id) return;
-
-    await supabase
-      .from('release_tasks')
-      .delete()
-      .eq('release_id', parseInt(id))
-      .eq('task_id', taskId);
-
-    toast({
-      title: 'Tarefa removida',
-      description: 'Tarefa removida da release',
-    });
-    loadData();
+    if (!releaseId) return;
+    await removeReleaseTask(releaseId, taskId);
+    toast({ title: 'Tarefa removida', description: 'Tarefa removida da release' });
   };
 
   const calculateProgress = () => {
     if (tasks.length === 0) return { done: 0, total: 0, percentage: 0 };
-    const done = tasks.filter(t => t.status === 'Done').length;
+    const done = tasks.filter((t) => t.status === 'Done').length;
     return {
       done,
       total: tasks.length,
@@ -123,18 +84,19 @@ export default function ReleaseDetail() {
     };
   };
 
-  const calculatePoints = () => {
-    return tasks.reduce((sum, task) => {
-      return sum + 
+  const calculatePoints = () =>
+    tasks.reduce(
+      (sum, task) =>
+        sum +
         (task.estimate_frontend || 0) +
         (task.estimate_backend || 0) +
         (task.estimate_qa || 0) +
-        (task.estimate_design || 0);
-    }, 0);
-  };
+        (task.estimate_design || 0),
+      0
+    );
 
-  const filteredAllTasks = allTasks.filter(task => {
-    const alreadyInRelease = tasks.some(t => t.id === task.id);
+  const filteredAllTasks = allTasks.filter((task) => {
+    const alreadyInRelease = tasks.some((t) => t.id === task.id);
     const matchesSearch = task.title.toLowerCase().includes(searchTerm.toLowerCase());
     return !alreadyInRelease && matchesSearch;
   });
@@ -148,7 +110,7 @@ export default function ReleaseDetail() {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/releases')}>
+          <Button variant="ghost" size="icon" aria-label="Voltar" onClick={() => navigate('/releases')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">{release.version_name}</h1>
@@ -226,15 +188,17 @@ export default function ReleaseDetail() {
                     <Badge>{task.status}</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
-                    {(task.estimate_frontend || 0) + 
-                     (task.estimate_backend || 0) + 
-                     (task.estimate_qa || 0) + 
-                     (task.estimate_design || 0)} pontos
+                    {(task.estimate_frontend || 0) +
+                      (task.estimate_backend || 0) +
+                      (task.estimate_qa || 0) +
+                      (task.estimate_design || 0)}{' '}
+                    pontos
                   </div>
                 </div>
                 <Button
                   variant="ghost"
                   size="icon"
+                  aria-label="Remover tarefa"
                   onClick={() => handleRemoveTask(task.id)}
                 >
                   <X className="h-4 w-4" />
@@ -264,7 +228,7 @@ export default function ReleaseDetail() {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
 
-            <div className="space-y-2">
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
               {filteredAllTasks.map((task) => (
                 <div
                   key={task.id}
@@ -276,7 +240,7 @@ export default function ReleaseDetail() {
                       if (checked) {
                         setSelectedTaskIds([...selectedTaskIds, task.id]);
                       } else {
-                        setSelectedTaskIds(selectedTaskIds.filter(id => id !== task.id));
+                        setSelectedTaskIds(selectedTaskIds.filter((id) => id !== task.id));
                       }
                     }}
                   />

@@ -1,12 +1,23 @@
 import { useState, useMemo } from 'react';
-import { DragDropContext, Droppable, Draggable, DropResult } from '@hello-pangea/dnd';
-import { Plus, Search, Filter, AlertCircle, CheckCircle2, Circle, Clock } from 'lucide-react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  PointerSensor,
+  KeyboardSensor,
+  useSensor,
+  useSensors,
+  closestCorners,
+  useDroppable,
+  useDraggable,
+} from '@dnd-kit/core';
+import { Plus, Search, Filter, AlertCircle, CheckCircle2, Circle, Clock, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { Task, TaskStatus, TaskPriority, TaskType } from '@/types';
 import { TaskFormDialog } from '@/components/TaskFormDialog';
@@ -15,167 +26,208 @@ import { cn } from '@/lib/utils';
 import { Layout } from '@/components/Layout';
 import { TaskDateChangeDialog } from '@/components/TaskDateChangeDialog';
 import { useLocalData } from '@/hooks/useLocalData';
-import { RefreshCw } from 'lucide-react';
+import { PageSkeleton } from '@/components/ui-patterns';
 
-// Mock data for initial state
-const INITIAL_TASKS: Task[] = [
-  {
-    id: 1,
-    title: 'Implement Authentication Flow',
-    description: 'User login, registration, and password recovery using Supabase Auth.',
-    status: 'InSprint', // In Sprint
-    priority: 'High',
-    task_type: 'Feature',
-    estimate_frontend: 5,
-    estimate_backend: 8,
-    estimate_qa: null,
-    estimate_design: null,
-    created_at: new Date().toISOString(),
-    start_date: '2024-03-20',
-    end_date: '2024-03-25',
-    order_index: 0,
-    product_objective: null,
-    business_goal: null,
-    user_impact: null,
-    has_prototype: false,
-    prototype_link: null
-  },
-  {
-    id: 2,
-    title: 'Fix Navigation Bug on Mobile',
-    description: 'Menu drawer does not close when clicking outside on iOS devices.',
-    status: 'Backlog', // Backlog
-    priority: 'High',
-    task_type: 'Bug',
-    estimate_frontend: 3,
-    estimate_backend: null,
-    estimate_qa: null,
-    estimate_design: null,
-    created_at: new Date().toISOString(),
-    start_date: null,
-    end_date: null,
-    order_index: 1,
-    product_objective: null,
-    business_goal: null,
-    user_impact: null,
-    has_prototype: false,
-    prototype_link: null
-  },
-  {
-    id: 3,
-    title: 'Design System Documentation',
-    description: 'Create usage guidelines for core components.',
-    status: 'Done', // Done
-    priority: 'Low',
-    task_type: 'TechDebt',
-    estimate_frontend: null,
-    estimate_backend: null,
-    estimate_qa: null,
-    estimate_design: 5,
-    created_at: new Date().toISOString(),
-    start_date: null,
-    end_date: null,
-    order_index: 2,
-    product_objective: null,
-    business_goal: null,
-    user_impact: null,
-    has_prototype: false,
-    prototype_link: null
-  },
-  {
-    id: 4,
-    title: 'API Performance Optimization',
-    description: 'Optimize database queries for the dashboard endpoints.',
-    status: 'Review', // Review
-    priority: 'Medium',
-    task_type: 'TechDebt',
-    estimate_frontend: null,
-    estimate_backend: 5,
-    estimate_qa: null,
-    estimate_design: null,
-    created_at: new Date().toISOString(),
-    start_date: null,
-    end_date: null,
-    order_index: 3,
-    product_objective: null,
-    business_goal: null,
-    user_impact: null,
-    has_prototype: false,
-    prototype_link: null
-  },
-  {
-    id: 5,
-    title: 'User Profile Page',
-    description: 'Allow users to update their avatar and personal information.',
-    status: 'InSprint', // InSprint
-    priority: 'Medium',
-    task_type: 'Feature',
-    estimate_frontend: 5,
-    estimate_backend: 3,
-    estimate_qa: null,
-    estimate_design: null,
-    created_at: new Date().toISOString(),
-    start_date: null,
-    end_date: null,
-    order_index: 4,
-    product_objective: null,
-    business_goal: null,
-    user_impact: null,
-    has_prototype: false,
-    prototype_link: null
+type ColumnId = 'Backlog' | 'InSprint' | 'Review' | 'Done';
+
+const priorityColor = (priority: TaskPriority) => {
+  switch (priority) {
+    case 'High':
+      return 'bg-status-danger/10 text-status-danger border-status-danger/30';
+    case 'Medium':
+      return 'bg-status-warning/10 text-status-warning border-status-warning/30';
+    case 'Low':
+      return 'bg-status-success/10 text-status-success border-status-success/30';
+    default:
+      return 'bg-muted text-muted-foreground';
   }
-];
+};
+
+const typeIcon = (type: TaskType) => {
+  switch (type) {
+    case 'Feature':
+      return <CheckCircle2 className="h-4 w-4 text-status-success" />;
+    case 'Bug':
+      return <AlertCircle className="h-4 w-4 text-status-danger" />;
+    case 'TechDebt':
+      return <Clock className="h-4 w-4 text-status-warning" />;
+    default:
+      return <Circle className="h-4 w-4 text-status-info" />;
+  }
+};
+
+interface TaskCardProps {
+  task: Task;
+  onClick?: () => void;
+  isOverlay?: boolean;
+}
+
+const TaskCardContent = ({ task, onClick, isOverlay }: TaskCardProps) => (
+  <Card
+    onClick={onClick}
+    className={cn(
+      'cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group',
+      isOverlay && 'shadow-xl rotate-1'
+    )}
+  >
+    <CardHeader className="p-4 space-y-0 pb-2">
+      <div className="flex justify-between items-start gap-2">
+        <Badge variant="outline" className={cn('text-[10px] px-1 py-0 h-5', priorityColor(task.priority))}>
+          {task.priority}
+        </Badge>
+        {task.task_type && (
+          <div title={task.task_type}>{typeIcon(task.task_type)}</div>
+        )}
+      </div>
+      <CardTitle className="text-sm font-medium leading-tight mt-2 line-clamp-2">
+        {task.title}
+      </CardTitle>
+    </CardHeader>
+    <CardContent className="p-4 pt-2">
+      {task.description && (
+        <CardDescription className="line-clamp-2 text-xs mb-2">
+          {task.description}
+        </CardDescription>
+      )}
+      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50 text-xs text-muted-foreground">
+        <span>{task.id}</span>
+        {(task.estimate_frontend || task.estimate_backend || task.estimate_qa) && (
+          <span className="flex items-center gap-1">
+            <Circle className="h-3 w-3" />
+            {(task.estimate_frontend || 0) + (task.estimate_backend || 0) + (task.estimate_qa || 0)} pts
+          </span>
+        )}
+      </div>
+    </CardContent>
+  </Card>
+);
+
+const DraggableTaskCard = ({ task, onClick }: { task: Task; onClick: () => void }) => {
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+  });
+
+  const style = transform
+    ? {
+        transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
+        opacity: isDragging ? 0.5 : 1,
+      }
+    : { opacity: isDragging ? 0.5 : 1 };
+
+  return (
+    <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
+      <TaskCardContent task={task} onClick={onClick} />
+    </div>
+  );
+};
+
+const KanbanColumn = ({
+  id,
+  title,
+  tasks,
+  emptyLabel,
+  onCardClick,
+}: {
+  id: ColumnId;
+  title: string;
+  tasks: Task[];
+  emptyLabel: string;
+  onCardClick: (task: Task) => void;
+}) => {
+  const { setNodeRef, isOver } = useDroppable({ id });
+
+  return (
+    <div
+      className={cn(
+        'flex-1 min-w-[300px] bg-muted/40 rounded-lg p-4 flex flex-col transition-colors',
+        isOver && 'bg-muted/70'
+      )}
+    >
+      <h3 className="font-semibold mb-4 text-sm uppercase text-muted-foreground flex items-center justify-between">
+        {title}
+        <Badge variant="secondary" className="ml-2">
+          {tasks.length}
+        </Badge>
+      </h3>
+
+      <ScrollArea className="flex-1">
+        <div ref={setNodeRef} className="space-y-3 min-h-[200px]">
+          {tasks.map((task) => (
+            <DraggableTaskCard
+              key={task.id}
+              task={task}
+              onClick={() => onCardClick(task)}
+            />
+          ))}
+          {tasks.length === 0 && (
+            <div className="h-24 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm">
+              {emptyLabel}
+            </div>
+          )}
+        </div>
+      </ScrollArea>
+    </div>
+  );
+};
 
 export default function Backlog() {
   const { t } = useTranslation();
-  const { data, addTask, updateTask, syncWithJira } = useLocalData();
+  const { data, loading, addTask, updateTask, syncWithJira, addTaskDateChange } = useLocalData() as any;
   const [searchQuery, setSearchQuery] = useState('');
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingDateChange, setPendingDateChange] = useState<{ task: Task; newDate: string; data: Partial<Task> } | null>(null);
+  const [activeId, setActiveId] = useState<number | null>(null);
   const { toast } = useToast();
 
   const tasks = data.tasks;
 
-  const handleDragEnd = (result: DropResult) => {
-    const { destination, source, draggableId } = result;
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: { distance: 8 },
+    }),
+    useSensor(KeyboardSensor)
+  );
 
-    if (!destination) return;
+  const handleDragStart = (event: DragStartEvent) => {
+    setActiveId(event.active.id as number);
+  };
 
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
+  const handleDragEnd = (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveId(null);
 
-    const draggedTaskId = parseInt(draggableId.toString());
-    const updatedStatus = destination.droppableId as TaskStatus;
-    updateTask(draggedTaskId, { status: updatedStatus });
+    if (!over) return;
+
+    const draggedTaskId = active.id as number;
+    const newStatus = over.id as TaskStatus;
+    const task = tasks.find((tk) => tk.id === draggedTaskId);
+    if (!task || task.status === newStatus) return;
+
+    updateTask(draggedTaskId, { status: newStatus });
 
     toast({
-      title: t('common.saved') || "Saved",
-      description: `Task moved to ${destination.droppableId}`,
+      title: t('common.saved') || 'Saved',
+      description: `Task moved to ${newStatus}`,
     });
   };
 
   const handleSaveTask = (taskData: Omit<Task, 'id' | 'created_at'>) => {
     if (editingTask) {
-      // Check if end_date has changed
       if (taskData.end_date && taskData.end_date !== editingTask.end_date) {
         setPendingDateChange({
           task: editingTask,
           newDate: taskData.end_date,
-          data: taskData
+          data: taskData,
         });
         return;
       }
       updateTask(editingTask.id, taskData);
-      toast({ title: t('common.updated') || "Updated", description: "Task updated successfully." });
+      toast({ title: t('common.updated') || 'Updated', description: 'Task updated successfully.' });
     } else {
       addTask({ ...taskData, status: 'Backlog' });
-      toast({ title: t('common.created'), description: "Task created successfully." });
+      toast({ title: t('common.created'), description: 'Task created successfully.' });
     }
   };
 
@@ -184,19 +236,17 @@ export default function Backlog() {
 
     const { task, data: taskData } = pendingDateChange;
 
-    // 1. Add the tracking record
-    await data.addTaskDateChange({
+    await addTaskDateChange({
       task_id: task.id,
-      workspace_id: task.workspace_id || "1",
-      old_end_date: task.end_date || "",
+      workspace_id: task.workspace_id || '1',
+      old_end_date: task.end_date || '',
       new_end_date: pendingDateChange.newDate,
       reason: reason,
     });
 
-    // 2. Update the task
     updateTask(task.id, taskData as Partial<Task>);
 
-    toast({ title: t('common.updated') || "Updated", description: "Task updated with deadline justification." });
+    toast({ title: t('common.updated') || 'Updated', description: 'Task updated with deadline justification.' });
     setPendingDateChange(null);
     setEditingTask(null);
     setIsTaskDialogOpen(false);
@@ -213,31 +263,6 @@ export default function Backlog() {
     setIsTaskDialogOpen(true);
   };
 
-  const handleDeleteTask = (taskId: number) => {
-    setTasks((prev) => prev.filter((t) => t.id !== taskId));
-    toast({ title: t('common.archived'), description: "Task moved to archive." });
-  };
-
-  const priorityColor = (priority: TaskPriority) => {
-    switch (priority) {
-      case 'High': return 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400';
-      case 'Medium': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'Low': return 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-800';
-    }
-  };
-
-  const typeIcon = (type: TaskType) => {
-    switch (type) {
-      case 'Feature': return <CheckCircle2 className="h-4 w-4 text-emerald-500" />;
-      case 'Bug': return <AlertCircle className="h-4 w-4 text-red-500" />;
-      case 'TechDebt': return <Clock className="h-4 w-4 text-amber-500" />;
-      default: return <Circle className="h-4 w-4 text-blue-500" />;
-    }
-  };
-
-  type ColumnId = 'Backlog' | 'InSprint' | 'Review' | 'Done';
-
   const columns: { id: ColumnId; title: string }[] = [
     { id: 'Backlog', title: t('engineeringBacklog.columns.backlog') },
     { id: 'InSprint', title: t('engineeringBacklog.columns.inSprint') },
@@ -245,27 +270,51 @@ export default function Backlog() {
     { id: 'Done', title: t('engineeringBacklog.columns.done') },
   ];
 
-  // Statistics
   const stats = useMemo(() => {
-    const totalBacklog = tasks.filter(t => t.status === 'Backlog' || t.status === 'InSprint').length;
-    const totalEffort = tasks.reduce((acc, t) => acc + (t.estimate_frontend || 0) + (t.estimate_backend || 0), 0);
-    const bugs = tasks.filter(t => t.task_type === 'Bug' && t.status !== 'Done').length;
-    const highPriority = tasks.filter(t => t.priority === 'High' && t.status !== 'Done').length;
-
+    const totalBacklog = tasks.filter((tk) => tk.status === 'Backlog' || tk.status === 'InSprint').length;
+    const totalEffort = tasks.reduce((acc, tk) => acc + (tk.estimate_frontend || 0) + (tk.estimate_backend || 0), 0);
+    const bugs = tasks.filter((tk) => tk.task_type === 'Bug' && tk.status !== 'Done').length;
+    const highPriority = tasks.filter((tk) => tk.priority === 'High' && tk.status !== 'Done').length;
     return { totalBacklog, totalEffort, bugs, highPriority };
   }, [tasks]);
+
+  const matchesSearch = (task: Task) =>
+    task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    task.description?.toLowerCase().includes(searchQuery.toLowerCase());
+
+  const tasksByColumn = useMemo(() => {
+    const map = {} as Record<ColumnId, Task[]>;
+    columns.forEach((c) => {
+      map[c.id] = tasks.filter((tk) => tk.status === c.id).filter(matchesSearch);
+    });
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks, searchQuery]);
+
+  const activeTask = activeId ? tasks.find((tk) => tk.id === activeId) ?? null : null;
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="space-y-6">
+          <PageSkeleton variant="kpi" />
+          <PageSkeleton variant="kanban" count={4} />
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="h-full flex flex-col space-y-6">
         <div className="flex justify-between items-center">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight tracking-tight">{t('engineeringBacklog.title')}</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">{t('engineeringBacklog.title')}</h1>
             <p className="text-muted-foreground">{t('engineeringBacklog.subtitle')}</p>
           </div>
           <div className="flex items-center space-x-2">
             <Button variant="outline" onClick={handleJiraSync} disabled={isSyncing}>
-              <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
+              <RefreshCw className={cn('mr-2 h-4 w-4', isSyncing && 'animate-spin')} />
               Sincronizar Jira
             </Button>
             <Button onClick={() => { setEditingTask(null); setIsTaskDialogOpen(true); }}>
@@ -331,93 +380,31 @@ export default function Backlog() {
         </div>
 
         {/* Kanban Board */}
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCorners}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
           <div className="flex-1 overflow-x-auto">
             <div className="flex space-x-6 min-w-[1000px] h-full pb-4">
               {columns.map((column) => (
-                <div key={column.id} className="flex-1 min-w-[300px] bg-muted/40 rounded-lg p-4 flex flex-col">
-                  <h3 className="font-semibold mb-4 text-sm uppercase text-muted-foreground flex items-center justify-between">
-                    {column.title}
-                    <Badge variant="secondary" className="ml-2">
-                      {tasks.filter(t => t.status === column.id).length}
-                    </Badge>
-                  </h3>
-
-                  <Droppable droppableId={column.id}>
-                    {(provided) => (
-                      <ScrollArea className="flex-1">
-                        <div
-                          {...provided.droppableProps}
-                          ref={provided.innerRef}
-                          className="space-y-3 min-h-[200px]"
-                        >
-                          {tasks
-                            .filter((task) => task.status === column.id)
-                            .filter((task) =>
-                              task.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                              task.description?.toLowerCase().includes(searchQuery.toLowerCase())
-                            )
-                            .map((task, index) => (
-                              <Draggable key={task.id} draggableId={task.id.toString()} index={index}>
-                                {(provided) => (
-                                  <Card
-                                    ref={provided.innerRef}
-                                    {...provided.draggableProps}
-                                    {...provided.dragHandleProps}
-                                    className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group"
-                                    onClick={() => handleEditTask(task)}
-                                  >
-                                    <CardHeader className="p-4 space-y-0 pb-2">
-                                      <div className="flex justify-between items-start gap-2">
-                                        <Badge variant="outline" className={cn("text-[10px] px-1 py-0 h-5", priorityColor(task.priority))}>
-                                          {task.priority}
-                                        </Badge>
-                                        {task.task_type && (
-                                          <div title={task.task_type}>
-                                            {typeIcon(task.task_type)}
-                                          </div>
-                                        )}
-                                      </div>
-                                      <CardTitle className="text-sm font-medium leading-tight mt-2 line-clamp-2">
-                                        {task.title}
-                                      </CardTitle>
-                                    </CardHeader>
-                                    <CardContent className="p-4 pt-2">
-                                      {task.description && (
-                                        <CardDescription className="line-clamp-2 text-xs mb-2">
-                                          {task.description}
-                                        </CardDescription>
-                                      )}
-                                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50 text-xs text-muted-foreground">
-                                        <span>{task.id}</span>
-                                        {/* Display effort points sum */}
-                                        {(task.estimate_frontend || task.estimate_backend || task.estimate_qa) && (
-                                          <span className="flex items-center gap-1">
-                                            <Circle className="h-3 w-3" />
-                                            {(task.estimate_frontend || 0) + (task.estimate_backend || 0) + (task.estimate_qa || 0)} pts
-                                          </span>
-                                        )}
-                                      </div>
-                                    </CardContent>
-                                  </Card>
-                                )}
-                              </Draggable>
-                            ))}
-                          {provided.placeholder}
-                          {tasks.filter(t => t.status === column.id).length === 0 && (
-                            <div className="h-24 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm">
-                              {t('engineeringBacklog.dragDrop')}
-                            </div>
-                          )}
-                        </div>
-                      </ScrollArea>
-                    )}
-                  </Droppable>
-                </div>
+                <KanbanColumn
+                  key={column.id}
+                  id={column.id}
+                  title={column.title}
+                  tasks={tasksByColumn[column.id]}
+                  emptyLabel={t('engineeringBacklog.dragDrop')}
+                  onCardClick={handleEditTask}
+                />
               ))}
             </div>
           </div>
-        </DragDropContext>
+
+          <DragOverlay>
+            {activeTask ? <TaskCardContent task={activeTask} isOverlay /> : null}
+          </DragOverlay>
+        </DndContext>
 
         <TaskFormDialog
           open={isTaskDialogOpen}

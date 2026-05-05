@@ -370,7 +370,6 @@ export default function ProductStrategy() {
                                             </TableRow>
                                         ) : (
                                             initiatives.map(task => {
-                                                const area = data.productAreas.find(a => a.id === task.area_id);
                                                 return (
                                                     <TableRow key={task.id}>
                                                         <TableCell>

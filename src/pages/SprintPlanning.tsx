@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
@@ -33,7 +33,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
-import { supabase } from '@/integrations/supabase/client';
+import { useLocalData } from '@/hooks/useLocalData';
 import { Task, Sprint, Squad } from '@/types';
 import { format } from 'date-fns';
 import { GripVertical, X, CheckCircle } from 'lucide-react';
@@ -59,11 +59,18 @@ interface TaskWithSprintTask extends Task {
 const SprintPlanning = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const {
+    data,
+    loading,
+    addSprintTask,
+    updateSprintTask,
+    removeSprintTask,
+    updateTask,
+    updateSprint,
+  } = useLocalData() as any;
 
-  const [sprint, setSprint] = useState<SprintWithSquad | null>(null);
-  const [backlogTasks, setBacklogTasks] = useState<Task[]>([]);
-  const [sprintTasks, setSprintTasks] = useState<TaskWithSprintTask[]>([]);
-  const [loading, setLoading] = useState(true);
+  const sprintId = id ? parseInt(id) : null;
+
   const [activeId, setActiveId] = useState<number | null>(null);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
   const [removeTaskId, setRemoveTaskId] = useState<number | null>(null);
@@ -75,85 +82,41 @@ const SprintPlanning = () => {
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
-      activationConstraint: {
-        distance: 8,
-      },
+      activationConstraint: { distance: 8 },
     })
   );
 
-  useEffect(() => {
-    loadData();
-  }, [id]);
+  const sprint = useMemo<SprintWithSquad | null>(() => {
+    const s: Sprint | undefined = data.sprints.find((s: Sprint) => s.id === sprintId);
+    if (!s) return null;
+    const squad: Squad | undefined = data.squads.find((sq: Squad) => sq.id === s.squad_id);
+    return { ...s, squad: squad as Squad };
+  }, [data.sprints, data.squads, sprintId]);
 
-  const loadData = async () => {
-    if (!id) return;
+  const backlogTasks = useMemo<Task[]>(
+    () =>
+      data.tasks
+        .filter((t: Task) => t.status === 'Backlog')
+        .sort((a: Task, b: Task) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    [data.tasks]
+  );
 
-    try {
-      setLoading(true);
-
-      // Load sprint with squad
-      const { data: sprintData, error: sprintError } = await supabase
-        .from('sprints')
-        .select(`
-          *,
-          squad:squads(*)
-        `)
-        .eq('id', parseInt(id!))
-        .single();
-
-      if (sprintError) throw sprintError;
-      if (!sprintData) {
-        toast({
-          title: 'Sprint não encontrada',
-          variant: 'destructive',
-        });
-        navigate('/sprints');
-        return;
-      }
-
-      setSprint(sprintData as any);
-
-      // Load backlog tasks
-      const { data: backlogData, error: backlogError } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('status', 'Backlog')
-        .order('order_index');
-
-      if (backlogError) throw backlogError;
-      setBacklogTasks((backlogData || []) as Task[]);
-
-      // Load sprint tasks
-      const { data: sprintTasksData, error: sprintTasksError } = await supabase
-        .from('sprint_tasks')
-        .select(`
-          id,
-          order_index,
-          task_status,
-          task:tasks(*)
-        `)
-        .eq('sprint_id', parseInt(id))
-        .order('order_index');
-
-      if (sprintTasksError) throw sprintTasksError;
-
-      const tasksWithSprintId = (sprintTasksData || []).map((st: any) => ({
-        ...st.task,
-        sprint_task_id: st.id,
-        task_status: st.task_status || 'Todo',
-      }));
-
-      setSprintTasks(tasksWithSprintId);
-    } catch (error) {
-      console.error('Error loading data:', error);
-      toast({
-        title: 'Erro ao carregar dados',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  const sprintTasks = useMemo<TaskWithSprintTask[]>(() => {
+    if (!sprintId) return [];
+    return data.sprintTasks
+      .filter((st: any) => st.sprint_id === sprintId)
+      .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0))
+      .map((st: any) => {
+        const task = data.tasks.find((t: Task) => t.id === st.task_id);
+        if (!task) return null;
+        return {
+          ...task,
+          sprint_task_id: st.id,
+          task_status: st.task_status || 'Todo',
+        } as TaskWithSprintTask;
+      })
+      .filter(Boolean) as TaskWithSprintTask[];
+  }, [data.sprintTasks, data.tasks, sprintId]);
 
   const filteredBacklog = useMemo(() => {
     return backlogTasks.filter((task) => {
@@ -189,37 +152,22 @@ const SprintPlanning = () => {
   };
 
   const addTaskToSprint = async (taskId: number) => {
-    if (!sprint) return;
+    if (!sprint || !sprintId) return;
 
     try {
-      // Insert into sprint_tasks with default status 'Todo'
-      const { error: insertError } = await supabase.from('sprint_tasks').insert({
-        sprint_id: parseInt(id!),
+      await addSprintTask({
+        sprint_id: sprintId,
         task_id: taskId,
         order_index: sprintTasks.length,
         task_status: 'Todo',
       });
-
-      if (insertError) throw insertError;
-
-      // Update task status
-      const { error: updateError } = await supabase
-        .from('tasks')
-        .update({ status: 'InSprint' })
-        .eq('id', taskId);
-
-      if (updateError) throw updateError;
-
-      toast({
-        title: 'Tarefa adicionada à sprint',
-      });
-
-      // Reload data
-      await loadData();
-    } catch (error) {
+      await updateTask(taskId, { status: 'InSprint' });
+      toast({ title: 'Tarefa adicionada à sprint' });
+    } catch (error: any) {
       console.error('Error adding task to sprint:', error);
       toast({
         title: 'Erro ao adicionar tarefa',
+        description: error?.message,
         variant: 'destructive',
       });
     }
@@ -233,67 +181,33 @@ const SprintPlanning = () => {
       const task = sprintTasks.find((t) => t.id === taskId);
       if (!task || !task.sprint_task_id) return;
 
-      // Update sprint_tasks.task_status
-      const { error: updateError } = await supabase
-        .from('sprint_tasks')
-        .update({ task_status: newStatus })
-        .eq('id', task.sprint_task_id);
-
-      if (updateError) throw updateError;
-
-      // If moved to Done, optionally update tasks.status to 'Done'
+      await updateSprintTask(task.sprint_task_id, { task_status: newStatus });
       if (newStatus === 'Done') {
-        await supabase
-          .from('tasks')
-          .update({ status: 'Done' })
-          .eq('id', taskId);
+        await updateTask(taskId, { status: 'Done' });
       }
-
-      toast({
-        title: 'Status atualizado',
-      });
-
-      await loadData();
-    } catch (error) {
+      toast({ title: 'Status atualizado' });
+    } catch (error: any) {
       console.error('Error updating task status:', error);
       toast({
         title: 'Erro ao atualizar status',
+        description: error?.message,
         variant: 'destructive',
       });
     }
   };
 
   const removeTaskFromSprint = async (taskId: number) => {
+    if (!sprintId) return;
     try {
-      const task = sprintTasks.find((t) => t.id === taskId);
-      if (!task || !task.sprint_task_id) return;
-
-      // Delete from sprint_tasks
-      const { error: deleteError } = await supabase
-        .from('sprint_tasks')
-        .delete()
-        .eq('id', task.sprint_task_id);
-
-      if (deleteError) throw deleteError;
-
-      // Update task status back to Backlog
-      const { error: updateError } = await supabase
-        .from('tasks')
-        .update({ status: 'Backlog' })
-        .eq('id', taskId);
-
-      if (updateError) throw updateError;
-
-      toast({
-        title: 'Tarefa removida da sprint',
-      });
-
+      await removeSprintTask(sprintId, taskId);
+      await updateTask(taskId, { status: 'Backlog' });
+      toast({ title: 'Tarefa removida da sprint' });
       setRemoveTaskId(null);
-      await loadData();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error removing task from sprint:', error);
       toast({
         title: 'Erro ao remover tarefa',
+        description: error?.message,
         variant: 'destructive',
       });
     }
@@ -301,25 +215,15 @@ const SprintPlanning = () => {
 
   const finishPlanning = async () => {
     if (!sprint) return;
-
     try {
-      const { error } = await supabase
-        .from('sprints')
-        .update({ status: 'Active' })
-        .eq('id', sprint.id);
-
-      if (error) throw error;
-
-      toast({
-        title: 'Planejamento finalizado',
-        description: 'A sprint está agora ativa!',
-      });
-
+      await updateSprint(sprint.id, { status: 'Active' });
+      toast({ title: 'Planejamento finalizado', description: 'A sprint está agora ativa!' });
       navigate('/sprints');
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error finishing planning:', error);
       toast({
         title: 'Erro ao finalizar planejamento',
+        description: error?.message,
         variant: 'destructive',
       });
     }

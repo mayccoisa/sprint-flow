@@ -7,7 +7,11 @@ export const en = {
             back: "Back",
             save: "Save",
             cancel: "Cancel",
+            confirm: "Confirm",
+            delete: "Delete",
+            edit: "Edit",
             saved: "Saved",
+            updated: "Updated",
             created: "Created",
             archived: "Archived",
             workspace: "Workspace",
@@ -48,6 +52,9 @@ export const en = {
             teamAndAdmin: "Team & Admin",
             users: "Users",
             forms: "Forms",
+            jiraIntegration: "Jira Integration",
+            menu: "Menu",
+            openMenu: "Open menu",
         },
         settings: {
             title: "Settings",
@@ -65,6 +72,9 @@ export const en = {
             subtitle: "Overview of all items across Product and Engineering lifecycles.",
             listTitle: "Initiatives List",
             filterPlaceholder: "Filter initiatives...",
+            createNew: "New Initiative",
+            emptyTitle: "No initiatives yet",
+            emptyDesc: "Capture an idea, problem or opportunity to start your discovery and engineering pipeline.",
             table: {
                 title: "Title",
                 type: "Type",
@@ -406,6 +416,136 @@ export const en = {
                 notAnswered: "_Not answered_",
                 taskSubtitle: "Answers from Form",
                 taskTitlePrefix: "Form Request"
+            }
+        },
+        releases: {
+            title: "Releases",
+            new: "New Release",
+            noDescription: "No description",
+            empty: "No releases yet",
+            emptyDesc: "Plan and ship a release to track delivery milestones.",
+            statuses: {
+                Planned: "Planned",
+                InProgress: "In Progress",
+                Released: "Released",
+                Cancelled: "Cancelled"
+            }
+        },
+        sprintForm: {
+            editTitle: "Edit Sprint",
+            createTitle: "New Sprint",
+            name: "Sprint Name",
+            namePlaceholder: "Sprint 24",
+            squad: "Squad",
+            squadPlaceholder: "Select a squad",
+            startDate: "Start Date",
+            endDate: "End Date",
+            datePlaceholder: "Select",
+            status: "Status",
+            cancel: "Cancel",
+            save: "Save",
+            create: "Create Sprint",
+            errors: {
+                nameRequired: "Name is required",
+                squadRequired: "Squad is required",
+                startRequired: "Start date is required",
+                endRequired: "End date is required",
+                endAfterStart: "End date must be after start date"
+            }
+        },
+        squadForm: {
+            editTitle: "Edit Squad",
+            createTitle: "Create New Squad",
+            editDesc: "Update your squad information.",
+            createDesc: "Add a new development team to your organization.",
+            name: "Squad Name",
+            namePlaceholder: "e.g., Growth Team",
+            description: "Description",
+            descriptionPlaceholder: "What does this squad focus on?",
+            active: "Active",
+            cancel: "Cancel",
+            saveChanges: "Save Changes",
+            create: "Create Squad",
+            duplicateTitle: "Duplicate squad name",
+            duplicateDesc: "A squad with this name already exists.",
+            errors: {
+                nameRequired: "Name is required",
+                nameMax: "Name must be less than 100 characters",
+                descMax: "Description must be less than 500 characters"
+            }
+        },
+        pages: {
+            sprints: { title: "Sprints" },
+            squads: {
+                title: "Squads",
+                subtitle: "Manage your development teams",
+                newSquad: "New Squad",
+                createSquad: "Create Squad",
+                showInactive: "Show inactive squads",
+                emptyTitle: "No active squads",
+                emptyTitleAll: "No squads found",
+                emptyDesc: "Create a new squad or enable “Show inactive squads”.",
+                emptyDescAll: "Get started by creating your first squad.",
+                squadUpdated: "Squad updated",
+                squadUpdatedDesc: "Squad has been updated successfully.",
+                squadCreated: "Squad created",
+                squadCreatedDesc: "New squad has been created successfully.",
+                saveError: "Error",
+                saveErrorDesc: "Failed to save squad. Please try again."
+            },
+            squadMembers: {
+                notFound: "Squad not found",
+                backToSquads: "Back to Squads",
+                breadcrumbMembers: "Members",
+                heading: "{{squad}} - Members",
+                subtitle: "Manage team members and their capacity",
+                addMember: "Add Member",
+                showInactive: "Show inactive",
+                allSpecialties: "All Specialties",
+                statTotalMembers: "Total Members",
+                statTotalCapacity: "Total Capacity",
+                statBySpecialty: "By Specialty",
+                tableMember: "Member",
+                tableSpecialty: "Specialty",
+                tableCapacity: "Capacity",
+                tableStatus: "Status",
+                tableActions: "Actions",
+                emptyTitle: "No members found",
+                emptyDesc: "Add your first team member to get started.",
+                deactivateTitle: "Deactivate Team Member",
+                deactivateDesc: "Are you sure you want to deactivate {{name}}? They will no longer be included in capacity calculations.",
+                deactivate: "Deactivate",
+                memberDeactivated: "Member deactivated",
+                memberDeactivatedDesc: "{{name}} has been deactivated."
+            },
+            team: {
+                title: "Team Members",
+                subtitle: "View and manage all team members across squads",
+                addMember: "Add Member",
+                searchPlaceholder: "Search by name...",
+                allSquads: "All Squads",
+                allSpecialties: "All Specialties",
+                showInactive: "Show inactive",
+                statTotalMembers: "Total Members",
+                statTotalCapacity: "Total Capacity",
+                statDistribution: "Distribution",
+                tableMember: "Member",
+                tableSquad: "Squad",
+                tableSpecialty: "Specialty",
+                tableCapacity: "Capacity",
+                tableStatus: "Status",
+                tableActions: "Actions",
+                unknownSquad: "Unknown"
+            },
+            calendar: {
+                sprints: "Sprints",
+                releases: "Releases"
+            },
+            productBacklog: {
+                heading: "Product Backlog"
+            },
+            jira: {
+                tableStatus: "Status"
             }
         },
         prioritization: {

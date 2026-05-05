@@ -39,6 +39,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { useTranslation } from 'react-i18next';
+import { PageSkeleton } from '@/components/ui-patterns';
 import {
     DndContext,
     closestCorners,
@@ -93,45 +94,55 @@ const SortableTaskCard = ({
 
     const score = getTaskScore(task, activeModel);
 
+    const { t } = useTranslation();
+
     return (
         <div ref={setNodeRef} style={style} {...attributes} {...listeners} className="mb-3 touch-none">
-            <Card className="cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow">
-                <CardContent className="p-4 space-y-3">
+            <Card
+                onClick={onClick}
+                className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all"
+            >
+                <CardContent className="p-3 space-y-2">
                     <div className="flex justify-between items-start gap-2">
-                        <span className="font-medium leading-tight">{task.title}</span>
+                        <span className="text-sm font-medium leading-tight">{task.title}</span>
                         <DropdownMenu>
                             <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-6 w-6 -mr-2"><MoreHorizontal className="h-4 w-4" /></Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-6 w-6 -mr-1 shrink-0"
+                                    onClick={(e) => e.stopPropagation()}
+                                >
+                                    <MoreHorizontal className="h-3.5 w-3.5" />
+                                </Button>
                             </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end">
-                                <DropdownMenuItem onClick={onClick}>Edit</DropdownMenuItem>
+                            <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                                <DropdownMenuItem onClick={onClick}>{t('common.edit')}</DropdownMenuItem>
                                 {['Discovery', 'Refinement'].includes(task.status) && (
                                     <DropdownMenuItem onClick={onShapeUp} className="text-violet-600">✨ Shape Up (AI)</DropdownMenuItem>
                                 )}
                                 {task.status === 'ReadyForEng' && (
-                                    <DropdownMenuItem onClick={onPromote} className="text-blue-600">Promote to Eng</DropdownMenuItem>
+                                    <DropdownMenuItem onClick={onPromote} className="text-blue-600">{t('productBacklog.promote')}</DropdownMenuItem>
                                 )}
                             </DropdownMenuContent>
                         </DropdownMenu>
                     </div>
 
-                    <div className="flex flex-wrap gap-2 text-xs">
-                        <Badge variant="outline">{task.task_type}</Badge>
-                        <Badge variant="secondary">{task.priority}</Badge>
-                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200">
+                    <div className="flex flex-wrap gap-1.5 text-xs">
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-5">{task.task_type}</Badge>
+                        <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-5">{task.priority}</Badge>
+                        <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] py-0 px-1.5 h-5">
                             {activeModel}: {score.toFixed(1)}
                         </Badge>
-                        {task.has_prototype && <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50">Proto</Badge>}
+                        {task.has_prototype && <Badge className="bg-blue-50 text-blue-700 border-blue-200 hover:bg-blue-50 text-[10px] py-0 px-1.5 h-5">Proto</Badge>}
                     </div>
 
-                    {(task.product_objective || task.user_impact) && (
-                        <div className="space-y-1 pt-1 border-t border-border/50">
-                            {task.product_objective && (
-                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                                    <Target className="h-3 w-3" />
-                                    <span className="truncate">{task.product_objective}</span>
-                                </div>
-                            )}
+                    {task.product_objective && (
+                        <div className="pt-1 border-t border-border/50">
+                            <div className="flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                <Target className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{task.product_objective}</span>
+                            </div>
                         </div>
                     )}
                 </CardContent>
@@ -142,7 +153,7 @@ const SortableTaskCard = ({
 
 const ProductBacklog = () => {
     const { t } = useTranslation();
-    const { data, addTask, updateTask, syncWithJira } = useLocalData();
+    const { data, loading, addTask, updateTask, syncWithJira, addTaskDateChange } = useLocalData() as any;
     const [isSyncing, setIsSyncing] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
     const [editingTask, setEditingTask] = useState<Task | null>(null);
@@ -155,7 +166,9 @@ const ProductBacklog = () => {
     const [pendingDateChange, setPendingDateChange] = useState<{ task: Task; newDate: string; data: Partial<Task> } | null>(null);
 
     const sensors = useSensors(
-        useSensor(PointerSensor),
+        useSensor(PointerSensor, {
+            activationConstraint: { distance: 8 },
+        }),
         useSensor(KeyboardSensor, {
             coordinateGetter: sortableKeyboardCoordinates,
         })
@@ -225,11 +238,11 @@ const ProductBacklog = () => {
                 return;
             }
             updateTask(editingTask.id, taskData);
-            toast({ title: 'Initiative updated' });
+            toast({ title: t('common.updated') });
         } else {
             const maxOrder = Math.max(...data.tasks.map((t) => t.order_index), -1);
             addTask({ ...taskData, status: 'Discovery', order_index: maxOrder + 1 } as unknown as Omit<Task, 'id' | 'created_at'>);
-            toast({ title: 'Initiative created' });
+            toast({ title: t('common.created') });
         }
         setEditingTask(null);
     };
@@ -240,7 +253,7 @@ const ProductBacklog = () => {
         const { task, data: taskData } = pendingDateChange;
 
         // 1. Add the tracking record
-        await data.addTaskDateChange({
+        await addTaskDateChange({
             task_id: task.id,
             workspace_id: task.workspace_id || "1", // Defaulting to "1" if not present
             old_end_date: task.end_date || "",
@@ -315,12 +328,20 @@ const ProductBacklog = () => {
         }
     };
 
+    if (loading) {
+        return (
+            <Layout>
+                <PageSkeleton variant="kanban" count={3} />
+            </Layout>
+        );
+    }
+
     return (
         <Layout>
             <div className="space-y-6 h-full flex flex-col">
                 <div className="flex items-center justify-between shrink-0">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">Product Backlog</h1>
+                        <h1 className="text-2xl font-semibold tracking-tight">{t('pages.productBacklog.heading')}</h1>
                         <p className="text-muted-foreground">{t('productBacklog.subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-4">
@@ -405,7 +426,7 @@ const ProductBacklog = () => {
                                                 ))}
                                                 {colTasks.length === 0 && (
                                                     <div className="text-center py-8 text-black/20 text-sm dashed border-2 border-black/5 rounded-md">
-                                                        Drop items here
+                                                        {t('engineeringBacklog.dragDrop')}
                                                     </div>
                                                 )}
                                             </SortableContext>
@@ -490,12 +511,12 @@ const ProductBacklog = () => {
                                                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}>Edit</DropdownMenuItem>
+                                                            <DropdownMenuItem onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}>{t('common.edit')}</DropdownMenuItem>
                                                             {['Discovery', 'Refinement'].includes(task.status) && (
                                                                 <DropdownMenuItem onClick={() => setShapeUpTask(task)} className="text-violet-600">✨ Shape Up (AI)</DropdownMenuItem>
                                                             )}
                                                             {task.status === 'ReadyForEng' && (
-                                                                <DropdownMenuItem onClick={() => setPromoteTaskId(task.id)} className="text-blue-600">Promote to Eng</DropdownMenuItem>
+                                                                <DropdownMenuItem onClick={() => setPromoteTaskId(task.id)} className="text-blue-600">{t('productBacklog.promote')}</DropdownMenuItem>
                                                             )}
                                                         </DropdownMenuContent>
                                                     </DropdownMenu>
@@ -506,7 +527,7 @@ const ProductBacklog = () => {
                                     {tasks.length === 0 && (
                                         <TableRow>
                                             <TableCell colSpan={6} className="h-32 text-center text-muted-foreground">
-                                                No initiatives found.
+                                                {t('initiatives.table.empty')}
                                             </TableCell>
                                         </TableRow>
                                     )}
@@ -527,14 +548,14 @@ const ProductBacklog = () => {
             <AlertDialog open={!!promoteTaskId} onOpenChange={() => setPromoteTaskId(null)}>
                 <AlertDialogContent>
                     <AlertDialogHeader>
-                        <AlertDialogTitle>Promote to Engineering Backlog?</AlertDialogTitle>
+                        <AlertDialogTitle>{t('productBacklog.promoteConfirmTitle')}</AlertDialogTitle>
                         <AlertDialogDescription>
-                            This item will be moved to the 'Backlog' status and become visible to the engineering team.
+                            {t('productBacklog.promoteConfirmDesc')}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handlePromote}>Promote</AlertDialogAction>
+                        <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+                        <AlertDialogAction onClick={handlePromote}>{t('productBacklog.promote')}</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>

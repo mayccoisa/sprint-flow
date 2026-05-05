@@ -9,8 +9,10 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useLocalData } from '@/hooks/useLocalData';
 import { useToast } from '@/hooks/use-toast';
 import type { Sprint, SprintStatus } from '@/types';
+import { useTranslation } from 'react-i18next';
 
 const Sprints = () => {
+  const { t } = useTranslation();
   const { data, addSprint, updateSprint } = useLocalData();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -90,7 +92,7 @@ const Sprints = () => {
     <Layout>
       <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">Sprints</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t('pages.sprints.title')}</h1>
           <Button onClick={() => setIsDialogOpen(true)}>
             <Plus className="mr-2 h-4 w-4" />
             Nova Sprint

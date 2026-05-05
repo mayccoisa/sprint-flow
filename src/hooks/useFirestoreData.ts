@@ -18,10 +18,12 @@ import type {
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument,
-    CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange
+    CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange,
+    Release, ReleaseTask
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { jiraService } from '@/services/jiraService';
+import { toast } from '@/hooks/use-toast';
 
 interface FirestoreData {
     workspaces: Workspace[];
@@ -42,6 +44,8 @@ interface FirestoreData {
     formSubmissions: FormSubmission[];
     jiraSyncLogs: JiraSyncLog[];
     taskDateChanges: TaskDateChange[];
+    releases: Release[];
+    releaseTasks: ReleaseTask[];
 }
 
 const initialData: FirestoreData = {
@@ -62,7 +66,9 @@ const initialData: FirestoreData = {
     forms: [],
     formSubmissions: [],
     jiraSyncLogs: [],
-    taskDateChanges: []
+    taskDateChanges: [],
+    releases: [],
+    releaseTasks: []
 }
 
 export const useFirestoreData = () => {
@@ -126,6 +132,8 @@ export const useFirestoreData = () => {
             subscribeToCollection('form_submissions', 'formSubmissions', true),
             subscribeToCollection('jira_sync_logs', 'jiraSyncLogs', true),
             subscribeToCollection('task_date_changes', 'taskDateChanges', true),
+            subscribeToCollection('releases', 'releases', true),
+            subscribeToCollection('release_tasks', 'releaseTasks', true),
         ];
 
         setLoading(false);
@@ -300,9 +308,23 @@ export const useFirestoreData = () => {
 
         // Sprint Tasks
         addSprintTask: (st: Omit<SprintTask, 'id' | 'created_at'>) => addItem('sprint_tasks', { ...st, created_at: new Date().toISOString() }),
+        updateSprintTask: (id: number | string, updates: Partial<SprintTask>) => updateItem('sprint_tasks', id, updates),
         removeSprintTask: async (sprintId: number, taskId: number) => {
             const item = data.sprintTasks.find(st => st.sprint_id === sprintId && st.task_id === taskId);
             if (item) await deleteItem('sprint_tasks', item.id);
+        },
+
+        // Releases
+        addRelease: (release: Omit<Release, 'id' | 'created_at'>) =>
+            addItem('releases', { ...release, created_at: new Date().toISOString() }),
+        updateRelease: (id: number | string, updates: Partial<Release>) => updateItem('releases', id, updates),
+        deleteRelease: (id: number | string) => deleteItem('releases', id),
+        addReleaseTask: (rt: Omit<ReleaseTask, 'id' | 'created_at'>) =>
+            addItem('release_tasks', { ...rt, created_at: new Date().toISOString() }),
+        deleteReleaseTask: (id: number | string) => deleteItem('release_tasks', id),
+        removeReleaseTask: async (releaseId: number, taskId: number) => {
+            const item = data.releaseTasks.find(rt => rt.release_id === releaseId && rt.task_id === taskId);
+            if (item) await deleteItem('release_tasks', item.id);
         },
 
         // Squads & Members
@@ -311,6 +333,8 @@ export const useFirestoreData = () => {
         deleteSquad: (id: number) => deleteItem('squads', id),
 
         addMember: (member: Omit<TeamMember, 'id' | 'created_at'>) => addItem('members', { ...member, created_at: new Date().toISOString() }),
+        addTaskAssignment: (assignment: Omit<TaskAssignment, 'id' | 'created_at'>) =>
+            addItem('task_assignments', { ...assignment, created_at: new Date().toISOString() }),
         updateMember: (id: number, updates: Partial<TeamMember>) => updateItem('members', id, updates),
         deleteMember: (id: number) => deleteItem('members', id),
 

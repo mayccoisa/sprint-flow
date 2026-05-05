@@ -6,6 +6,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { ConfirmProvider } from "@/components/ui-patterns";
 import Index from "./pages/Index";
 import Squads from "./pages/Squads";
 import SquadMembers from "./pages/SquadMembers";
@@ -24,6 +25,7 @@ import Calendar from "./pages/Calendar";
 import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
 import SeedData from "./pages/SeedData";
+import ImportClientInitiatives from "./pages/ImportClientInitiatives";
 import DocumentationHub from "./pages/DocumentationHub";
 import DocumentEditor from "./pages/DocumentEditor";
 import FormsManagement from "./pages/FormsManagement";
@@ -38,6 +40,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <WorkspaceProvider>
+          <ConfirmProvider>
           <Toaster />
 
           <Sonner />
@@ -82,11 +85,13 @@ const App = () => (
               <Route path="/forms" element={<ProtectedRoute requiredRole="Admin"><FormsManagement /></ProtectedRoute>} />
               <Route path="/admin/jira" element={<ProtectedRoute requiredRole="Admin"><JiraSettings /></ProtectedRoute>} />
               <Route path="/admin/seed-data" element={<ProtectedRoute requiredRole="Admin"><SeedData /></ProtectedRoute>} />
+              <Route path="/admin/import-initiatives" element={<ProtectedRoute requiredRole="Admin"><ImportClientInitiatives /></ProtectedRoute>} />
 
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </ConfirmProvider>
         </WorkspaceProvider>
       </AuthProvider>
     </TooltipProvider>
