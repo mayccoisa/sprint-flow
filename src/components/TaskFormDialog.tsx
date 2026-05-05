@@ -39,6 +39,7 @@ import { CalendarIcon } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useTranslation } from 'react-i18next';
+import { toast } from '@/hooks/use-toast';
 
 interface TaskFormDialogProps {
   open: boolean;
@@ -53,7 +54,7 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
   const taskSchema = useMemo(() => z.object({
     title: z.string().min(1, t('validation.required')),
     description: z.string().max(500, t('validation.maxLength', { max: 500 })).optional(),
-    task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike'] as const),
+    task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike', 'Improvement', 'Deployment'] as const),
     priority: z.enum(['High', 'Medium', 'Low'] as const),
     estimate_frontend: z.number().nullable(),
     estimate_backend: z.number().nullable(),
@@ -61,22 +62,13 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
     estimate_design: z.number().nullable(),
     start_date: z.date().nullable(),
     end_date: z.date().nullable(),
-  }).refine(
-    (data) => {
-      const hasEstimate =
-        data.estimate_frontend ||
-        data.estimate_backend ||
-        data.estimate_qa ||
-        data.estimate_design;
-      return hasEstimate;
-    },
-    { message: t('validation.atLeastOneEstimate'), path: ['estimate_frontend'] }
-  ), [t]);
+  }), [t]);
 
   type TaskFormValues = z.infer<typeof taskSchema>;
 
   const form = useForm<TaskFormValues>({
     resolver: zodResolver(taskSchema),
+    mode: 'onBlur',
     defaultValues: {
       title: '',
       description: '',
@@ -178,7 +170,14 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
         </DialogHeader>
 
         <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+          <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+            const firstError = Object.values(errors)[0] as { message?: string } | undefined;
+            toast({
+              title: t('validation.required'),
+              description: firstError?.message || 'Verifique os campos obrigatórios.',
+              variant: 'destructive',
+            });
+          })} className="space-y-6">
             <Tabs defaultValue="info" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="info">{t('taskForm.tabs.info')}</TabsTrigger>
@@ -202,9 +201,9 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                       name="title"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel>{t('taskForm.fields.title')}</FormLabel>
+                          <FormLabel required>{t('taskForm.fields.title')}</FormLabel>
                           <FormControl>
-                            <Input {...field} placeholder={t('taskForm.placeholders.title')} />
+                            <Input {...field} autoFocus placeholder={t('taskForm.placeholders.title')} />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -244,7 +243,9 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
                               </FormControl>
                               <SelectContent>
                                 <SelectItem value="Feature">Feature</SelectItem>
+                                <SelectItem value="Improvement">Melhoria</SelectItem>
                                 <SelectItem value="Bug">Bug</SelectItem>
+                                <SelectItem value="Deployment">Implantação</SelectItem>
                                 <SelectItem value="TechDebt">Tech Debt</SelectItem>
                                 <SelectItem value="Spike">Spike</SelectItem>
                               </SelectContent>
@@ -551,7 +552,12 @@ export const TaskFormDialog = ({ open, onClose, onSave, task }: TaskFormDialogPr
               <Button type="button" variant="outline" onClick={onClose}>
                 {t('common.cancel')}
               </Button>
-              <Button type="submit">{t('common.save')}</Button>
+              <Button
+                type="submit"
+                disabled={form.formState.isSubmitting || (form.formState.isSubmitted && !form.formState.isValid)}
+              >
+                {t('common.save')}
+              </Button>
             </div>
           </form>
         </Form>

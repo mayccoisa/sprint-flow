@@ -26,7 +26,9 @@ import { Textarea } from '@/components/ui/textarea';
 import {
     Select,
     SelectContent,
+    SelectGroup,
     SelectItem,
+    SelectLabel,
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
@@ -36,6 +38,7 @@ import { useTranslation } from 'react-i18next';
 import { Sparkles } from 'lucide-react';
 import { GeneratePRDDialog } from './ai/GeneratePRDDialog';
 import { PRDSection } from '@/services/aiService';
+import { toast } from '@/hooks/use-toast';
 
 interface InitiativeFormDialogProps {
     open: boolean;
@@ -43,6 +46,85 @@ interface InitiativeFormDialogProps {
     onSave: (data: Partial<Task>) => void;
     task?: Task | null;
 }
+
+type ScaleOption = { value: number; label: string; hint: string };
+
+const IMPACT_SCALE: ScaleOption[] = [
+    { value: 1, label: 'Mínimo', hint: 'Quase imperceptível para o usuário' },
+    { value: 3, label: 'Baixo', hint: 'Melhoria pontual, poucos usuários afetados' },
+    { value: 5, label: 'Médio', hint: 'Melhoria notável para parte da base' },
+    { value: 7, label: 'Alto', hint: 'Ganho relevante para a maioria dos usuários' },
+    { value: 9, label: 'Muito alto', hint: 'Mudança significativa de comportamento/uso' },
+    { value: 10, label: 'Massivo', hint: 'Transforma o produto ou métrica-chave' },
+];
+
+const CONFIDENCE_SCALE: ScaleOption[] = [
+    { value: 1, label: 'Especulativo (~10%)', hint: 'Suposição, sem dados' },
+    { value: 3, label: 'Baixa (~30%)', hint: 'Indícios anedóticos' },
+    { value: 5, label: 'Moderada (~50%)', hint: 'Algumas evidências qualitativas' },
+    { value: 7, label: 'Alta (~70%)', hint: 'Pesquisa ou dados parciais sustentam' },
+    { value: 9, label: 'Muito alta (~90%)', hint: 'Dados quantitativos sólidos' },
+    { value: 10, label: 'Certa (100%)', hint: 'Validado por experimento ou cliente pagante' },
+];
+
+const EASE_SCALE: ScaleOption[] = [
+    { value: 1, label: 'Muito difícil', hint: 'Reescrita ou pesquisa profunda' },
+    { value: 3, label: 'Difícil', hint: 'Várias semanas, múltiplas áreas' },
+    { value: 5, label: 'Médio', hint: 'Esforço típico de uma sprint' },
+    { value: 7, label: 'Fácil', hint: 'Poucos dias, escopo claro' },
+    { value: 9, label: 'Muito fácil', hint: 'Mudança pequena e isolada' },
+    { value: 10, label: 'Trivial', hint: 'Configuração ou ajuste menor' },
+];
+
+const EFFORT_SCALE: ScaleOption[] = [
+    { value: 1, label: 'Trivial', hint: 'Horas de trabalho' },
+    { value: 2, label: 'Muito pequeno', hint: '1-2 dias' },
+    { value: 3, label: 'Pequeno', hint: 'Menos de 1 semana' },
+    { value: 5, label: 'Médio', hint: '1-2 semanas (1 sprint)' },
+    { value: 7, label: 'Grande', hint: '~1 mês' },
+    { value: 9, label: 'Muito grande', hint: '1-2 meses, múltiplos times' },
+    { value: 10, label: 'Épico', hint: 'Trimestre ou mais' },
+];
+
+const BUSINESS_VALUE_SCALE: ScaleOption[] = [
+    { value: 1, label: 'Mínimo', hint: 'Sem impacto direto em receita ou estratégia' },
+    { value: 3, label: 'Baixo', hint: 'Ganho operacional pequeno' },
+    { value: 5, label: 'Médio', hint: 'Apoia objetivo tático do trimestre' },
+    { value: 7, label: 'Alto', hint: 'Liga-se a OKR ou meta de receita' },
+    { value: 9, label: 'Muito alto', hint: 'Move métrica-chave do negócio' },
+    { value: 10, label: 'Crítico', hint: 'Estratégico, bloqueia outras iniciativas' },
+];
+
+const ScaleSelect = ({
+    value,
+    onChange,
+    options,
+}: {
+    value: number | undefined;
+    onChange: (v: number) => void;
+    options: ScaleOption[];
+}) => (
+    <Select
+        value={value ? String(value) : undefined}
+        onValueChange={(v) => onChange(parseInt(v))}
+    >
+        <FormControl>
+            <SelectTrigger>
+                <SelectValue placeholder="Selecione..." />
+            </SelectTrigger>
+        </FormControl>
+        <SelectContent>
+            {options.map(opt => (
+                <SelectItem key={opt.value} value={String(opt.value)}>
+                    <div className="flex flex-col items-start">
+                        <span className="font-medium">{opt.value} — {opt.label}</span>
+                        <span className="text-xs text-muted-foreground">{opt.hint}</span>
+                    </div>
+                </SelectItem>
+            ))}
+        </SelectContent>
+    </Select>
+);
 
 export const InitiativeFormDialog = ({ open, onClose, onSave, task }: InitiativeFormDialogProps) => {
     const { t } = useTranslation();
@@ -52,14 +134,14 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
     const initiativeSchema = useMemo(() => z.object({
         title: z.string().min(1, t('validation.required')),
         description: z.string().optional(),
-        product_objective: z.string().min(1, t('validation.required')),
-        business_goal: z.string().min(1, t('validation.required')),
-        user_impact: z.string().min(1, t('validation.required')),
-        task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike'] as const),
+        product_objective: z.string().optional(),
+        business_goal: z.string().optional(),
+        user_impact: z.string().optional(),
+        task_type: z.enum(['Feature', 'Bug', 'TechDebt', 'Spike', 'Improvement', 'Deployment'] as const),
         priority: z.enum(['High', 'Medium', 'Low'] as const),
         has_prototype: z.boolean(),
         prototype_link: z.string().optional(),
-        feature_id: z.string().min(1, t('validation.required')),
+        feature_id: z.string().optional(),
         prioritization_model: z.enum(['ICE', 'RICE', 'BRICE'] as const).optional(),
         ice_impact: z.number().min(0).max(10).optional(),
         ice_confidence: z.number().min(0).max(10).optional(),
@@ -166,15 +248,18 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
         onSave({
             ...data,
             description: data.description || null,
+            product_objective: data.product_objective || null,
+            business_goal: data.business_goal || null,
+            user_impact: data.user_impact || null,
             prototype_link: data.prototype_link || null,
             // Default engineering values
-            estimate_frontend: task?.estimate_frontend || null,
-            estimate_backend: task?.estimate_backend || null,
-            estimate_qa: task?.estimate_qa || null,
-            estimate_design: task?.estimate_design || null,
+            estimate_frontend: task?.estimate_frontend ?? null,
+            estimate_backend: task?.estimate_backend ?? null,
+            estimate_qa: task?.estimate_qa ?? null,
+            estimate_design: task?.estimate_design ?? null,
             status: task?.status || 'Discovery', // Default to Discovery for new initiatives
-            order_index: task?.order_index || 0,
-            feature_id: parseInt(data.feature_id),
+            order_index: task?.order_index ?? 0,
+            feature_id: data.feature_id ? parseInt(data.feature_id) : null,
         });
         form.reset();
         onClose();
@@ -201,7 +286,14 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 </DialogHeader>
 
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                    <form onSubmit={form.handleSubmit(onSubmit, (errors) => {
+                        const firstError = Object.values(errors)[0] as { message?: string } | undefined;
+                        toast({
+                            title: t('validation.required'),
+                            description: firstError?.message || 'Verifique os campos obrigatórios.',
+                            variant: 'destructive',
+                        });
+                    })} className="space-y-6">
 
                         <Tabs defaultValue="general" className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
@@ -242,7 +334,9 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                                 <FormControl><SelectTrigger><SelectValue /></SelectTrigger></FormControl>
                                                                 <SelectContent>
                                                                     <SelectItem value="Feature">Feature</SelectItem>
+                                                                    <SelectItem value="Improvement">Melhoria</SelectItem>
                                                                     <SelectItem value="Bug">Bug</SelectItem>
+                                                                    <SelectItem value="Deployment">Implantação</SelectItem>
                                                                     <SelectItem value="TechDebt">Tech Debt</SelectItem>
                                                                     <SelectItem value="Spike">Spike</SelectItem>
                                                                 </SelectContent>
@@ -293,40 +387,38 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                             {/* TAB 2: DETAILS */}
                             <TabsContent value="details" className="space-y-4 pt-4">
                                 <ScrollArea className="h-[400px] pr-4">
-                                    <div className="space-y-6">
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FormField
-                                                control={form.control}
-                                                name="user_impact"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>{t('initiativeForm.fields.userImpact')}</FormLabel>
-                                                        <FormControl>
-                                                            <Textarea {...field} placeholder={t('initiativeForm.placeholders.userImpact')} rows={3} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                    <div className="space-y-5">
+                                        <FormField
+                                            control={form.control}
+                                            name="user_impact"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t('initiativeForm.fields.userImpact')}</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea {...field} placeholder={t('initiativeForm.placeholders.userImpact')} rows={2} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
-                                            <FormField
-                                                control={form.control}
-                                                name="business_goal"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>{t('initiativeForm.fields.businessGoal')}</FormLabel>
-                                                        <FormControl>
-                                                            <Input {...field} placeholder={t('initiativeForm.placeholders.businessGoal')} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
-                                        </div>
+                                        <FormField
+                                            control={form.control}
+                                            name="business_goal"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t('initiativeForm.fields.businessGoal')}</FormLabel>
+                                                    <FormControl>
+                                                        <Input {...field} placeholder={t('initiativeForm.placeholders.businessGoal')} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
 
                                         {/* Product Context */}
-                                        <div className="space-y-4 border-t pt-4">
-                                            <h3 className="font-semibold text-lg">{t('initiativeForm.productContext')}</h3>
+                                        <div className="space-y-3 border-t pt-4">
+                                            <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('initiativeForm.productContext')}</h3>
                                             <FormField
                                                 control={form.control}
                                                 name="feature_id"
@@ -336,21 +428,20 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                         <Select onValueChange={field.onChange} value={field.value}>
                                                             <FormControl><SelectTrigger><SelectValue placeholder={t('initiativeForm.placeholders.selectFeature')} /></SelectTrigger></FormControl>
                                                             <SelectContent>
-                                                                {localData.productModules.map(module => (
-                                                                    <div key={module.id}>
-                                                                        <div className="px-2 py-1.5 text-sm font-semibold text-muted-foreground">
-                                                                            {module.name}
-                                                                        </div>
-                                                                        {localData.productFeatures
-                                                                            .filter(f => f.module_id === module.id)
-                                                                            .map(feature => (
+                                                                {localData.productModules.map(module => {
+                                                                    const features = localData.productFeatures.filter(f => f.module_id === module.id);
+                                                                    if (features.length === 0) return null;
+                                                                    return (
+                                                                        <SelectGroup key={module.id}>
+                                                                            <SelectLabel>{module.name}</SelectLabel>
+                                                                            {features.map(feature => (
                                                                                 <SelectItem key={feature.id} value={String(feature.id)} className="pl-6">
                                                                                     {feature.name}
                                                                                 </SelectItem>
-                                                                            ))
-                                                                        }
-                                                                    </div>
-                                                                ))}
+                                                                            ))}
+                                                                        </SelectGroup>
+                                                                    );
+                                                                })}
                                                             </SelectContent>
                                                         </Select>
                                                         <FormMessage />
@@ -360,30 +451,26 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         </div>
 
                                         {/* Discovery Status */}
-                                        <div className="space-y-4 border-t pt-4">
-                                            <h3 className="font-semibold text-lg">{t('initiativeForm.sections.discovery')}</h3>
+                                        <div className="space-y-3 border-t pt-4">
+                                            <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('initiativeForm.sections.discovery')}</h3>
 
-                                            <div className="flex items-center space-x-2">
-                                                <FormField
-                                                    control={form.control}
-                                                    name="has_prototype"
-                                                    render={({ field }) => (
-                                                        <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 w-full">
-                                                            <FormControl>
-                                                                <Checkbox
-                                                                    checked={field.value}
-                                                                    onCheckedChange={field.onChange}
-                                                                />
-                                                            </FormControl>
-                                                            <div className="space-y-1 leading-none">
-                                                                <FormLabel>
-                                                                    {t('initiativeForm.fields.hasPrototype')}
-                                                                </FormLabel>
-                                                            </div>
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            </div>
+                                            <FormField
+                                                control={form.control}
+                                                name="has_prototype"
+                                                render={({ field }) => (
+                                                    <FormItem className="flex flex-row items-center space-x-3 space-y-0 rounded-md border px-3 py-2">
+                                                        <FormControl>
+                                                            <Checkbox
+                                                                checked={field.value}
+                                                                onCheckedChange={field.onChange}
+                                                            />
+                                                        </FormControl>
+                                                        <FormLabel className="!m-0 cursor-pointer">
+                                                            {t('initiativeForm.fields.hasPrototype')}
+                                                        </FormLabel>
+                                                    </FormItem>
+                                                )}
+                                            />
 
                                             {form.watch('has_prototype') && (
                                                 <FormField
@@ -435,8 +522,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="ice_impact"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.impact')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.impact')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={IMPACT_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -446,8 +533,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="ice_confidence"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.confidence')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.confidence')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={CONFIDENCE_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -457,8 +544,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="ice_ease"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.ease')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.ease')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={EASE_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -474,7 +561,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel>{t('prioritization.metrics.reach')}</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormControl><Input type="number" min={0} placeholder="Nº de usuários/clientes por trimestre" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                                            <FormDescription>Quantas pessoas serão impactadas no período (ex: por trimestre).</FormDescription>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -484,8 +572,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="rice_impact"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.impact')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.impact')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={IMPACT_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -495,8 +583,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="rice_confidence"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.confidence')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.confidence')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={CONFIDENCE_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -507,7 +595,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel>{t('prioritization.metrics.effort')}</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={EFFORT_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -522,8 +610,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="brice_business_value"
                                                     render={({ field }) => (
                                                         <FormItem className="col-span-2">
-                                                            <FormLabel>{t('prioritization.metrics.businessValue')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.businessValue')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={BUSINESS_VALUE_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -534,7 +622,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel>{t('prioritization.metrics.reach')}</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormControl><Input type="number" min={0} placeholder="Nº de usuários/clientes por trimestre" {...field} onChange={e => field.onChange(parseInt(e.target.value) || 0)} /></FormControl>
+                                                            <FormDescription>Quantas pessoas serão impactadas no período.</FormDescription>
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -544,8 +633,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="brice_impact"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.impact')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.impact')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={IMPACT_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -555,8 +644,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     name="brice_confidence"
                                                     render={({ field }) => (
                                                         <FormItem>
-                                                            <FormLabel>{t('prioritization.metrics.confidence')} (1-10)</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <FormLabel>{t('prioritization.metrics.confidence')}</FormLabel>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={CONFIDENCE_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}
@@ -567,7 +656,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     render={({ field }) => (
                                                         <FormItem>
                                                             <FormLabel>{t('prioritization.metrics.effort')}</FormLabel>
-                                                            <FormControl><Input type="number" {...field} onChange={e => field.onChange(parseInt(e.target.value))} /></FormControl>
+                                                            <ScaleSelect value={field.value} onChange={field.onChange} options={EFFORT_SCALE} />
                                                             <FormMessage />
                                                         </FormItem>
                                                     )}

@@ -1,7 +1,7 @@
 export type SquadStatus = 'Active' | 'Inactive';
 export type MemberSpecialty = 'Frontend' | 'Backend' | 'QA' | 'Design';
 export type MemberStatus = 'Active' | 'Inactive';
-export type TaskType = 'Feature' | 'Bug' | 'TechDebt' | 'Spike';
+export type TaskType = 'Feature' | 'Bug' | 'TechDebt' | 'Spike' | 'Improvement' | 'Deployment';
 export type TaskPriority = 'High' | 'Medium' | 'Low';
 export type TaskStatus =
   | 'Discovery'
