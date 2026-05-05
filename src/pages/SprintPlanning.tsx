@@ -12,8 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { KanbanBoard } from '@/components/KanbanBoard';
-import { SprintMetrics } from '@/components/SprintMetrics';
+import { SquadBucket, TaskWithSprintTask } from '@/components/SquadBucket';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -34,9 +33,9 @@ import {
 } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 import { useLocalData } from '@/hooks/useLocalData';
-import { Task, Sprint, Squad } from '@/types';
+import { Task, Sprint, Squad, TeamMember } from '@/types';
 import { format } from 'date-fns';
-import { GripVertical, X, CheckCircle } from 'lucide-react';
+import { GripVertical, CheckCircle } from 'lucide-react';
 import {
   DndContext,
   DragEndEvent,
@@ -45,15 +44,12 @@ import {
   PointerSensor,
   useSensor,
   useSensors,
+  useDroppable,
+  useDraggable,
 } from '@dnd-kit/core';
 
 interface SprintWithSquad extends Sprint {
   squad: Squad;
-}
-
-interface TaskWithSprintTask extends Task {
-  sprint_task_id?: number;
-  task_status?: 'Todo' | 'InProgress' | 'Done' | 'Blocked';
 }
 
 const SprintPlanning = () => {
@@ -62,8 +58,8 @@ const SprintPlanning = () => {
   const {
     data,
     loading,
+    addSprint,
     addSprintTask,
-    updateSprintTask,
     removeSprintTask,
     updateTask,
     updateSprint,
@@ -71,9 +67,8 @@ const SprintPlanning = () => {
 
   const sprintId = id ? parseInt(id) : null;
 
-  const [activeId, setActiveId] = useState<number | null>(null);
+  const [activeId, setActiveId] = useState<string | null>(null);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
-  const [removeTaskId, setRemoveTaskId] = useState<number | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -81,17 +76,63 @@ const SprintPlanning = () => {
   const [priorityFilter, setPriorityFilter] = useState('all');
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
   const sprint = useMemo<SprintWithSquad | null>(() => {
     const s: Sprint | undefined = data.sprints.find((s: Sprint) => s.id === sprintId);
     if (!s) return null;
     const squad: Squad | undefined = data.squads.find((sq: Squad) => sq.id === s.squad_id);
-    return { ...s, squad: squad as Squad };
+    if (!squad) return null;
+    return { ...s, squad };
   }, [data.sprints, data.squads, sprintId]);
+
+  // All active squads — each gets a bucket regardless of whether a sprint exists for this cycle
+  const activeSquads = useMemo<Squad[]>(() => {
+    return data.squads
+      .filter((s: Squad) => s.status === 'Active')
+      .sort((a: Squad, b: Squad) => a.name.localeCompare(b.name));
+  }, [data.squads]);
+
+  // For each active squad, find the sprint (if any) in the current cycle
+  const sprintBySquad = useMemo<Map<number, SprintWithSquad>>(() => {
+    const map = new Map<number, SprintWithSquad>();
+    if (!sprint) return map;
+    const start = new Date(sprint.start_date).getTime();
+    const end = new Date(sprint.end_date).getTime();
+    data.sprints.forEach((s: Sprint) => {
+      const sStart = new Date(s.start_date).getTime();
+      const sEnd = new Date(s.end_date).getTime();
+      const overlaps = sStart <= end && sEnd >= start;
+      if (!overlaps) return;
+      const squad = data.squads.find((sq: Squad) => sq.id === s.squad_id);
+      if (!squad) return;
+      // Prefer earliest-created sprint per squad if multiple overlap
+      const existing = map.get(squad.id);
+      if (!existing || new Date(s.created_at) < new Date(existing.created_at)) {
+        map.set(squad.id, { ...s, squad });
+      }
+    });
+    return map;
+  }, [data.sprints, data.squads, sprint]);
+
+  // Map sprintId → tasks in that sprint
+  const tasksBySprint = useMemo<Map<number, TaskWithSprintTask[]>>(() => {
+    const map = new Map<number, TaskWithSprintTask[]>();
+    sprintBySquad.forEach((s) => {
+      const items = data.sprintTasks
+        .filter((st: any) => st.sprint_id === s.id)
+        .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0))
+        .map((st: any) => {
+          const task = data.tasks.find((t: Task) => t.id === st.task_id);
+          if (!task) return null;
+          return { ...task, sprint_task_id: st.id } as TaskWithSprintTask;
+        })
+        .filter(Boolean) as TaskWithSprintTask[];
+      map.set(s.id, items);
+    });
+    return map;
+  }, [data.sprintTasks, data.tasks, sprintBySquad]);
 
   const backlogTasks = useMemo<Task[]>(
     () =>
@@ -101,28 +142,10 @@ const SprintPlanning = () => {
     [data.tasks]
   );
 
-  const sprintTasks = useMemo<TaskWithSprintTask[]>(() => {
-    if (!sprintId) return [];
-    return data.sprintTasks
-      .filter((st: any) => st.sprint_id === sprintId)
-      .sort((a: any, b: any) => (a.order_index ?? 0) - (b.order_index ?? 0))
-      .map((st: any) => {
-        const task = data.tasks.find((t: Task) => t.id === st.task_id);
-        if (!task) return null;
-        return {
-          ...task,
-          sprint_task_id: st.id,
-          task_status: st.task_status || 'Todo',
-        } as TaskWithSprintTask;
-      })
-      .filter(Boolean) as TaskWithSprintTask[];
-  }, [data.sprintTasks, data.tasks, sprintId]);
-
   const filteredBacklog = useMemo(() => {
     return backlogTasks.filter((task) => {
       if (typeFilter !== 'all' && task.task_type !== typeFilter) return false;
-      if (priorityFilter !== 'all' && task.priority !== priorityFilter)
-        return false;
+      if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
       if (
         searchQuery &&
         !task.title.toLowerCase().includes(searchQuery.toLowerCase())
@@ -132,8 +155,11 @@ const SprintPlanning = () => {
     });
   }, [backlogTasks, searchQuery, typeFilter, priorityFilter]);
 
+  const findTaskById = (taskId: number): Task | undefined =>
+    data.tasks.find((t: Task) => t.id === taskId);
+
   const handleDragStart = (event: DragStartEvent) => {
-    setActiveId(event.active.id as number);
+    setActiveId(String(event.active.id));
   };
 
   const handleDragEnd = async (event: DragEndEvent) => {
@@ -142,71 +168,93 @@ const SprintPlanning = () => {
 
     if (!over) return;
 
-    const taskId = active.id as number;
-    const overId = over.id as string;
-
-    // Check if dropping to sprint column
-    if (overId === 'sprint-column') {
-      await addTaskToSprint(taskId);
-    }
-  };
-
-  const addTaskToSprint = async (taskId: number) => {
-    if (!sprint || !sprintId) return;
+    const activeIdStr = String(active.id);
+    const taskId = parseInt(activeIdStr.replace('task-', ''));
+    const fromSprintId = active.data.current?.fromSprintId as number | undefined;
+    const overId = String(over.id);
 
     try {
-      await addSprintTask({
-        sprint_id: sprintId,
-        task_id: taskId,
-        order_index: sprintTasks.length,
-        task_status: 'Todo',
-      });
-      await updateTask(taskId, { status: 'InSprint' });
-      toast({ title: 'Tarefa adicionada à sprint' });
+      if (overId === 'backlog') {
+        if (fromSprintId) {
+          await removeSprintTask(fromSprintId, taskId);
+          await updateTask(taskId, { status: 'Backlog' });
+          toast({ title: 'Tarefa removida da sprint' });
+        }
+        return;
+      }
+
+      if (overId.startsWith('squad-')) {
+        const targetSprintId = parseInt(overId.replace('squad-', ''));
+        if (fromSprintId === targetSprintId) return;
+
+        if (fromSprintId) {
+          await removeSprintTask(fromSprintId, taskId);
+        }
+
+        const orderIndex = tasksBySprint.get(targetSprintId)?.length || 0;
+        await addSprintTask({
+          sprint_id: targetSprintId,
+          task_id: taskId,
+          order_index: orderIndex,
+          task_status: 'Todo',
+        });
+        await updateTask(taskId, { status: 'InSprint' });
+
+        let targetSquad: string | undefined;
+        sprintBySquad.forEach((s) => {
+          if (s.id === targetSprintId) targetSquad = s.squad.name;
+        });
+        toast({
+          title: fromSprintId ? 'Tarefa movida' : 'Tarefa adicionada',
+          description: targetSquad ? `Squad: ${targetSquad}` : undefined,
+        });
+      }
     } catch (error: any) {
-      console.error('Error adding task to sprint:', error);
+      console.error('Error in drag end:', error);
       toast({
-        title: 'Erro ao adicionar tarefa',
+        title: 'Erro ao mover tarefa',
         description: error?.message,
         variant: 'destructive',
       });
     }
   };
 
-  const updateTaskStatus = async (
-    taskId: number,
-    newStatus: 'Todo' | 'InProgress' | 'Done' | 'Blocked'
+  const handleRemoveFromSquad = async (
+    sprintIdToRemove: number,
+    taskId: number
   ) => {
     try {
-      const task = sprintTasks.find((t) => t.id === taskId);
-      if (!task || !task.sprint_task_id) return;
-
-      await updateSprintTask(task.sprint_task_id, { task_status: newStatus });
-      if (newStatus === 'Done') {
-        await updateTask(taskId, { status: 'Done' });
-      }
-      toast({ title: 'Status atualizado' });
+      await removeSprintTask(sprintIdToRemove, taskId);
+      await updateTask(taskId, { status: 'Backlog' });
+      toast({ title: 'Tarefa removida da sprint' });
     } catch (error: any) {
-      console.error('Error updating task status:', error);
+      console.error('Error removing task:', error);
       toast({
-        title: 'Erro ao atualizar status',
+        title: 'Erro ao remover tarefa',
         description: error?.message,
         variant: 'destructive',
       });
     }
   };
 
-  const removeTaskFromSprint = async (taskId: number) => {
-    if (!sprintId) return;
+  const handleCreateSprintForSquad = async (squad: Squad) => {
+    if (!sprint) return;
     try {
-      await removeSprintTask(sprintId, taskId);
-      await updateTask(taskId, { status: 'Backlog' });
-      toast({ title: 'Tarefa removida da sprint' });
-      setRemoveTaskId(null);
-    } catch (error: any) {
-      console.error('Error removing task from sprint:', error);
+      await addSprint({
+        name: sprint.name,
+        squad_id: squad.id,
+        start_date: sprint.start_date,
+        end_date: sprint.end_date,
+        status: 'Planning',
+      });
       toast({
-        title: 'Erro ao remover tarefa',
+        title: 'Sprint criada',
+        description: `${sprint.name} para ${squad.name}`,
+      });
+    } catch (error: any) {
+      console.error('Error creating sprint:', error);
+      toast({
+        title: 'Erro ao criar sprint',
         description: error?.message,
         variant: 'destructive',
       });
@@ -217,7 +265,10 @@ const SprintPlanning = () => {
     if (!sprint) return;
     try {
       await updateSprint(sprint.id, { status: 'Active' });
-      toast({ title: 'Planejamento finalizado', description: 'A sprint está agora ativa!' });
+      toast({
+        title: 'Planejamento finalizado',
+        description: 'A sprint está agora ativa!',
+      });
       navigate('/sprints');
     } catch (error: any) {
       console.error('Error finishing planning:', error);
@@ -239,19 +290,7 @@ const SprintPlanning = () => {
     );
   }
 
-  if (!sprint) {
-    return null;
-  }
-
-  const totalSprintPoints = sprintTasks.reduce(
-    (sum, task) =>
-      sum +
-      (task.estimate_frontend || 0) +
-      (task.estimate_backend || 0) +
-      (task.estimate_qa || 0) +
-      (task.estimate_design || 0),
-    0
-  );
+  if (!sprint) return null;
 
   const statusColors = {
     Planning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
@@ -260,10 +299,15 @@ const SprintPlanning = () => {
     Cancelled: 'bg-red-100 text-red-800 border-red-200',
   };
 
+  // Active task for the drag overlay (could be from backlog or any squad bucket)
+  const activeTaskId = activeId
+    ? parseInt(activeId.replace('task-', ''))
+    : null;
+  const activeTask = activeTaskId ? findTaskById(activeTaskId) : null;
+
   return (
     <Layout>
       <div className="space-y-6">
-        {/* Breadcrumb */}
         <Breadcrumb>
           <BreadcrumbList>
             <BreadcrumbItem>
@@ -282,20 +326,21 @@ const SprintPlanning = () => {
           </BreadcrumbList>
         </Breadcrumb>
 
-        {/* Header */}
-        <div className="flex items-start justify-between">
+        <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <h1 className="text-2xl font-semibold tracking-tight">
-                {sprint.name} - {sprint.squad.name}
+                {sprint.name}
               </h1>
               <Badge className={statusColors[sprint.status]}>
                 {sprint.status}
               </Badge>
             </div>
-            <p className="text-muted-foreground">
-              {format(new Date(sprint.start_date), 'dd/MM/yyyy')} -{' '}
-              {format(new Date(sprint.end_date), 'dd/MM/yyyy')}
+            <p className="text-muted-foreground text-sm">
+              {format(new Date(sprint.start_date), 'dd/MM/yyyy')} —{' '}
+              {format(new Date(sprint.end_date), 'dd/MM/yyyy')} ·{' '}
+              {activeSquads.length}{' '}
+              {activeSquads.length === 1 ? 'squad ativo' : 'squads ativos'}
             </p>
           </div>
           {sprint.status === 'Planning' && (
@@ -306,123 +351,78 @@ const SprintPlanning = () => {
           )}
         </div>
 
-        {/* Two Column Layout */}
-        <div className="grid grid-cols-[350px_1fr_300px] gap-6">
-          {/* Left Column - Backlog */}
-          <DndContext
-            sensors={sensors}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-          >
-            <div className="space-y-4">
-              <Card className="bg-muted/30">
-                <CardContent className="p-6">
-                  <h2 className="text-xl font-semibold mb-4">
-                    Tarefas Disponíveis
-                  </h2>
-
-                  {/* Filters */}
-                  <div className="space-y-3 mb-4">
-                    <Input
-                      placeholder="Buscar tarefa..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                    <div className="flex gap-2">
-                      <Select value={typeFilter} onValueChange={setTypeFilter}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Tipo" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todos os tipos</SelectItem>
-                          <SelectItem value="Feature">Feature</SelectItem>
-                          <SelectItem value="Bug">Bug</SelectItem>
-                          <SelectItem value="TechDebt">Tech Debt</SelectItem>
-                          <SelectItem value="Spike">Spike</SelectItem>
-                        </SelectContent>
-                      </Select>
-                      <Select
-                        value={priorityFilter}
-                        onValueChange={setPriorityFilter}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Prioridade" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Todas</SelectItem>
-                          <SelectItem value="High">Alta</SelectItem>
-                          <SelectItem value="Medium">Média</SelectItem>
-                          <SelectItem value="Low">Baixa</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-
-                  {/* Backlog Tasks List */}
-                  <div className="space-y-2 max-h-[600px] overflow-y-auto">
-                    {filteredBacklog.length === 0 ? (
-                      <p className="text-center text-muted-foreground py-8">
-                        Nenhuma tarefa no backlog
-                      </p>
-                    ) : (
-                      filteredBacklog.map((task) => (
-                        <TaskCard
-                          key={task.id}
-                          task={task}
-                          isDragging={activeId === task.id}
-                        />
-                      ))
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            <DragOverlay>
-              {activeId ? (
-                <TaskCard
-                  task={
-                    backlogTasks.find((t) => t.id === activeId) ||
-                    sprintTasks.find((t) => t.id === activeId)!
-                  }
-                  isDragging
-                />
-              ) : null}
-            </DragOverlay>
-          </DndContext>
-
-          {/* Center Column - Kanban Board */}
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold">
-                Sprint: {sprint.name}
-              </h2>
-              <Badge variant="secondary" className="text-base">
-                {sprintTasks.length} tarefas · {totalSprintPoints} pontos
-              </Badge>
-            </div>
-            <KanbanBoard
-              tasks={sprintTasks}
-              onStatusChange={updateTaskStatus}
-              onRemove={(taskId) => setRemoveTaskId(taskId)}
+        <DndContext
+          sensors={sensors}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <div className="grid grid-cols-[340px_minmax(0,1fr)] gap-6">
+            <BacklogColumn
+              tasks={filteredBacklog}
+              activeId={activeId}
+              searchQuery={searchQuery}
+              onSearchChange={setSearchQuery}
+              typeFilter={typeFilter}
+              onTypeChange={setTypeFilter}
+              priorityFilter={priorityFilter}
+              onPriorityChange={setPriorityFilter}
             />
+
+            <div className="overflow-x-auto pb-2">
+              {activeSquads.length === 0 ? (
+                <div className="flex items-center justify-center h-[500px] border-2 border-dashed rounded-lg">
+                  <p className="text-muted-foreground">
+                    Nenhum squad ativo
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="flex gap-4 items-stretch"
+                  style={{
+                    minWidth: `${activeSquads.length * 320}px`,
+                  }}
+                >
+                  {activeSquads.map((squad) => {
+                    const squadSprint = sprintBySquad.get(squad.id);
+                    const squadSprintId = squadSprint?.id ?? null;
+                    return (
+                      <div key={squad.id} className="w-[320px] flex-shrink-0">
+                        <SquadBucket
+                          sprintId={squadSprintId}
+                          squadName={squad.name}
+                          members={data.members.filter(
+                            (m: TeamMember) => m.squad_id === squad.id
+                          )}
+                          tasks={
+                            squadSprintId
+                              ? tasksBySprint.get(squadSprintId) || []
+                              : []
+                          }
+                          isCurrent={squadSprintId === sprintId}
+                          onRemove={(taskId) =>
+                            squadSprintId &&
+                            handleRemoveFromSquad(squadSprintId, taskId)
+                          }
+                          onCreateSprint={
+                            squadSprintId
+                              ? undefined
+                              : () => handleCreateSprintForSquad(squad)
+                          }
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
-          {/* Right Column - Metrics */}
-          {sprint.status === 'Active' && (
-            <div>
-              <SprintMetrics
-                tasks={sprintTasks}
-                startDate={sprint.start_date}
-                endDate={sprint.end_date}
-                status={sprint.status}
-              />
-            </div>
-          )}
-        </div>
+          <DragOverlay>
+            {activeTask ? <BacklogTaskCard task={activeTask} isDragging /> : null}
+          </DragOverlay>
+        </DndContext>
       </div>
 
-      {/* Finish Planning Dialog */}
       <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -440,35 +440,127 @@ const SprintPlanning = () => {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-
-      {/* Remove Task Dialog */}
-      <AlertDialog
-        open={!!removeTaskId}
-        onOpenChange={() => setRemoveTaskId(null)}
-      >
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remover tarefa da sprint?</AlertDialogTitle>
-            <AlertDialogDescription>
-              A tarefa voltará para o backlog e poderá ser adicionada novamente.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction
-              onClick={() => removeTaskId && removeTaskFromSprint(removeTaskId)}
-            >
-              Remover
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </Layout>
   );
 };
 
-// Task Card Component for Drag & Drop
-const TaskCard = ({
+// ─────────────────────────────────────────────────────────────────────────────
+// Backlog column
+// ─────────────────────────────────────────────────────────────────────────────
+
+const BacklogColumn = ({
+  tasks,
+  activeId,
+  searchQuery,
+  onSearchChange,
+  typeFilter,
+  onTypeChange,
+  priorityFilter,
+  onPriorityChange,
+}: {
+  tasks: Task[];
+  activeId: string | null;
+  searchQuery: string;
+  onSearchChange: (v: string) => void;
+  typeFilter: string;
+  onTypeChange: (v: string) => void;
+  priorityFilter: string;
+  onPriorityChange: (v: string) => void;
+}) => {
+  const { isOver, setNodeRef } = useDroppable({ id: 'backlog' });
+
+  return (
+    <Card
+      ref={setNodeRef}
+      className={`bg-muted/30 transition-colors ${
+        isOver ? 'ring-2 ring-primary bg-muted/50' : ''
+      }`}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Backlog</h2>
+          <Badge variant="secondary">{tasks.length}</Badge>
+        </div>
+
+        <div className="space-y-2 mb-4">
+          <Input
+            placeholder="Buscar tarefa..."
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            className="bg-background"
+          />
+          <div className="flex gap-2">
+            <Select value={typeFilter} onValueChange={onTypeChange}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todos os tipos</SelectItem>
+                <SelectItem value="Feature">Feature</SelectItem>
+                <SelectItem value="Bug">Bug</SelectItem>
+                <SelectItem value="TechDebt">Tech Debt</SelectItem>
+                <SelectItem value="Spike">Spike</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={priorityFilter} onValueChange={onPriorityChange}>
+              <SelectTrigger className="bg-background">
+                <SelectValue placeholder="Prioridade" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Todas</SelectItem>
+                <SelectItem value="High">Alta</SelectItem>
+                <SelectItem value="Medium">Média</SelectItem>
+                <SelectItem value="Low">Baixa</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-1">
+          {tasks.length === 0 ? (
+            <p className="text-center text-sm text-muted-foreground py-8">
+              Nenhuma tarefa disponível
+            </p>
+          ) : (
+            tasks.map((task) => (
+              <BacklogDraggableCard
+                key={task.id}
+                task={task}
+                isDragging={activeId === `task-${task.id}`}
+              />
+            ))
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+const BacklogDraggableCard = ({
+  task,
+  isDragging,
+}: {
+  task: Task;
+  isDragging?: boolean;
+}) => {
+  const { attributes, listeners, setNodeRef } = useDraggable({
+    id: `task-${task.id}`,
+    data: { fromSprintId: undefined, taskId: task.id },
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      {...attributes}
+      {...listeners}
+      className={isDragging ? 'opacity-40' : ''}
+    >
+      <BacklogTaskCard task={task} />
+    </div>
+  );
+};
+
+const BacklogTaskCard = ({
   task,
   isDragging,
 }: {
@@ -480,6 +572,8 @@ const TaskCard = ({
     Bug: 'bg-red-100 text-red-800 border-red-200',
     TechDebt: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     Spike: 'bg-purple-100 text-purple-800 border-purple-200',
+    Improvement: 'bg-cyan-100 text-cyan-800 border-cyan-200',
+    Deployment: 'bg-gray-100 text-gray-800 border-gray-200',
   };
 
   const priorityColors: Record<string, string> = {
@@ -488,7 +582,7 @@ const TaskCard = ({
     Low: 'bg-blue-100 text-blue-800 border-blue-200',
   };
 
-  const totalEstimate =
+  const total =
     (task.estimate_frontend || 0) +
     (task.estimate_backend || 0) +
     (task.estimate_qa || 0) +
@@ -496,151 +590,35 @@ const TaskCard = ({
 
   return (
     <div
-      className={`bg-background border rounded-lg p-3 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
-        isDragging ? 'opacity-50 shadow-xl scale-105' : ''
+      className={`bg-background border rounded-md p-2.5 cursor-grab active:cursor-grabbing transition-all hover:shadow-md ${
+        isDragging ? 'shadow-xl scale-105' : ''
       }`}
     >
-      <div className="flex items-start gap-2 mb-2">
-        <GripVertical className="h-4 w-4 text-muted-foreground mt-0.5 flex-shrink-0" />
+      <div className="flex items-start gap-1.5">
+        <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <h4 className="font-medium text-sm mb-1 truncate">{task.title}</h4>
-          <div className="flex flex-wrap gap-1 mb-2">
-            <Badge className={`text-xs ${typeColors[task.task_type]}`}>
+          <p className="text-xs font-medium leading-snug mb-1.5 line-clamp-2">
+            {task.title}
+          </p>
+          <div className="flex flex-wrap items-center gap-1">
+            <Badge
+              className={`text-[10px] py-0 px-1.5 ${typeColors[task.task_type] || ''}`}
+            >
               {task.task_type}
             </Badge>
-            <Badge className={`text-xs ${priorityColors[task.priority]}`}>
+            <Badge
+              className={`text-[10px] py-0 px-1.5 ${priorityColors[task.priority] || ''}`}
+            >
               {task.priority}
             </Badge>
-          </div>
-          <div className="flex gap-1 flex-wrap text-xs">
-            {task.estimate_frontend ? (
-              <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                FE: {task.estimate_frontend}
-              </span>
-            ) : null}
-            {task.estimate_backend ? (
-              <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded">
-                BE: {task.estimate_backend}
-              </span>
-            ) : null}
-            {task.estimate_qa ? (
-              <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">
-                QA: {task.estimate_qa}
-              </span>
-            ) : null}
-            {task.estimate_design ? (
-              <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded">
-                Design: {task.estimate_design}
-              </span>
-            ) : null}
-            {totalEstimate > 0 && (
-              <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded font-semibold ml-auto">
-                {totalEstimate} pts
+            {total > 0 && (
+              <span className="text-[10px] font-semibold ml-auto bg-secondary text-secondary-foreground px-1.5 rounded">
+                {total} pts
               </span>
             )}
           </div>
         </div>
       </div>
-    </div>
-  );
-};
-
-// Sprint Drop Zone Component
-const SprintDropZone = ({
-  sprintTasks,
-  onRemove,
-}: {
-  sprintTasks: TaskWithSprintTask[];
-  onRemove: (taskId: number) => void;
-}) => {
-  const typeColors: Record<string, string> = {
-    Feature: 'bg-blue-100 text-blue-800 border-blue-200',
-    Bug: 'bg-red-100 text-red-800 border-red-200',
-    TechDebt: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    Spike: 'bg-purple-100 text-purple-800 border-purple-200',
-  };
-
-  const priorityColors: Record<string, string> = {
-    High: 'bg-red-100 text-red-800 border-red-200',
-    Medium: 'bg-yellow-100 text-yellow-800 border-yellow-200',
-    Low: 'bg-blue-100 text-blue-800 border-blue-200',
-  };
-
-  return (
-    <div
-      id="sprint-column"
-      className="space-y-2 max-h-[600px] overflow-y-auto min-h-[400px] border-2 border-dashed border-primary/30 rounded-lg p-4"
-    >
-      {sprintTasks.length === 0 ? (
-        <div className="flex items-center justify-center h-full text-center">
-          <p className="text-muted-foreground">
-            Arraste tarefas do backlog para começar o planejamento
-          </p>
-        </div>
-      ) : (
-        sprintTasks.map((task) => {
-          const totalEstimate =
-            (task.estimate_frontend || 0) +
-            (task.estimate_backend || 0) +
-            (task.estimate_qa || 0) +
-            (task.estimate_design || 0);
-
-          return (
-            <div
-              key={task.id}
-              className="bg-background border-2 border-primary/20 rounded-lg p-3 relative group"
-            >
-              <Button
-                variant="ghost"
-                size="sm"
-                className="absolute top-2 right-2 h-6 w-6 p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                onClick={() => onRemove(task.id)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-              <h4 className="font-medium text-sm mb-2 pr-8">{task.title}</h4>
-              <div className="flex flex-wrap gap-1 mb-2">
-                <Badge className={`text-xs ${typeColors[task.task_type]}`}>
-                  {task.task_type}
-                </Badge>
-                <Badge className={`text-xs ${priorityColors[task.priority]}`}>
-                  {task.priority}
-                </Badge>
-              </div>
-              <div className="flex gap-1 flex-wrap text-xs">
-                {task.estimate_frontend ? (
-                  <span className="bg-blue-50 text-blue-700 px-1.5 py-0.5 rounded">
-                    FE: {task.estimate_frontend}
-                  </span>
-                ) : null}
-                {task.estimate_backend ? (
-                  <span className="bg-green-50 text-green-700 px-1.5 py-0.5 rounded">
-                    BE: {task.estimate_backend}
-                  </span>
-                ) : null}
-                {task.estimate_qa ? (
-                  <span className="bg-purple-50 text-purple-700 px-1.5 py-0.5 rounded">
-                    QA: {task.estimate_qa}
-                  </span>
-                ) : null}
-                {task.estimate_design ? (
-                  <span className="bg-pink-50 text-pink-700 px-1.5 py-0.5 rounded">
-                    Design: {task.estimate_design}
-                  </span>
-                ) : null}
-                {totalEstimate > 0 && (
-                  <span className="bg-secondary text-secondary-foreground px-1.5 py-0.5 rounded font-semibold ml-auto">
-                    {totalEstimate} pts
-                  </span>
-                )}
-              </div>
-              <div className="mt-2 text-xs text-muted-foreground">
-                Atribuir pessoas →
-              </div>
-            </div>
-          );
-        })
-      )}
     </div>
   );
 };
