@@ -292,6 +292,7 @@ export type FormFieldType = 'ShortText' | 'LongText' | 'Date' | 'Selector';
 export interface FormField {
   id: string;          // ID único do campo para referência
   label: string;       // Nome do campo exibido para o usuário
+  description?: string; // Texto de ajuda exibido abaixo do label
   type: FormFieldType;
   options?: string[];  // Opções, usado apenas quando type === 'Selector'
   required: boolean;

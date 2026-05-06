@@ -5,7 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Plus, ExternalLink, Settings2, Trash2, ArrowLeft } from 'lucide-react';
+import { FileText, Plus, ExternalLink, Settings2, Trash2, ArrowLeft, Share2, Globe, Lock, Copy, Check } from 'lucide-react';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import type { CustomForm } from '@/types';
@@ -44,6 +48,20 @@ export default function FormsManagement() {
             toast({ title: t('forms.management.deleted') });
         } catch (error: any) {
             toast({ title: t('forms.management.deleteFailed'), description: error.message, variant: 'destructive' });
+        }
+    };
+
+    const handleTogglePublic = async (form: CustomForm, value: boolean) => {
+        try {
+            await updateForm(form.id, { is_active: value });
+            toast({
+                title: value ? t('forms.management.published', 'Formulário público') : t('forms.management.unpublished', 'Formulário privado'),
+                description: value
+                    ? t('forms.management.publishedDesc', 'Qualquer pessoa com o link pode preencher.')
+                    : t('forms.management.unpublishedDesc', 'O link público foi desativado.'),
+            });
+        } catch (error: any) {
+            toast({ title: t('forms.management.saveFailed'), description: error.message, variant: 'destructive' });
         }
     };
 
@@ -150,15 +168,16 @@ export default function FormsManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <Button variant="ghost" size="sm" asChild>
+                                                    <SharePopover form={form} onToggle={handleTogglePublic} />
+                                                    <Button variant="ghost" size="sm" asChild title="Abrir formulário">
                                                         <Link to={`/f/${form.slug}`} target="_blank">
                                                             <ExternalLink className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" onClick={() => handleEditForm(form)}>
+                                                    <Button variant="ghost" size="sm" onClick={() => handleEditForm(form)} title="Editar">
                                                         <Settings2 className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteForm(form.id)}>
+                                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteForm(form.id)} title="Excluir">
                                                         <Trash2 className="h-4 w-4" />
                                                     </Button>
                                                 </div>
@@ -172,5 +191,96 @@ export default function FormsManagement() {
                 </Card>
             </div>
         </Layout>
+    );
+}
+
+function SharePopover({ form, onToggle }: { form: CustomForm; onToggle: (form: CustomForm, value: boolean) => void }) {
+    const [copied, setCopied] = useState(false);
+    const isPublic = form.is_active;
+    const shareUrl = `${window.location.origin}/f/${form.slug}`;
+
+    const handleCopy = async () => {
+        try {
+            await navigator.clipboard.writeText(shareUrl);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 1800);
+        } catch {
+            // ignore
+        }
+    };
+
+    return (
+        <Popover>
+            <PopoverTrigger asChild>
+                <Button variant="ghost" size="sm" title="Compartilhar" className="gap-1.5">
+                    {isPublic ? (
+                        <Globe className="h-4 w-4 text-emerald-600" />
+                    ) : (
+                        <Share2 className="h-4 w-4" />
+                    )}
+                </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[360px]" align="end">
+                <div className="space-y-4">
+                    <div>
+                        <h4 className="font-semibold text-sm flex items-center gap-2">
+                            {isPublic ? (
+                                <>
+                                    <Globe className="h-4 w-4 text-emerald-600" />
+                                    Formulário público
+                                </>
+                            ) : (
+                                <>
+                                    <Lock className="h-4 w-4" />
+                                    Formulário privado
+                                </>
+                            )}
+                        </h4>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            {isPublic
+                                ? 'Qualquer pessoa com o link pode preencher e enviar este formulário.'
+                                : 'Ative para gerar um link público que pode ser compartilhado.'}
+                        </p>
+                    </div>
+
+                    <div className="flex items-center justify-between rounded-md border p-3">
+                        <div className="space-y-0.5">
+                            <Label htmlFor={`public-${form.id}`} className="text-sm font-medium cursor-pointer">
+                                Tornar público
+                            </Label>
+                            <p className="text-[11px] text-muted-foreground">
+                                {isPublic ? 'Acesso liberado por link' : 'Não aceita respostas'}
+                            </p>
+                        </div>
+                        <Switch
+                            id={`public-${form.id}`}
+                            checked={isPublic}
+                            onCheckedChange={(v) => onToggle(form, v)}
+                        />
+                    </div>
+
+                    {isPublic && (
+                        <div className="space-y-2">
+                            <Label className="text-xs text-muted-foreground">Link de compartilhamento</Label>
+                            <div className="flex gap-2">
+                                <Input readOnly value={shareUrl} className="text-xs h-9 font-mono" />
+                                <Button
+                                    size="icon"
+                                    variant="outline"
+                                    className="h-9 w-9 shrink-0"
+                                    onClick={handleCopy}
+                                    title="Copiar link"
+                                >
+                                    {copied ? <Check className="h-4 w-4 text-emerald-600" /> : <Copy className="h-4 w-4" />}
+                                </Button>
+                            </div>
+                            <p className="text-[11px] text-muted-foreground">
+                                Desabilite o toggle a qualquer momento para revogar o acesso.
+                            </p>
+                        </div>
+                    )}
+                </div>
+            </PopoverContent>
+        </Popover>
     );
 }
