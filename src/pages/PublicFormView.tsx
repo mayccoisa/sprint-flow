@@ -191,9 +191,16 @@ export default function PublicFormView() {
                         <CardContent className="space-y-8">
                             {form.fields.map((field) => (
                                 <div key={field.id} className="space-y-3">
-                                    <Label className="text-base font-medium">
-                                        {field.label} {field.required && <span className="text-red-500">*</span>}
-                                    </Label>
+                                    <div className="space-y-1">
+                                        <Label className="text-base font-medium">
+                                            {field.label} {field.required && <span className="text-red-500">*</span>}
+                                        </Label>
+                                        {field.description && (
+                                            <p className="text-sm text-muted-foreground whitespace-pre-line">
+                                                {field.description}
+                                            </p>
+                                        )}
+                                    </div>
 
                                     {field.type === 'ShortText' && (
                                         <Input

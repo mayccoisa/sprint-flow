@@ -133,14 +133,28 @@ export default function FormBuilder({ initialData, onSave, onCancel }: FormBuild
                                     </div>
                                 </CardContent>
 
+                                <CardContent className="pt-0 pl-10 pb-4">
+                                    <Label className="text-xs text-muted-foreground mb-2 block">
+                                        Descrição <span className="font-normal">(opcional)</span>
+                                    </Label>
+                                    <Input
+                                        placeholder="Ex.: Descreva com detalhes para ajudar a entender melhor"
+                                        value={field.description || ''}
+                                        onChange={(e) => handleUpdateField(field.id, 'description', e.target.value)}
+                                    />
+                                </CardContent>
+
                                 {field.type === 'Selector' && (
                                     <CardContent className="pt-0 pl-10 pb-4">
                                         <Label className="text-xs text-muted-foreground mb-2 block">{t('forms.builder.options')}</Label>
-                                        <Input
+                                        <OptionsInput
+                                            value={field.options || []}
                                             placeholder={t('forms.builder.optionsPlaceholder')}
-                                            value={field.options?.join(', ') || ''}
-                                            onChange={e => handleUpdateField(field.id, 'options', e.target.value.split(',').map(s => s.trim()).filter(Boolean))}
+                                            onChange={(opts) => handleUpdateField(field.id, 'options', opts)}
                                         />
+                                        <p className="text-[11px] text-muted-foreground mt-1">
+                                            Separe as opções com vírgula.
+                                        </p>
                                     </CardContent>
                                 )}
                             </Card>
@@ -190,5 +204,45 @@ export default function FormBuilder({ initialData, onSave, onCancel }: FormBuild
                 </div>
             </div>
         </form>
+    );
+}
+
+function OptionsInput({
+    value,
+    placeholder,
+    onChange,
+}: {
+    value: string[];
+    placeholder?: string;
+    onChange: (options: string[]) => void;
+}) {
+    const [text, setText] = useState(value.join(', '));
+
+    // Resync if the field is reset externally (e.g. switching to a different field)
+    React.useEffect(() => {
+        const parsed = text.split(',').map((s) => s.trim()).filter(Boolean);
+        const same = parsed.length === value.length && parsed.every((v, i) => v === value[i]);
+        if (!same) setText(value.join(', '));
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [value.join('|')]);
+
+    return (
+        <Input
+            placeholder={placeholder}
+            value={text}
+            onChange={(e) => {
+                const raw = e.target.value;
+                setText(raw);
+                onChange(raw.split(',').map((s) => s.trim()).filter(Boolean));
+            }}
+            onBlur={() => {
+                const cleaned = text
+                    .split(',')
+                    .map((s) => s.trim())
+                    .filter(Boolean);
+                setText(cleaned.join(', '));
+                onChange(cleaned);
+            }}
+        />
     );
 }

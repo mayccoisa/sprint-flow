@@ -30,6 +30,7 @@ import DocumentationHub from "./pages/DocumentationHub";
 import DocumentEditor from "./pages/DocumentEditor";
 import FormsManagement from "./pages/FormsManagement";
 import PublicFormView from "./pages/PublicFormView";
+import PublicCalendar from "./pages/PublicCalendar";
 import JiraSettings from "./pages/JiraSettings";
 import NotFound from "./pages/NotFound";
 
@@ -50,6 +51,9 @@ const App = () => (
 
               {/* Public Form Viewer */}
               <Route path="/f/:slug" element={<PublicFormView />} />
+
+              {/* Public Calendar Viewer */}
+              <Route path="/public/calendar/:token" element={<PublicCalendar />} />
 
               <Route path="/" element={<ProtectedRoute><Index /></ProtectedRoute>} />
 
