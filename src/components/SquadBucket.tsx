@@ -3,21 +3,29 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Users, AlertTriangle, X, GripVertical, Plus } from 'lucide-react';
+import { Users, AlertTriangle, X, GripVertical, Plus, UserCog } from 'lucide-react';
 import { Task, TeamMember, MemberSpecialty } from '@/types';
 
 export interface TaskWithSprintTask extends Task {
   sprint_task_id?: number;
 }
 
+export interface ParticipantInfo {
+  member: TeamMember;
+  availability_pct: number;
+}
+
 interface SquadBucketProps {
   sprintId: number | null;
   squadName: string;
   members: TeamMember[];
+  /** Effective sprint roster (member + availability). Falls back to all active members at 100% when empty. */
+  participants?: ParticipantInfo[];
   tasks: TaskWithSprintTask[];
   isCurrent?: boolean;
   onRemove: (taskId: number) => void;
   onCreateSprint?: () => void;
+  onOpenRoster?: () => void;
 }
 
 const SPECIALTIES: {
@@ -36,10 +44,12 @@ export const SquadBucket = ({
   sprintId,
   squadName,
   members,
+  participants,
   tasks,
   isCurrent,
   onRemove,
   onCreateSprint,
+  onOpenRoster,
 }: SquadBucketProps) => {
   const hasSprint = sprintId !== null;
   const { isOver, setNodeRef } = useDroppable({
@@ -49,16 +59,29 @@ export const SquadBucket = ({
 
   const active = members.filter((m) => m.status === 'Active');
 
+  // Effective roster: explicit participants when provided, otherwise all
+  // active squad members at full availability. Filters out anyone at 0%.
+  const effective: ParticipantInfo[] = (participants && participants.length > 0
+    ? participants
+    : active.map((m) => ({ member: m, availability_pct: 100 }))
+  ).filter((p) => p.availability_pct > 0);
+
+  const headcount = effective.length;
+  const hasReducedRoster =
+    !!participants &&
+    participants.length > 0 &&
+    (participants.some((p) => p.availability_pct < 100) || effective.length < active.length);
+
   const breakdown = SPECIALTIES.map((s) => {
-    const cap = active
-      .filter((m) => m.specialty === s.key)
-      .reduce((sum, m) => sum + (m.capacity || 0), 0);
+    const cap = effective
+      .filter((p) => p.member.specialty === s.key)
+      .reduce((sum, p) => sum + ((p.member.capacity || 0) * p.availability_pct) / 100, 0);
     const used = tasks.reduce(
       (sum, t) => sum + ((t[s.estimateKey] as number | null) || 0),
       0
     );
     const pct = cap > 0 ? Math.round((used / cap) * 100) : used > 0 ? 999 : 0;
-    return { ...s, cap, used, pct };
+    return { ...s, cap: Math.round(cap), used, pct };
   });
 
   const totalCap = breakdown.reduce((s, b) => s + b.cap, 0);
@@ -89,8 +112,20 @@ export const SquadBucket = ({
           <span className="flex items-center gap-1.5">
             {overBudget && <AlertTriangle className="h-4 w-4 text-red-500" />}
             <Badge variant="secondary" className="font-normal">
-              {active.length} pessoas
+              {headcount}
+              {hasReducedRoster && active.length !== headcount ? `/${active.length}` : ''} pessoas
             </Badge>
+            {onOpenRoster && hasSprint && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                onClick={onOpenRoster}
+                aria-label="Editar roster"
+              >
+                <UserCog className="h-3.5 w-3.5" />
+              </Button>
+            )}
           </span>
         </CardTitle>
 

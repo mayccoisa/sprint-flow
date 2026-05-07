@@ -5,6 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Plus } from 'lucide-react';
 import { SprintFormDialog } from '@/components/SprintFormDialog';
 import { SprintCard } from '@/components/SprintCard';
+import { SprintRosterDialog } from '@/components/SprintRosterDialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { useToast } from '@/hooks/use-toast';
@@ -20,23 +21,27 @@ const Sprints = () => {
   const [selectedSquadFilter, setSelectedSquadFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [completingSprint, setCompletingSprint] = useState<Sprint | null>(null);
+  const [rosterSprint, setRosterSprint] = useState<Sprint | null>(null);
 
-  const handleSaveSprint = (sprintData: Omit<Sprint, 'id' | 'created_at'>) => {
+  const handleSaveSprint = async (sprintData: Omit<Sprint, 'id' | 'created_at'>) => {
     if (editingSprint) {
       updateSprint(editingSprint.id, sprintData);
       toast({
         title: 'Sprint atualizada',
         description: 'As alterações foram salvas com sucesso.',
       });
+      setIsDialogOpen(false);
+      setEditingSprint(null);
     } else {
-      addSprint(sprintData);
+      const created = await addSprint(sprintData);
       toast({
         title: 'Sprint criada',
-        description: 'Nova sprint criada com sucesso.',
+        description: 'Defina agora quem participa e a capacidade de cada um.',
       });
+      setIsDialogOpen(false);
+      setEditingSprint(null);
+      if (created?.id) setRosterSprint(created as Sprint);
     }
-    setIsDialogOpen(false);
-    setEditingSprint(null);
   };
 
   const handleCompleteSprint = () => {
@@ -173,6 +178,17 @@ const Sprints = () => {
           onSave={handleSaveSprint}
           sprint={editingSprint}
           squads={data.squads}
+        />
+
+        <SprintRosterDialog
+          open={!!rosterSprint}
+          onClose={() => setRosterSprint(null)}
+          sprint={rosterSprint}
+          squadName={
+            rosterSprint
+              ? data.squads.find((s) => s.id === rosterSprint.squad_id)?.name || ''
+              : ''
+          }
         />
 
         <AlertDialog open={!!completingSprint} onOpenChange={() => setCompletingSprint(null)}>

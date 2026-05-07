@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
-import type { UserProfile, FeatureAction, AppFeature, UserRole } from '@/types';
+import type { UserProfile, FeatureAction, AppFeature, UserRole, Role } from '@/types';
 
 // Default permissions applied to a new user
 const defaultPermissions: Record<AppFeature, FeatureAction[]> = {
@@ -13,6 +13,7 @@ const defaultPermissions: Record<AppFeature, FeatureAction[]> = {
     sprints: ['view'],
     releases: ['view'],
     documents: ['view'],
+    forms: [], // Default: members don't see the management area
     users: [], // Only admins
 };
 
@@ -35,6 +36,7 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+    const [activeRole, setActiveRole] = useState<Role | null>(null);
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
@@ -117,11 +119,30 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         await signOut(auth);
     };
 
+    // Subscribe to the user's assigned role document so permission changes are
+    // reflected in real time without requiring a page reload.
+    useEffect(() => {
+        const roleId = userProfile?.role_id;
+        if (!roleId) {
+            setActiveRole(null);
+            return;
+        }
+        const unsub = onSnapshot(doc(db, 'roles', roleId), (snap) => {
+            setActiveRole(snap.exists() ? (snap.data() as Role) : null);
+        });
+        return () => unsub();
+    }, [userProfile?.role_id]);
+
     const hasPermission = (feature: AppFeature, action: FeatureAction) => {
         if (!userProfile) return false;
-        if (userProfile.role === 'Admin') return true; // Admins can do anything
+        if (userProfile.role === 'Admin') return true; // Admins always bypass
 
-        const featurePerms = userProfile.permissions[feature] || [];
+        // Role is the source of truth when assigned; otherwise fall back to the
+        // legacy per-user matrix so pre-existing accounts keep working.
+        const source = userProfile.role_id
+            ? activeRole?.permissions || {}
+            : userProfile.permissions;
+        const featurePerms = source[feature] || [];
         return featurePerms.includes(action);
     };
 

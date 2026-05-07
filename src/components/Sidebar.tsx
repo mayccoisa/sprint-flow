@@ -67,7 +67,7 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
   const sections: NavSection[] = useMemo(() => {
     const teamChildren: NavLeaf[] = [
       { name: t('sidebar.squads'), href: '/squads', icon: Users, feature: 'squads' },
-      { name: t('sidebar.forms', 'Formulários'), href: '/forms', icon: ClipboardList, feature: 'strategy' },
+      { name: t('sidebar.forms', 'Formulários'), href: '/forms', icon: ClipboardList, feature: 'forms' },
       { name: t('sidebar.jiraIntegration', 'Integração Jira'), href: '/admin/jira', icon: Plug },
     ];
     if (hasPermission('users', 'view')) {
@@ -168,12 +168,9 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center border-b border-border px-6">
-        <h1 className="text-lg font-bold tracking-tight text-primary">Sprint Planner</h1>
-      </div>
-
-      <div className="px-3 pt-3">
-        <WorkspaceSelector />
+      <div className="flex h-16 items-center justify-between gap-2 border-b border-border pl-6 pr-3">
+        <h1 className="text-base font-bold tracking-tight text-primary truncate">Sprint Planner</h1>
+        <WorkspaceSelector compact />
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">

@@ -1,0 +1,40 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Public form viewer: anyone can read an active form, but only
+    // authenticated users can create/update/delete forms.
+    match /forms/{formId} {
+      allow read: if resource.data.is_active == true || request.auth != null;
+      allow write: if request.auth != null;
+    }
+
+    // Public submit: anonymous visitors can create a submission as long as
+    // it references an existing active form in the same workspace.
+    match /form_submissions/{submissionId} {
+      allow create: if
+        request.resource.data.form_id is string &&
+        request.resource.data.workspace_id is string &&
+        exists(/databases/$(database)/documents/forms/$(request.resource.data.form_id)) &&
+        get(/databases/$(database)/documents/forms/$(request.resource.data.form_id)).data.is_active == true &&
+        get(/databases/$(database)/documents/forms/$(request.resource.data.form_id)).data.workspace_id == request.resource.data.workspace_id;
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // Public submit also creates the originating task. Only restricted
+    // statuses are allowed anonymously to limit abuse surface.
+    match /tasks/{taskId} {
+      allow create: if request.auth != null || (
+        request.resource.data.workspace_id is string &&
+        request.resource.data.status in ['Discovery', 'Backlog']
+      );
+      allow read, update, delete: if request.auth != null;
+    }
+
+    // Everything else requires authentication.
+    match /{document=**} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

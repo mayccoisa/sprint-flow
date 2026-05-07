@@ -16,6 +16,7 @@ import Login from "./pages/Login"; // Added
 import Backlog from "./pages/Backlog";
 import ProductBacklog from "./pages/ProductBacklog";
 import InitiativesOverview from "./pages/InitiativesOverview";
+import InitiativeDetail from "./pages/InitiativeDetail";
 import ProductStrategy from "./pages/ProductStrategy";
 import { ProductModules } from "./pages/ProductModules";
 import Sprints from "./pages/Sprints";
@@ -63,6 +64,7 @@ const App = () => (
               <Route path="/team" element={<ProtectedRoute feature="squads"><Team /></ProtectedRoute>} />
 
               <Route path="/initiatives" element={<ProtectedRoute feature="initiatives"><InitiativesOverview /></ProtectedRoute>} />
+              <Route path="/initiatives/:id" element={<ProtectedRoute feature="initiatives"><InitiativeDetail /></ProtectedRoute>} />
 
               <Route path="/product-backlog" element={<ProtectedRoute feature="backlog"><ProductBacklog /></ProtectedRoute>} />
               <Route path="/engineering-backlog" element={<ProtectedRoute feature="backlog"><Backlog /></ProtectedRoute>} />
@@ -86,7 +88,7 @@ const App = () => (
 
               {/* Admin Routes */}
               <Route path="/users" element={<ProtectedRoute requiredRole="Admin"><UsersManagement /></ProtectedRoute>} />
-              <Route path="/forms" element={<ProtectedRoute requiredRole="Admin"><FormsManagement /></ProtectedRoute>} />
+              <Route path="/forms" element={<ProtectedRoute feature="forms"><FormsManagement /></ProtectedRoute>} />
               <Route path="/admin/jira" element={<ProtectedRoute requiredRole="Admin"><JiraSettings /></ProtectedRoute>} />
               <Route path="/admin/seed-data" element={<ProtectedRoute requiredRole="Admin"><SeedData /></ProtectedRoute>} />
               <Route path="/admin/import-initiatives" element={<ProtectedRoute requiredRole="Admin"><ImportClientInitiatives /></ProtectedRoute>} />

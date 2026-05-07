@@ -17,14 +17,20 @@ import FormBuilder from '@/components/forms/FormBuilder';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useConfirm } from '@/components/ui-patterns';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function FormsManagement() {
     const { t } = useTranslation();
     const { data, addForm, updateForm, deleteForm } = useLocalData();
+    const { hasPermission } = useAuth();
     const { toast } = useToast();
     const confirm = useConfirm();
     const [editingForm, setEditingForm] = useState<CustomForm | null>(null);
     const [isCreating, setIsCreating] = useState(false);
+
+    const canCreate = hasPermission('forms', 'create');
+    const canEdit = hasPermission('forms', 'edit');
+    const canDelete = hasPermission('forms', 'delete');
 
     const handleCreateNew = () => {
         setIsCreating(true);
@@ -115,10 +121,12 @@ export default function FormsManagement() {
                         <h1 className="text-2xl font-semibold tracking-tight">{t('forms.management.title')}</h1>
                         <p className="text-muted-foreground">{t('forms.management.subtitle')}</p>
                     </div>
-                    <Button onClick={handleCreateNew} className="bg-violet-600 hover:bg-violet-700">
-                        <Plus className="h-4 w-4 mr-2" />
-                        {t('forms.management.newForm')}
-                    </Button>
+                    {canCreate && (
+                        <Button onClick={handleCreateNew} className="bg-violet-600 hover:bg-violet-700">
+                            <Plus className="h-4 w-4 mr-2" />
+                            {t('forms.management.newForm')}
+                        </Button>
+                    )}
                 </div>
 
                 <Card>
@@ -131,7 +139,9 @@ export default function FormsManagement() {
                             <div className="text-center py-12 text-muted-foreground space-y-4">
                                 <FileText className="h-12 w-12 mx-auto opacity-20" />
                                 <p>{t('forms.management.noForms')}</p>
-                                <Button variant="outline" onClick={handleCreateNew}>{t('forms.management.createFirst')}</Button>
+                                {canCreate && (
+                                    <Button variant="outline" onClick={handleCreateNew}>{t('forms.management.createFirst')}</Button>
+                                )}
                             </div>
                         ) : (
                             <Table>
@@ -168,18 +178,22 @@ export default function FormsManagement() {
                                             </TableCell>
                                             <TableCell className="text-right">
                                                 <div className="flex justify-end gap-2">
-                                                    <SharePopover form={form} onToggle={handleTogglePublic} />
+                                                    <SharePopover form={form} onToggle={handleTogglePublic} canToggle={canEdit} />
                                                     <Button variant="ghost" size="sm" asChild title="Abrir formulário">
                                                         <Link to={`/f/${form.slug}`} target="_blank">
                                                             <ExternalLink className="h-4 w-4" />
                                                         </Link>
                                                     </Button>
-                                                    <Button variant="ghost" size="sm" onClick={() => handleEditForm(form)} title="Editar">
-                                                        <Settings2 className="h-4 w-4" />
-                                                    </Button>
-                                                    <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteForm(form.id)} title="Excluir">
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+                                                    {canEdit && (
+                                                        <Button variant="ghost" size="sm" onClick={() => handleEditForm(form)} title="Editar">
+                                                            <Settings2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    {canDelete && (
+                                                        <Button variant="ghost" size="sm" className="text-red-600 hover:text-red-700 hover:bg-red-50" onClick={() => handleDeleteForm(form.id)} title="Excluir">
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
                                                 </div>
                                             </TableCell>
                                         </TableRow>
@@ -194,7 +208,7 @@ export default function FormsManagement() {
     );
 }
 
-function SharePopover({ form, onToggle }: { form: CustomForm; onToggle: (form: CustomForm, value: boolean) => void }) {
+function SharePopover({ form, onToggle, canToggle = true }: { form: CustomForm; onToggle: (form: CustomForm, value: boolean) => void; canToggle?: boolean }) {
     const [copied, setCopied] = useState(false);
     const isPublic = form.is_active;
     const shareUrl = `${window.location.origin}/f/${form.slug}`;
@@ -256,6 +270,7 @@ function SharePopover({ form, onToggle }: { form: CustomForm; onToggle: (form: C
                             id={`public-${form.id}`}
                             checked={isPublic}
                             onCheckedChange={(v) => onToggle(form, v)}
+                            disabled={!canToggle}
                         />
                     </div>
 
