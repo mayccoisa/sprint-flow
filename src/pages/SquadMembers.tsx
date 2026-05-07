@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { useParams, Link } from 'react-router-dom';
-import { Plus, Edit, UserX, ChevronRight } from 'lucide-react';
+import { useParams, Link, useNavigate } from 'react-router-dom';
+import { Plus, Edit, UserX, ChevronRight, Trash2 } from 'lucide-react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ import { useLocalData } from '@/hooks/useLocalData';
 import { toast } from '@/hooks/use-toast';
 import type { TeamMember, MemberSpecialty } from '@/types';
 import { useTranslation } from 'react-i18next';
+import { useConfirm } from '@/components/ui-patterns';
 
 const SPECIALTY_COLORS: Record<MemberSpecialty, string> = {
   Frontend: 'bg-specialty-frontend/10 text-specialty-frontend border-specialty-frontend/20',
@@ -26,8 +27,10 @@ const SPECIALTY_COLORS: Record<MemberSpecialty, string> = {
 export default function SquadMembers() {
   const { t } = useTranslation();
   const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
   const squadId = parseInt(id || '0');
-  const { data, addMember, updateMember } = useLocalData();
+  const { data, addMember, updateMember, deleteMember, deleteSquad } = useLocalData();
+  const confirm = useConfirm();
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<TeamMember | undefined>();
@@ -131,10 +134,46 @@ export default function SquadMembers() {
             <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.squadMembers.heading', { squad: squad.name })}</h1>
             <p className="mt-2 text-muted-foreground">{t('pages.squadMembers.subtitle')}</p>
           </div>
-          <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('pages.squadMembers.addMember')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              onClick={async () => {
+                if (!squad) return;
+                const squadMembers = data.members.filter((m) => m.squad_id === squad.id);
+                const squadSprints = data.sprints.filter((s) => s.squad_id === squad.id);
+                const description =
+                  `Esta ação remove o squad "${squad.name}"` +
+                  (squadMembers.length > 0 ? ` e ${squadMembers.length} membro(s) vinculado(s)` : '') +
+                  '.' +
+                  (squadSprints.length > 0
+                    ? ` Existem ${squadSprints.length} sprint(s) associada(s) — elas continuarão existindo, mas ficarão sem squad.`
+                    : '') +
+                  ' A operação não pode ser desfeita.';
+                const ok = await confirm({
+                  title: `Excluir squad "${squad.name}"?`,
+                  description,
+                  confirmLabel: 'Excluir',
+                });
+                if (!ok) return;
+                try {
+                  await Promise.all(squadMembers.map((m) => deleteMember(m.id)));
+                  await deleteSquad(squad.id);
+                  toast({ title: 'Squad excluído', description: `${squad.name} removido com sucesso.` });
+                  navigate('/squads');
+                } catch (error: any) {
+                  toast({ title: 'Erro ao excluir squad', description: error?.message, variant: 'destructive' });
+                }
+              }}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir squad
+            </Button>
+            <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('pages.squadMembers.addMember')}
+            </Button>
+          </div>
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">

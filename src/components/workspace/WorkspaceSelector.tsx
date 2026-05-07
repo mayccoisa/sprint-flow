@@ -15,7 +15,12 @@ import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { WorkspaceDialog } from './WorkspaceDialog';
 
-export function WorkspaceSelector() {
+interface WorkspaceSelectorProps {
+    /** Compact variant: a small inline pill suitable for the sidebar header. */
+    compact?: boolean;
+}
+
+export function WorkspaceSelector({ compact = false }: WorkspaceSelectorProps = {}) {
     const { t } = useTranslation();
     const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspace();
     const { data } = useFirestoreData();
@@ -41,27 +46,43 @@ export function WorkspaceSelector() {
                 <Tooltip>
                     <TooltipTrigger asChild>
                         <DropdownMenuTrigger asChild>
-                            <Button
-                                variant="outline"
-                                role="combobox"
-                                aria-label={t('workspace.switch', 'Switch Workspace')}
-                                className="mb-4 mt-2 h-auto w-full justify-between bg-background/50 px-3 py-2 hover:bg-accent hover:text-accent-foreground"
-                            >
-                                <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
-                                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
-                                        <Building2 className="h-4 w-4" />
+                            {compact ? (
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    role="combobox"
+                                    aria-label={t('workspace.switch', 'Switch Workspace')}
+                                    className="h-8 max-w-[140px] gap-1.5 px-2 text-muted-foreground hover:text-foreground hover:bg-accent"
+                                >
+                                    <Building2 className="h-3.5 w-3.5 shrink-0" />
+                                    <span className="truncate text-xs font-medium">
+                                        {currentWorkspace?.name || t('workspace.select', 'Select Workspace')}
                                     </span>
-                                    <div className="flex min-w-0 flex-col overflow-hidden">
-                                        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                            {t('workspace.current', 'Workspace')}
+                                    <ChevronsUpDown className="h-3 w-3 shrink-0 opacity-60" />
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="outline"
+                                    role="combobox"
+                                    aria-label={t('workspace.switch', 'Switch Workspace')}
+                                    className="mb-4 mt-2 h-auto w-full justify-between bg-background/50 px-3 py-2 hover:bg-accent hover:text-accent-foreground"
+                                >
+                                    <div className="flex min-w-0 flex-1 items-center gap-2 text-left">
+                                        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+                                            <Building2 className="h-4 w-4" />
                                         </span>
-                                        <span className="block w-full truncate text-sm font-medium">
-                                            {currentWorkspace?.name || t('workspace.select', 'Select Workspace')}
-                                        </span>
+                                        <div className="flex min-w-0 flex-col overflow-hidden">
+                                            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                                                {t('workspace.current', 'Workspace')}
+                                            </span>
+                                            <span className="block w-full truncate text-sm font-medium">
+                                                {currentWorkspace?.name || t('workspace.select', 'Select Workspace')}
+                                            </span>
+                                        </div>
                                     </div>
-                                </div>
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
+                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                            )}
                         </DropdownMenuTrigger>
                     </TooltipTrigger>
                     <TooltipContent side="right">{t('workspace.switch', 'Switch Workspace')}</TooltipContent>

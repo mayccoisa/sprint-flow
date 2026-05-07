@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { SquadBucket, TaskWithSprintTask } from '@/components/SquadBucket';
+import { SquadBucket, TaskWithSprintTask, ParticipantInfo } from '@/components/SquadBucket';
+import { SprintRosterDialog } from '@/components/SprintRosterDialog';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -69,11 +70,13 @@ const SprintPlanning = () => {
 
   const [activeId, setActiveId] = useState<string | null>(null);
   const [showFinishDialog, setShowFinishDialog] = useState(false);
+  const [rosterSprint, setRosterSprint] = useState<SprintWithSquad | null>(null);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
   const [priorityFilter, setPriorityFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState('Backlog');
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -116,6 +119,25 @@ const SprintPlanning = () => {
     return map;
   }, [data.sprints, data.squads, sprint]);
 
+  // Map sprintId → effective roster (member + availability_pct).
+  // Empty array means "no explicit roster yet" — SquadBucket falls back
+  // to all active squad members at 100%.
+  const participantsBySprint = useMemo<Map<number, ParticipantInfo[]>>(() => {
+    const map = new Map<number, ParticipantInfo[]>();
+    sprintBySquad.forEach((s) => {
+      const rows = data.sprintParticipants.filter((p: any) => p.sprint_id === s.id);
+      const items: ParticipantInfo[] = rows
+        .map((p: any) => {
+          const member = data.members.find((m: TeamMember) => m.id === p.member_id);
+          if (!member) return null;
+          return { member, availability_pct: p.availability_pct };
+        })
+        .filter(Boolean) as ParticipantInfo[];
+      map.set(s.id, items);
+    });
+    return map;
+  }, [data.sprintParticipants, data.members, sprintBySquad]);
+
   // Map sprintId → tasks in that sprint
   const tasksBySprint = useMemo<Map<number, TaskWithSprintTask[]>>(() => {
     const map = new Map<number, TaskWithSprintTask[]>();
@@ -137,13 +159,14 @@ const SprintPlanning = () => {
   const backlogTasks = useMemo<Task[]>(
     () =>
       data.tasks
-        .filter((t: Task) => t.status === 'Backlog')
+        .slice()
         .sort((a: Task, b: Task) => (a.order_index ?? 0) - (b.order_index ?? 0)),
     [data.tasks]
   );
 
   const filteredBacklog = useMemo(() => {
     return backlogTasks.filter((task) => {
+      if (statusFilter !== 'all' && task.status !== statusFilter) return false;
       if (typeFilter !== 'all' && task.task_type !== typeFilter) return false;
       if (priorityFilter !== 'all' && task.priority !== priorityFilter) return false;
       if (
@@ -153,7 +176,7 @@ const SprintPlanning = () => {
         return false;
       return true;
     });
-  }, [backlogTasks, searchQuery, typeFilter, priorityFilter]);
+  }, [backlogTasks, searchQuery, typeFilter, priorityFilter, statusFilter]);
 
   const findTaskById = (taskId: number): Task | undefined =>
     data.tasks.find((t: Task) => t.id === taskId);
@@ -240,7 +263,7 @@ const SprintPlanning = () => {
   const handleCreateSprintForSquad = async (squad: Squad) => {
     if (!sprint) return;
     try {
-      await addSprint({
+      const created = await addSprint({
         name: sprint.name,
         squad_id: squad.id,
         start_date: sprint.start_date,
@@ -251,6 +274,10 @@ const SprintPlanning = () => {
         title: 'Sprint criada',
         description: `${sprint.name} para ${squad.name}`,
       });
+      // Prompt for roster + per-member capacity right after creation.
+      if (created?.id) {
+        setRosterSprint({ ...(created as Sprint), squad });
+      }
     } catch (error: any) {
       console.error('Error creating sprint:', error);
       toast({
@@ -366,6 +393,8 @@ const SprintPlanning = () => {
               onTypeChange={setTypeFilter}
               priorityFilter={priorityFilter}
               onPriorityChange={setPriorityFilter}
+              statusFilter={statusFilter}
+              onStatusChange={setStatusFilter}
             />
 
             <div className="overflow-x-auto pb-2">
@@ -393,6 +422,11 @@ const SprintPlanning = () => {
                           members={data.members.filter(
                             (m: TeamMember) => m.squad_id === squad.id
                           )}
+                          participants={
+                            squadSprintId
+                              ? participantsBySprint.get(squadSprintId) || []
+                              : []
+                          }
                           tasks={
                             squadSprintId
                               ? tasksBySprint.get(squadSprintId) || []
@@ -408,6 +442,11 @@ const SprintPlanning = () => {
                               ? undefined
                               : () => handleCreateSprintForSquad(squad)
                           }
+                          onOpenRoster={
+                            squadSprintId && squadSprint
+                              ? () => setRosterSprint(squadSprint)
+                              : undefined
+                          }
                         />
                       </div>
                     );
@@ -422,6 +461,13 @@ const SprintPlanning = () => {
           </DragOverlay>
         </DndContext>
       </div>
+
+      <SprintRosterDialog
+        open={!!rosterSprint}
+        onClose={() => setRosterSprint(null)}
+        sprint={rosterSprint}
+        squadName={rosterSprint?.squad.name || ''}
+      />
 
       <AlertDialog open={showFinishDialog} onOpenChange={setShowFinishDialog}>
         <AlertDialogContent>
@@ -457,6 +503,8 @@ const BacklogColumn = ({
   onTypeChange,
   priorityFilter,
   onPriorityChange,
+  statusFilter,
+  onStatusChange,
 }: {
   tasks: Task[];
   activeId: string | null;
@@ -466,6 +514,8 @@ const BacklogColumn = ({
   onTypeChange: (v: string) => void;
   priorityFilter: string;
   onPriorityChange: (v: string) => void;
+  statusFilter: string;
+  onStatusChange: (v: string) => void;
 }) => {
   const { isOver, setNodeRef } = useDroppable({ id: 'backlog' });
 
@@ -514,6 +564,22 @@ const BacklogColumn = ({
               </SelectContent>
             </Select>
           </div>
+          <Select value={statusFilter} onValueChange={onStatusChange}>
+            <SelectTrigger className="bg-background">
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos os status</SelectItem>
+              <SelectItem value="Discovery">Discovery</SelectItem>
+              <SelectItem value="Refinement">Refinement</SelectItem>
+              <SelectItem value="ReadyForEng">Ready for Eng</SelectItem>
+              <SelectItem value="Backlog">Backlog</SelectItem>
+              <SelectItem value="InSprint">Em Sprint</SelectItem>
+              <SelectItem value="Review">Review</SelectItem>
+              <SelectItem value="Done">Done</SelectItem>
+              <SelectItem value="Archived">Arquivado</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         <div className="space-y-2 max-h-[calc(100vh-340px)] overflow-y-auto pr-1">
@@ -582,6 +648,28 @@ const BacklogTaskCard = ({
     Low: 'bg-blue-100 text-blue-800 border-blue-200',
   };
 
+  const statusColors: Record<string, string> = {
+    Discovery: 'bg-purple-100 text-purple-800 border-purple-200',
+    Refinement: 'bg-indigo-100 text-indigo-800 border-indigo-200',
+    ReadyForEng: 'bg-teal-100 text-teal-800 border-teal-200',
+    Backlog: 'bg-slate-100 text-slate-800 border-slate-200',
+    InSprint: 'bg-amber-100 text-amber-800 border-amber-200',
+    Review: 'bg-orange-100 text-orange-800 border-orange-200',
+    Done: 'bg-green-100 text-green-800 border-green-200',
+    Archived: 'bg-gray-200 text-gray-700 border-gray-300',
+  };
+
+  const statusLabels: Record<string, string> = {
+    Discovery: 'Discovery',
+    Refinement: 'Refinement',
+    ReadyForEng: 'Ready Eng',
+    Backlog: 'Backlog',
+    InSprint: 'Em Sprint',
+    Review: 'Review',
+    Done: 'Done',
+    Archived: 'Arquivado',
+  };
+
   const total =
     (task.estimate_frontend || 0) +
     (task.estimate_backend || 0) +
@@ -610,6 +698,12 @@ const BacklogTaskCard = ({
               className={`text-[10px] py-0 px-1.5 ${priorityColors[task.priority] || ''}`}
             >
               {task.priority}
+            </Badge>
+            <Badge
+              variant="outline"
+              className={`text-[10px] py-0 px-1.5 ${statusColors[task.status] || ''}`}
+            >
+              {statusLabels[task.status] || task.status}
             </Badge>
             {total > 0 && (
               <span className="text-[10px] font-semibold ml-auto bg-secondary text-secondary-foreground px-1.5 rounded">

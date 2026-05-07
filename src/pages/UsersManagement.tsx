@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocalData } from '@/hooks/useLocalData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -7,24 +7,25 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { ShieldAlert, ShieldCheck, Mail, Calendar, Settings2, UserPlus, Loader2 } from 'lucide-react';
+import { ShieldAlert, ShieldCheck, Mail, Calendar, UserPlus, Loader2, AlertTriangle, Send, Download } from 'lucide-react';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
 import { useConfirm } from '@/components/ui-patterns';
-import type { UserProfile, UserRole, AppFeature, FeatureAction, FeaturePermission } from '@/types';
+import { RolesManager } from '@/components/users/RolesManager';
+import { ImportRequestersDialog } from '@/components/users/ImportRequestersDialog';
+import type { UserProfile, UserRole, Role } from '@/types';
 
 export default function UsersManagement() {
-    const { data, updateUserRole, updateUserPermissions, inviteUser } = useLocalData();
+    const { data, updateUserRole, inviteUser, assignRoleToUser, sendInviteForUser } = useLocalData() as any;
     const { userProfile } = useAuth();
     const { toast } = useToast();
     const { t } = useTranslation();
     const confirm = useConfirm();
-    const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
 
     // Invite state
     const [isInviteOpen, setIsInviteOpen] = useState(false);
@@ -32,22 +33,12 @@ export default function UsersManagement() {
     const [inviteEmail, setInviteEmail] = useState('');
     const [inviteName, setInviteName] = useState('');
     const [inviteRole, setInviteRole] = useState<UserRole>('Member');
+    const [inviteRoleId, setInviteRoleId] = useState<string>('');
     const [isInviting, setIsInviting] = useState(false);
+    const [isImportOpen, setIsImportOpen] = useState(false);
 
-    const FEATURES: { id: AppFeature; label: string }[] = useMemo(() => [
-        { id: 'squads', label: t('usersManagement.features.squads') },
-        { id: 'initiatives', label: t('usersManagement.features.initiatives') },
-        { id: 'backlog', label: t('usersManagement.features.backlog') },
-        { id: 'strategy', label: t('usersManagement.features.strategy') },
-        { id: 'sprints', label: t('usersManagement.features.sprints') },
-    ], [t]);
-
-    const ACTIONS: { id: FeatureAction; label: string }[] = useMemo(() => [
-        { id: 'view', label: t('usersManagement.actions.view') },
-        { id: 'create', label: t('usersManagement.actions.create') },
-        { id: 'edit', label: t('usersManagement.actions.edit') },
-        { id: 'delete', label: t('usersManagement.actions.delete') },
-    ], [t]);
+    const roles: Role[] = data.roles || [];
+    const usersWithoutRole = data.users.filter((u: UserProfile) => !u.role_id && u.role !== 'Admin');
 
     // Ensure only Admins can view this
     if (userProfile?.role !== 'Admin') {
@@ -67,34 +58,19 @@ export default function UsersManagement() {
         toast({ title: t('usersManagement.roleUpdated'), description: t('usersManagement.roleChangedTo', { role: newRole }) });
     };
 
-    const handlePermissionToggle = (feature: AppFeature, action: FeatureAction, currentPermissions: FeaturePermission) => {
-        if (!selectedUser) return;
-
-        const newPermissions = { ...currentPermissions };
-        const actions = newPermissions[feature] || [];
-
-        if (actions.includes(action)) {
-            newPermissions[feature] = actions.filter(a => a !== action);
-        } else {
-            newPermissions[feature] = [...actions, action];
-            // If they can create/edit/delete, they must be able to view
-            if (action !== 'view' && !newPermissions[feature]?.includes('view')) {
-                newPermissions[feature]?.push('view');
-            }
-        }
-
-        updateUserPermissions(selectedUser.id, newPermissions);
-        // Optimistically update local state for the dialog
-        setSelectedUser({ ...selectedUser, permissions: newPermissions });
+    const handleAssignRole = async (userId: string, roleId: string) => {
+        await assignRoleToUser(userId, roleId || null);
+        toast({ title: 'Cargo atribuído' });
     };
 
-    const { updateUser, deleteUser } = useLocalData();
+    const { updateUser, deleteUser } = useLocalData() as any;
 
     const handleEditUser = (user: UserProfile) => {
         setInviteId(user.id);
         setInviteEmail(user.email);
         setInviteName(user.name || '');
         setInviteRole(user.role);
+        setInviteRoleId(user.role_id || '');
         setIsInviteOpen(true);
     };
 
@@ -125,22 +101,23 @@ export default function UsersManagement() {
 
         setIsInviting(true);
         try {
+            // Permissions come from the assigned role; the legacy per-user matrix
+            // is left empty on new invites.
+            const rolePerms = roles.find((r) => r.id === inviteRoleId)?.permissions || {};
+
             if (inviteId) {
                 await updateUser(inviteId, {
                     email: inviteEmail.toLowerCase(),
                     name: inviteName || 'Pending Invite',
-                    role: inviteRole
+                    role: inviteRole,
+                    role_id: inviteRoleId || null,
                 });
                 toast({ title: t('usersManagement.userUpdated', 'User updated successfully') });
             } else {
-                await inviteUser(inviteEmail, inviteRole, {
-                    squads: ['view'],
-                    initiatives: ['view'],
-                    backlog: ['view'],
-                    strategy: ['view'],
-                    sprints: ['view'],
-                    releases: ['view'],
-                }, inviteName);
+                const created = await inviteUser(inviteEmail, inviteRole, rolePerms, inviteName);
+                if (inviteRoleId && created?.id) {
+                    await assignRoleToUser(created.id, inviteRoleId);
+                }
                 toast({ title: t('usersManagement.invitePrepared'), description: t('usersManagement.invitePreparedDesc', { email: inviteEmail, role: inviteRole }) });
             }
             setIsInviteOpen(false);
@@ -148,6 +125,7 @@ export default function UsersManagement() {
             setInviteEmail('');
             setInviteName('');
             setInviteRole('Member');
+            setInviteRoleId('');
         } catch (error: any) {
             toast({ title: inviteId ? t('usersManagement.updateFailed', 'Failed to update user') : t('usersManagement.inviteFailed'), description: error.message, variant: 'destructive' });
         } finally {
@@ -160,6 +138,7 @@ export default function UsersManagement() {
         setInviteEmail('');
         setInviteName('');
         setInviteRole('Member');
+        setInviteRoleId('');
         setIsInviteOpen(true);
     };
 
@@ -171,159 +150,175 @@ export default function UsersManagement() {
                         <h1 className="text-2xl font-semibold tracking-tight">{t('usersManagement.title')}</h1>
                         <p className="text-muted-foreground">{t('usersManagement.subtitle')}</p>
                     </div>
-                    <Button onClick={openNewInvite} className="bg-violet-600 hover:bg-violet-700">
-                        <UserPlus className="h-4 w-4 mr-2" />
-                        {t('usersManagement.inviteUser')}
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+                            <Download className="h-4 w-4 mr-2" />
+                            Importar solicitantes
+                        </Button>
+                        <Button onClick={openNewInvite} className="bg-violet-600 hover:bg-violet-700">
+                            <UserPlus className="h-4 w-4 mr-2" />
+                            {t('usersManagement.inviteUser')}
+                        </Button>
+                    </div>
                 </div>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle>{t('usersManagement.registeredUsers')}</CardTitle>
-                        <CardDescription>{t('usersManagement.totalUsers', { count: data.users.length })}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                        <Table>
-                            <TableHeader>
-                                <TableRow>
-                                    <TableHead>{t('usersManagement.table.user')}</TableHead>
-                                    <TableHead>{t('usersManagement.table.joined')}</TableHead>
-                                    <TableHead>{t('usersManagement.table.role')}</TableHead>
-                                    <TableHead className="text-right">{t('usersManagement.table.permissions')}</TableHead>
-                                </TableRow>
-                            </TableHeader>
-                            <TableBody>
-                                {data.users.map((user) => (
-                                    <TableRow key={user.id}>
-                                        <TableCell>
-                                            <div className="flex flex-col">
-                                                <span className="font-medium">{user.name || t('usersManagement.unnamedUser')}</span>
-                                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                                    <Mail className="h-3 w-3" /> {user.email}
-                                                </span>
-                                            </div>
-                                        </TableCell>
-                                        <TableCell className="text-muted-foreground text-sm">
-                                            <div className="flex items-center gap-1">
-                                                <Calendar className="h-3 w-3" />
-                                                {format(new Date(user.created_at), 'MMM d, yyyy')}
-                                            </div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Select
-                                                value={user.role}
-                                                onValueChange={(val: UserRole) => handleRoleChange(user.id, val)}
-                                                disabled={user.id === userProfile.id} // Cannot change own role
-                                            >
-                                                <SelectTrigger className="w-[130px] h-8 text-xs">
-                                                    <SelectValue />
-                                                </SelectTrigger>
-                                                <SelectContent>
-                                                    <SelectItem value="Admin">
-                                                        <div className="flex items-center gap-2">
-                                                            <ShieldCheck className="h-3 w-3 text-violet-600" />
-                                                            <span className="font-semibold text-violet-700">{t('usersManagement.admin')}</span>
+                <Tabs defaultValue="users" className="w-full">
+                    <TabsList>
+                        <TabsTrigger value="users">{t('usersManagement.tabs.users', 'Usuários')}</TabsTrigger>
+                        <TabsTrigger value="roles">{t('usersManagement.tabs.roles', 'Cargos')}</TabsTrigger>
+                    </TabsList>
+
+                    <TabsContent value="users" className="space-y-4">
+                        {usersWithoutRole.length > 0 && (
+                            <div className="flex items-start gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm">
+                                <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                                <div className="text-amber-900">
+                                    <strong>{usersWithoutRole.length}</strong> usuário(s) sem cargo atribuído usam o esquema antigo de permissões. Atribua um cargo na tabela abaixo para migrá-los.
+                                </div>
+                            </div>
+                        )}
+
+                        <Card>
+                            <CardHeader>
+                                <CardTitle>{t('usersManagement.registeredUsers')}</CardTitle>
+                                <CardDescription>{t('usersManagement.totalUsers', { count: data.users.length })}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>{t('usersManagement.table.user')}</TableHead>
+                                            <TableHead>{t('usersManagement.table.joined')}</TableHead>
+                                            <TableHead>{t('usersManagement.table.role')}</TableHead>
+                                            <TableHead>{t('usersManagement.table.cargo', 'Cargo')}</TableHead>
+                                            <TableHead className="text-right">Ações</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                        {data.users.map((user: UserProfile) => {
+                                            const isAdmin = user.role === 'Admin';
+                                            const userRole = roles.find((r) => r.id === user.role_id);
+                                            return (
+                                                <TableRow key={user.id}>
+                                                    <TableCell>
+                                                        <div className="flex flex-col">
+                                                            <div className="flex items-center gap-2">
+                                                                <span className="font-medium">{user.name || t('usersManagement.unnamedUser')}</span>
+                                                                {user.id.startsWith('draft_') && (
+                                                                    <Badge variant="outline" className="text-[10px] bg-amber-50 text-amber-700 border-amber-200">
+                                                                        Rascunho
+                                                                    </Badge>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-xs text-muted-foreground flex items-center gap-1">
+                                                                <Mail className="h-3 w-3" />
+                                                                {user.email || <em className="italic">sem email</em>}
+                                                            </span>
                                                         </div>
-                                                    </SelectItem>
-                                                    <SelectItem value="Member">{t('usersManagement.member')}</SelectItem>
-                                                </SelectContent>
-                                            </Select>
-                                        </TableCell>
-                                        <TableCell className="text-right flex items-center justify-end gap-2">
-                                            {user.role === 'Admin' ? (
-                                                <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">{t('usersManagement.fullAccess')}</Badge>
-                                            ) : (
-                                                <Button
-                                                    variant="secondary"
-                                                    size="sm"
-                                                    className="h-8 text-xs"
-                                                    onClick={() => setSelectedUser(user)}
-                                                >
-                                                    <Settings2 className="h-3 w-3 mr-1" />
-                                                    {t('usersManagement.configure')}
-                                                </Button>
-                                            )}
-                                            {user.id !== userProfile.id && (
-                                                <>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 text-xs"
-                                                        onClick={() => handleEditUser(user)}
-                                                    >
-                                                        {t('usersManagement.actions.edit', 'Edit')}
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
-                                                        onClick={() => handleDeleteUser(user.id)}
-                                                    >
-                                                        {t('usersManagement.actions.delete', 'Delete')}
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </TableCell>
-                                    </TableRow>
-                                ))}
-                            </TableBody>
-                        </Table>
-                    </CardContent>
-                </Card>
+                                                    </TableCell>
+                                                    <TableCell className="text-muted-foreground text-sm">
+                                                        <div className="flex items-center gap-1">
+                                                            <Calendar className="h-3 w-3" />
+                                                            {format(new Date(user.created_at), 'MMM d, yyyy')}
+                                                        </div>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        <Select
+                                                            value={user.role}
+                                                            onValueChange={(val: UserRole) => handleRoleChange(user.id, val)}
+                                                            disabled={user.id === userProfile.id}
+                                                        >
+                                                            <SelectTrigger className="w-[130px] h-8 text-xs">
+                                                                <SelectValue />
+                                                            </SelectTrigger>
+                                                            <SelectContent>
+                                                                <SelectItem value="Admin">
+                                                                    <div className="flex items-center gap-2">
+                                                                        <ShieldCheck className="h-3 w-3 text-violet-600" />
+                                                                        <span className="font-semibold text-violet-700">{t('usersManagement.admin')}</span>
+                                                                    </div>
+                                                                </SelectItem>
+                                                                <SelectItem value="Member">{t('usersManagement.member')}</SelectItem>
+                                                            </SelectContent>
+                                                        </Select>
+                                                    </TableCell>
+                                                    <TableCell>
+                                                        {isAdmin ? (
+                                                            <Badge variant="outline" className="bg-violet-50 text-violet-700 border-violet-200">
+                                                                {t('usersManagement.fullAccess')}
+                                                            </Badge>
+                                                        ) : (
+                                                            <Select
+                                                                value={user.role_id || ''}
+                                                                onValueChange={(val) => handleAssignRole(user.id, val)}
+                                                            >
+                                                                <SelectTrigger className="w-[180px] h-8 text-xs">
+                                                                    <SelectValue placeholder={userRole ? userRole.name : 'Sem cargo'} />
+                                                                </SelectTrigger>
+                                                                <SelectContent>
+                                                                    {roles.map((r) => (
+                                                                        <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                                                    ))}
+                                                                </SelectContent>
+                                                            </Select>
+                                                        )}
+                                                    </TableCell>
+                                                    <TableCell className="text-right space-x-1">
+                                                        {user.id !== userProfile.id && (
+                                                            <>
+                                                                {(user.id.startsWith('draft_') || user.id.startsWith('invite_')) && user.email && (
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-8 text-xs text-violet-700 hover:text-violet-800 hover:bg-violet-50"
+                                                                        onClick={async () => {
+                                                                            try {
+                                                                                await sendInviteForUser(user.id);
+                                                                                toast({ title: 'Convite enviado', description: user.email });
+                                                                            } catch (err: any) {
+                                                                                toast({ title: 'Falha ao enviar', description: err?.message, variant: 'destructive' });
+                                                                            }
+                                                                        }}
+                                                                    >
+                                                                        <Send className="h-3 w-3 mr-1" />
+                                                                        Enviar convite
+                                                                    </Button>
+                                                                )}
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 text-xs"
+                                                                    onClick={() => handleEditUser(user)}
+                                                                >
+                                                                    Editar
+                                                                </Button>
+                                                                <Button
+                                                                    variant="ghost"
+                                                                    size="sm"
+                                                                    className="h-8 text-xs text-red-600 hover:text-red-700 hover:bg-red-50"
+                                                                    onClick={() => handleDeleteUser(user.id)}
+                                                                >
+                                                                    Excluir
+                                                                </Button>
+                                                            </>
+                                                        )}
+                                                    </TableCell>
+                                                </TableRow>
+                                            );
+                                        })}
+                                    </TableBody>
+                                </Table>
+                            </CardContent>
+                        </Card>
+                    </TabsContent>
+
+                    <TabsContent value="roles">
+                        <RolesManager />
+                    </TabsContent>
+                </Tabs>
             </div>
 
-            {/* Granular Permissions Dialog */}
-            <Dialog open={!!selectedUser} onOpenChange={(open) => !open && setSelectedUser(null)}>
-                <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
-                    <DialogHeader>
-                        <DialogTitle>{t('usersManagement.granularPermissions')}</DialogTitle>
-                        <DialogDescription>
-                            {t('usersManagement.configureAccessFor')} <strong>{selectedUser?.name || selectedUser?.email}</strong>.
-                        </DialogDescription>
-                    </DialogHeader>
-
-                    {selectedUser && (
-                        <div className="space-y-6 py-4">
-                            <Table>
-                                <TableHeader>
-                                    <TableRow className="bg-slate-50">
-                                        <TableHead className="w-[200px] border-r">{t('usersManagement.featureModule')}</TableHead>
-                                        {ACTIONS.map(action => (
-                                            <TableHead key={action.id} className="text-center">{action.label}</TableHead>
-                                        ))}
-                                    </TableRow>
-                                </TableHeader>
-                                <TableBody>
-                                    {FEATURES.map(feature => {
-                                        const currentActions = selectedUser.permissions[feature.id] || [];
-
-                                        return (
-                                            <TableRow key={feature.id} className="border-b">
-                                                <TableCell className="font-medium border-r bg-slate-50/50">
-                                                    {feature.label}
-                                                </TableCell>
-                                                {ACTIONS.map(action => (
-                                                    <TableCell key={action.id} className="text-center">
-                                                        <Checkbox
-                                                            checked={currentActions.includes(action.id)}
-                                                            onCheckedChange={() => handlePermissionToggle(feature.id, action.id, selectedUser.permissions)}
-                                                            className="data-[state=checked]:bg-violet-600"
-                                                        />
-                                                    </TableCell>
-                                                ))}
-                                            </TableRow>
-                                        );
-                                    })}
-                                </TableBody>
-                            </Table>
-                            <div className="text-xs text-muted-foreground p-3 bg-blue-50 text-blue-800 rounded-md border border-blue-100 flex gap-2">
-                                <ShieldAlert className="h-4 w-4 shrink-0" />
-                                <p>{t('usersManagement.noteGranting')}</p>
-                            </div>
-                        </div>
-                    )}
-                </DialogContent>
-            </Dialog>
+            <ImportRequestersDialog open={isImportOpen} onClose={() => setIsImportOpen(false)} />
 
             {/* Invite User Dialog */}
             <Dialog open={isInviteOpen} onOpenChange={setIsInviteOpen}>
@@ -370,7 +365,30 @@ export default function UsersManagement() {
                                     <SelectItem value="Admin">{t('usersManagement.admin')}</SelectItem>
                                 </SelectContent>
                             </Select>
+                            <p className="text-xs text-muted-foreground">
+                                Admin libera tudo. Membro segue o cargo abaixo.
+                            </p>
                         </div>
+
+                        {inviteRole === 'Member' && (
+                            <div className="space-y-2">
+                                <Label htmlFor="inviteRoleId">Cargo</Label>
+                                <Select value={inviteRoleId} onValueChange={setInviteRoleId}>
+                                    <SelectTrigger>
+                                        <SelectValue placeholder="Selecione um cargo" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {roles.length === 0 ? (
+                                            <div className="px-2 py-1.5 text-xs text-muted-foreground">Nenhum cargo cadastrado</div>
+                                        ) : (
+                                            roles.map((r) => (
+                                                <SelectItem key={r.id} value={r.id}>{r.name}</SelectItem>
+                                            ))
+                                        )}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
 
                         <DialogFooter>
                             <Button type="button" variant="outline" onClick={() => setIsInviteOpen(false)} disabled={isInviting}>{t('usersManagement.cancel')}</Button>

@@ -12,16 +12,18 @@ import {
     getDocs,
     writeBatch
 } from 'firebase/firestore';
-import { db } from '@/lib/firebase';
+import { sendSignInLinkToEmail } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
 import type {
     Workspace, Squad, TeamMember, Task, Sprint, SprintTask,
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument,
     CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange,
-    Release, ReleaseTask
+    Release, ReleaseTask, SprintParticipant, Role, TaskAuditLog, TaskAuditChange
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { jiraService } from '@/services/jiraService';
 import { toast } from '@/hooks/use-toast';
 
@@ -32,6 +34,7 @@ interface FirestoreData {
     tasks: Task[];
     sprints: Sprint[];
     sprintTasks: SprintTask[];
+    sprintParticipants: SprintParticipant[];
     taskAssignments: TaskAssignment[];
     productModules: ProductModule[];
     moduleMetrics: ModuleMetric[];
@@ -39,7 +42,9 @@ interface FirestoreData {
     productFeatures: ProductFeature[];
     serviceDependencies: ServiceDependency[];
     users: UserProfile[];
+    roles: Role[];
     documents: ProductDocument[];
+    taskAuditLogs: TaskAuditLog[];
     forms: CustomForm[];
     formSubmissions: FormSubmission[];
     jiraSyncLogs: JiraSyncLog[];
@@ -55,6 +60,7 @@ const initialData: FirestoreData = {
     tasks: [],
     sprints: [],
     sprintTasks: [],
+    sprintParticipants: [],
     taskAssignments: [],
     productModules: [],
     moduleMetrics: [],
@@ -62,7 +68,9 @@ const initialData: FirestoreData = {
     productFeatures: [],
     serviceDependencies: [],
     users: [],
+    roles: [],
     documents: [],
+    taskAuditLogs: [],
     forms: [],
     formSubmissions: [],
     jiraSyncLogs: [],
@@ -75,6 +83,52 @@ export const useFirestoreData = () => {
     const [data, setData] = useState<FirestoreData>(initialData);
     const [loading, setLoading] = useState(true);
     const { currentWorkspaceId, setCurrentWorkspaceId } = useWorkspace();
+    const { userProfile } = useAuth();
+
+    // Fields excluded from audit log (computed/system fields).
+    const AUDIT_IGNORED_FIELDS = new Set([
+        'id', 'created_at', 'workspace_id', 'order_index', 'jira_key',
+    ]);
+
+    const writeTaskAuditLog = async (
+        taskId: number,
+        action: TaskAuditLog['action'],
+        changes: TaskAuditChange[],
+        summary?: string | null,
+    ) => {
+        if (!currentWorkspaceId) return;
+        const id = `tal_${taskId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const log: TaskAuditLog = {
+            id,
+            workspace_id: currentWorkspaceId,
+            task_id: taskId,
+            action,
+            changed_at: new Date().toISOString(),
+            changed_by_id: userProfile?.id ?? null,
+            changed_by_name: userProfile?.name ?? userProfile?.email ?? null,
+            changes,
+            summary: summary ?? null,
+        };
+        try {
+            await setDoc(doc(db, 'task_audit_logs', id), log);
+        } catch (err) {
+            console.error('Failed to write audit log:', err);
+        }
+    };
+
+    const diffTask = (before: any, after: any): TaskAuditChange[] => {
+        const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+        const changes: TaskAuditChange[] = [];
+        keys.forEach((k) => {
+            if (AUDIT_IGNORED_FIELDS.has(k)) return;
+            const a = before?.[k];
+            const b = after?.[k];
+            const aJson = JSON.stringify(a ?? null);
+            const bJson = JSON.stringify(b ?? null);
+            if (aJson !== bJson) changes.push({ field: k, old: a ?? null, new: b ?? null });
+        });
+        return changes;
+    };
 
     // Generic subscription helper
     const subscribeToCollection = (collectionName: string, stateKey: keyof FirestoreData, filterByWorkspace: boolean = true) => {
@@ -121,6 +175,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('tasks', 'tasks', true),
             subscribeToCollection('sprints', 'sprints', true),
             subscribeToCollection('sprint_tasks', 'sprintTasks', true),
+            subscribeToCollection('sprint_participants', 'sprintParticipants', true),
             subscribeToCollection('task_assignments', 'taskAssignments', true),
             subscribeToCollection('product_modules', 'productModules', true),
             subscribeToCollection('module_metrics', 'moduleMetrics', true),
@@ -134,6 +189,8 @@ export const useFirestoreData = () => {
             subscribeToCollection('task_date_changes', 'taskDateChanges', true),
             subscribeToCollection('releases', 'releases', true),
             subscribeToCollection('release_tasks', 'releaseTasks', true),
+            subscribeToCollection('roles', 'roles', true),
+            subscribeToCollection('task_audit_logs', 'taskAuditLogs', true),
         ];
 
         setLoading(false);
@@ -189,6 +246,38 @@ export const useFirestoreData = () => {
                         console.log(`Migrated ${migratedCount} items in ${colName}`);
                         await batch.commit();
                     }
+                }
+
+                // Seed system roles ("Admin", "Membro") if absent in this workspace.
+                const rolesSnap = await getDocs(query(collection(db, 'roles'), where('workspace_id', '==', defaultWsId)));
+                const hasAdmin = rolesSnap.docs.some(d => d.id === `role_admin_${defaultWsId}` || d.data().name === 'Admin');
+                const hasMember = rolesSnap.docs.some(d => d.id === `role_member_${defaultWsId}` || d.data().name === 'Membro');
+                const allActions = ['view', 'create', 'edit', 'delete'];
+                const fullPerms = {
+                    squads: allActions, initiatives: allActions, backlog: allActions,
+                    strategy: allActions, sprints: allActions, releases: allActions,
+                    documents: allActions, users: allActions, forms: allActions,
+                };
+                const memberPerms = {
+                    squads: ['view'], initiatives: ['view'], backlog: ['view'],
+                    strategy: ['view'], sprints: ['view'], releases: ['view'], documents: ['view'],
+                    forms: [],
+                };
+                if (!hasAdmin) {
+                    const id = `role_admin_${defaultWsId}`;
+                    await setDoc(doc(db, 'roles', id), {
+                        id, workspace_id: defaultWsId, name: 'Admin',
+                        description: 'Acesso total ao workspace.', is_system: true, is_active: true,
+                        permissions: fullPerms, created_at: new Date().toISOString(),
+                    });
+                }
+                if (!hasMember) {
+                    const id = `role_member_${defaultWsId}`;
+                    await setDoc(doc(db, 'roles', id), {
+                        id, workspace_id: defaultWsId, name: 'Membro',
+                        description: 'Acesso de leitura padrão.', is_system: true, is_active: true,
+                        permissions: memberPerms, created_at: new Date().toISOString(),
+                    });
                 }
             }
         };
@@ -268,6 +357,11 @@ export const useFirestoreData = () => {
                     status: 'Success'
                 });
             }
+
+            // Audit: creation event with the full payload as "new" values.
+            const initialChanges = diffTask({}, newTask);
+            await writeTaskAuditLog(newTask.id, 'create', initialChanges, `Iniciativa "${task.title}" criada`);
+
             return newTask;
         },
         updateTask: async (id: number, updates: Partial<Task>) => {
@@ -275,6 +369,20 @@ export const useFirestoreData = () => {
             const workspace = data.workspaces.find(ws => ws.id === currentWorkspaceId);
 
             await updateItem('tasks', id, updates);
+
+            // Audit: compute diff between previous task state and the patch.
+            if (task) {
+                const after = { ...task, ...updates };
+                const changes = diffTask(task, after);
+                if (changes.length > 0) {
+                    const isStatusChange = changes.some((c) => c.field === 'status');
+                    await writeTaskAuditLog(
+                        id,
+                        isStatusChange && changes.length === 1 ? 'status_change' : 'update',
+                        changes,
+                    );
+                }
+            }
 
             if (task?.jira_key && workspace?.jira_config?.isEnabled && updates.status) {
                 try {
@@ -299,7 +407,11 @@ export const useFirestoreData = () => {
                 }
             }
         },
-        deleteTask: (id: number) => deleteItem('tasks', id),
+        deleteTask: async (id: number) => {
+            const task = data.tasks.find(t => t.id === id);
+            await deleteItem('tasks', id);
+            await writeTaskAuditLog(id, 'delete', [], task ? `Iniciativa "${task.title}" excluída` : 'Iniciativa excluída');
+        },
 
         // Sprints
         addSprint: (sprint: Omit<Sprint, 'id' | 'created_at'>) => addItem('sprints', { ...sprint, created_at: new Date().toISOString() }),
@@ -312,6 +424,47 @@ export const useFirestoreData = () => {
         removeSprintTask: async (sprintId: number, taskId: number) => {
             const item = data.sprintTasks.find(st => st.sprint_id === sprintId && st.task_id === taskId);
             if (item) await deleteItem('sprint_tasks', item.id);
+        },
+
+        // Sprint Participants (per-sprint roster + availability)
+        upsertSprintParticipant: async (sprintId: number, memberId: number, availabilityPct: number, notes?: string | null) => {
+            const id = `sp_${sprintId}_${memberId}`;
+            const existing = data.sprintParticipants.find(p => p.id === id);
+            if (existing) {
+                await updateItem('sprint_participants', id, { availability_pct: availabilityPct, notes: notes ?? null });
+                return { ...existing, availability_pct: availabilityPct, notes: notes ?? null };
+            }
+            return await addItem('sprint_participants', {
+                id,
+                sprint_id: sprintId,
+                member_id: memberId,
+                availability_pct: availabilityPct,
+                notes: notes ?? null,
+                created_at: new Date().toISOString(),
+            });
+        },
+        removeSprintParticipant: async (sprintId: number, memberId: number) => {
+            const id = `sp_${sprintId}_${memberId}`;
+            await deleteItem('sprint_participants', id);
+        },
+        seedSprintRoster: async (sprintId: number, memberIds: number[]) => {
+            const existing = new Set(
+                data.sprintParticipants
+                    .filter(p => p.sprint_id === sprintId)
+                    .map(p => p.member_id)
+            );
+            await Promise.all(
+                memberIds
+                    .filter(id => !existing.has(id))
+                    .map(memberId => addItem('sprint_participants', {
+                        id: `sp_${sprintId}_${memberId}`,
+                        sprint_id: sprintId,
+                        member_id: memberId,
+                        availability_pct: 100,
+                        notes: null,
+                        created_at: new Date().toISOString(),
+                    }))
+            );
         },
 
         // Releases
@@ -355,13 +508,42 @@ export const useFirestoreData = () => {
         deleteUser: (id: string) => deleteItem('users', id),
         updateUserRole: (id: string, role: UserRole) => updateItem('users', id, { role }),
         updateUserPermissions: (id: string, permissions: FeaturePermission) => updateItem('users', id, { permissions }),
+        assignRoleToUser: (userId: string, roleId: string | null) =>
+            updateItem('users', userId, { role_id: roleId }),
+
+        // Roles (Cargos)
+        addRole: async (role: Omit<Role, 'id' | 'created_at' | 'workspace_id'>) => {
+            const id = `role_${Date.now()}`;
+            const payload: Role = {
+                ...role,
+                id,
+                workspace_id: currentWorkspaceId || '',
+                is_active: role.is_active ?? true,
+                created_at: new Date().toISOString(),
+            };
+            await setDoc(doc(db, 'roles', id), payload);
+            return payload;
+        },
+        updateRole: (id: string, updates: Partial<Role>) => updateItem('roles', id, updates),
+        deleteRole: async (id: string) => {
+            const role = data.roles.find(r => r.id === id);
+            if (role?.is_system) {
+                throw new Error('Cargos do sistema não podem ser excluídos.');
+            }
+            const inUse = data.users.filter(u => u.role_id === id);
+            if (inUse.length > 0) {
+                throw new Error(`Cargo em uso por ${inUse.length} usuário(s). Atribua outro cargo antes de excluir.`);
+            }
+            await deleteItem('roles', id);
+        },
         inviteUser: async (email: string, role: UserRole, permissions: FeaturePermission, name?: string) => {
+            const normalizedEmail = email.toLowerCase();
             const inviteId = `invite_${Date.now()}`;
             const docRef = doc(db, 'users', inviteId);
 
             const pendingProfile: UserProfile = {
                 id: inviteId,
-                email: email.toLowerCase(),
+                email: normalizedEmail,
                 role,
                 permissions,
                 name: name || 'Pending Invite',
@@ -369,7 +551,58 @@ export const useFirestoreData = () => {
             };
 
             await setDoc(docRef, pendingProfile);
+
+            // Send Firebase Auth sign-in link (magic link). When the invitee
+            // opens it, the AuthContext picks up this pending profile by email
+            // and assigns role/permissions to the new auth user.
+            const actionCodeSettings = {
+                url: `${window.location.origin}/login?invite=1`,
+                handleCodeInApp: true,
+            };
+            try {
+                await sendSignInLinkToEmail(auth, normalizedEmail, actionCodeSettings);
+            } catch (err) {
+                // Roll back the pending invite so the admin can retry cleanly.
+                await deleteDoc(docRef).catch(() => undefined);
+                throw err;
+            }
+
             return pendingProfile;
+        },
+
+        /**
+         * Cria um usuário "rascunho" sem email (pré-cadastro).
+         * Útil para importar solicitantes em massa: o admin entra depois,
+         * preenche o email e dispara o convite via `sendInviteForUser`.
+         */
+        createDraftUser: async (name: string, roleId: string | null, baseRole: UserRole = 'Member') => {
+            const id = `draft_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+            const profile: UserProfile = {
+                id,
+                email: '',
+                name: name.trim(),
+                role: baseRole,
+                role_id: roleId,
+                permissions: {},
+                created_at: new Date().toISOString(),
+            };
+            await setDoc(doc(db, 'users', id), profile);
+            return profile;
+        },
+
+        /**
+         * Envia o magic link para um usuário já cadastrado (rascunho ou
+         * inativo). Falha se o email estiver vazio.
+         */
+        sendInviteForUser: async (userId: string) => {
+            const user = data.users.find(u => u.id === userId);
+            if (!user) throw new Error('Usuário não encontrado.');
+            if (!user.email) throw new Error('Preencha o email antes de enviar o convite.');
+            const actionCodeSettings = {
+                url: `${window.location.origin}/login?invite=1`,
+                handleCodeInApp: true,
+            };
+            await sendSignInLinkToEmail(auth, user.email.toLowerCase(), actionCodeSettings);
         },
 
         // Documentation Hub

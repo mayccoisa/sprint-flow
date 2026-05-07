@@ -78,6 +78,21 @@ export interface TaskAssignment {
   member_id: number;
 }
 
+/**
+ * Per-sprint roster entry. Decouples "who is in this sprint" from
+ * "who belongs to the squad", supporting partial availability (vacations,
+ * cross-squad allocation) and guests from other squads.
+ */
+export interface SprintParticipant {
+  id: string; // `sp_${sprint_id}_${member_id}` for idempotent seeding
+  workspace_id?: string;
+  created_at: string;
+  sprint_id: number;
+  member_id: number;
+  availability_pct: number; // 0..100
+  notes?: string | null;
+}
+
 export interface Release {
   id: number;
   workspace_id?: string;
@@ -145,6 +160,31 @@ export interface Task {
   brice_effort?: number | null;
   // Jira Integration
   jira_key?: string | null;
+}
+
+/**
+ * Append-only audit trail for tasks/initiatives. Every create/update/delete
+ * routed through `useFirestoreData` writes one entry. Required for compliance.
+ */
+export type TaskAuditAction = 'create' | 'update' | 'status_change' | 'delete';
+
+export interface TaskAuditChange {
+  field: string;
+  old: unknown;
+  new: unknown;
+}
+
+export interface TaskAuditLog {
+  id: string;
+  workspace_id?: string;
+  task_id: number;
+  action: TaskAuditAction;
+  changed_at: string;
+  changed_by_id?: string | null;
+  changed_by_name?: string | null;
+  changes: TaskAuditChange[];
+  /** Optional human-readable summary for create/delete events. */
+  summary?: string | null;
 }
 
 export interface TaskDateChange {
@@ -239,7 +279,7 @@ export type UserRole = 'Admin' | 'Member';
 export type FeatureAction = 'view' | 'create' | 'edit' | 'delete';
 
 // Features that can have granular permissions
-export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users' | 'documents';
+export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users' | 'documents' | 'forms';
 
 export type FeaturePermission = {
   [K in AppFeature]?: FeatureAction[];
@@ -251,7 +291,26 @@ export interface UserProfile {
   email: string;
   name: string | null;
   role: UserRole;
+  /** Foreign key to Role.id. Source of truth for permissions when set. */
+  role_id?: string | null;
+  /** Legacy per-user matrix. Used as fallback when role_id is empty. */
   permissions: FeaturePermission;
+}
+
+/**
+ * Cargo / Role: named bundle of permissions assigned to users. Defined per
+ * workspace. System roles (`is_system: true`) cannot be deleted.
+ */
+export interface Role {
+  id: string; // 'role_<ts>' or reserved system slugs
+  workspace_id: string;
+  name: string;
+  description?: string | null;
+  is_system?: boolean;
+  /** When false, the role is hidden from new assignments but kept for history. */
+  is_active?: boolean;
+  permissions: FeaturePermission;
+  created_at: string;
 }
 
 // Documentation Hub Types

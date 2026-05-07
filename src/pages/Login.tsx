@@ -1,5 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { isSignInWithEmailLink, signInWithEmailLink } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
@@ -25,6 +27,39 @@ export default function Login() {
 
     // Get the destination to redirect to, defaulting to home '/'
     const from = location.state?.from?.pathname || '/';
+
+    // Complete sign-in when the user opens the magic link from their email.
+    useEffect(() => {
+        const url = window.location.href;
+        if (!isSignInWithEmailLink(auth, url)) return;
+
+        const completeLink = async () => {
+            let stored = window.localStorage.getItem('sprintflow_invite_email');
+            if (!stored) {
+                stored = window.prompt(t('login.confirmInviteEmail') || 'Confirme o email do convite:') || '';
+            }
+            if (!stored) return;
+
+            setIsLoggingIn(true);
+            try {
+                await signInWithEmailLink(auth, stored, url);
+                window.localStorage.removeItem('sprintflow_invite_email');
+                window.history.replaceState({}, '', '/login');
+                toast({ title: t('login.welcome'), description: t('login.signedIn') });
+                navigate(from, { replace: true });
+            } catch (error: any) {
+                toast({
+                    title: t('login.authFailed'),
+                    description: error.message || t('login.authError'),
+                    variant: 'destructive',
+                });
+            } finally {
+                setIsLoggingIn(false);
+            }
+        };
+        completeLink();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
 
     const handleGoogleLogin = async () => {
         setIsLoggingIn(true);

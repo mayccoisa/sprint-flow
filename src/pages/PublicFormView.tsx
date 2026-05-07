@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
+import { collection, query, where, getDocs, doc, setDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useLocalData } from '@/hooks/useLocalData';
 import { useAuth } from '@/contexts/AuthContext';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -15,38 +16,50 @@ import { CalendarIcon, Loader2, CheckCircle2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
-import type { CustomForm, FormSubmission } from '@/types';
+import type { CustomForm } from '@/types';
 
 export default function PublicFormView() {
     const { t } = useTranslation();
     const { slug } = useParams<{ slug: string }>();
-    const { data, addFormSubmission, addTask } = useLocalData();
     const { userProfile } = useAuth();
     const { toast } = useToast();
     const [form, setForm] = useState<CustomForm | null>(null);
+    const [loading, setLoading] = useState(true);
     const [formData, setFormData] = useState<Record<string, any>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
 
     useEffect(() => {
-        if (slug && data.forms.length > 0) {
-            const foundForm = data.forms.find(f => f.slug === slug);
-            if (foundForm && foundForm.is_active) {
-                setForm(foundForm);
-                // Initialize default values
-                const initial: Record<string, any> = {};
-                foundForm.fields.forEach(field => {
-                    initial[field.id] = '';
-                });
-                setFormData(initial);
-            } else if (foundForm && !foundForm.is_active) {
-                // Return null intentionally so it shows Not Found or Inactive
-                setForm(null);
+        let cancelled = false;
+        const fetchForm = async () => {
+            if (!slug) {
+                setLoading(false);
+                return;
             }
-        }
-    }, [slug, data.forms]);
+            try {
+                const q = query(collection(db, 'forms'), where('slug', '==', slug));
+                const snap = await getDocs(q);
+                if (cancelled) return;
+                const found = snap.docs
+                    .map(d => ({ id: d.id, ...d.data() } as unknown as CustomForm))
+                    .find(f => f.is_active);
+                if (found) {
+                    setForm(found);
+                    const initial: Record<string, any> = {};
+                    found.fields.forEach(field => { initial[field.id] = ''; });
+                    setFormData(initial);
+                }
+            } catch (err) {
+                console.error('Error loading public form:', err);
+            } finally {
+                if (!cancelled) setLoading(false);
+            }
+        };
+        fetchForm();
+        return () => { cancelled = true; };
+    }, [slug]);
 
-    if (!form && data.forms.length === 0) {
+    if (loading) {
         return <div className="flex h-screen items-center justify-center p-4"><Loader2 className="animate-spin h-8 w-8 text-primary" /></div>;
     }
 
@@ -77,7 +90,9 @@ export default function PublicFormView() {
                             variant="outline"
                             onClick={() => {
                                 setIsSuccess(false);
-                                setFormData({});
+                                const initial: Record<string, any> = {};
+                                form.fields.forEach(field => { initial[field.id] = ''; });
+                                setFormData(initial);
                             }}
                             className="mt-4"
                         >
@@ -108,7 +123,6 @@ export default function PublicFormView() {
     };
 
     const generateTaskTitle = (submissionData: Record<string, any>): string => {
-        // Find the first shortText field to use as subtitle if available
         const firstShortText = form.fields.find(f => f.type === 'ShortText');
         const customContext = firstShortText && submissionData[firstShortText.id]
             ? ` - ${String(submissionData[firstShortText.id]).substring(0, 50)}`
@@ -121,7 +135,6 @@ export default function PublicFormView() {
         setIsSubmitting(true);
 
         try {
-            // Validate required fields
             for (const field of form.fields) {
                 if (field.required && !formData[field.id]) {
                     toast({ title: "Validation Error", description: t('forms.public.requiredError', { label: field.label }), variant: 'destructive' });
@@ -130,12 +143,13 @@ export default function PublicFormView() {
                 }
             }
 
-            // 1. Create Task based on form destination
+            const taskId = Date.now();
             const taskPayload = {
+                id: taskId,
                 title: generateTaskTitle(formData),
                 description: generateTaskDescription(formData),
                 status: form.destination === 'Product' ? 'Discovery' : 'Backlog',
-                task_type: form.destination === 'Product' ? 'Feature' : 'Spike', // Default guesses
+                task_type: form.destination === 'Product' ? 'Feature' : 'Spike',
                 priority: 'Medium',
                 order_index: 0,
                 estimate_frontend: null,
@@ -151,21 +165,22 @@ export default function PublicFormView() {
                 prototype_link: null,
                 area_id: null,
                 feature_id: null,
-                workspace_id: form.workspace_id
+                workspace_id: form.workspace_id,
+                created_at: new Date().toISOString(),
             };
+            await setDoc(doc(db, 'tasks', String(taskId)), taskPayload);
 
-            const createdTask = await addTask(taskPayload as any);
-
-            // 2. Add Form Submission record linking to task
-            const submissionPayload: Omit<FormSubmission, 'id' | 'created_at'> = {
+            const submissionId = `sub_${Date.now()}`;
+            const submissionPayload = {
+                id: submissionId,
                 form_id: form.id,
                 workspace_id: form.workspace_id,
-                submitted_by: userProfile?.id || undefined,
+                submitted_by: userProfile?.id || null,
                 data: formData,
-                task_id: createdTask.id
+                task_id: taskId,
+                created_at: new Date().toISOString(),
             };
-
-            await addFormSubmission(submissionPayload);
+            await setDoc(doc(db, 'form_submissions', submissionId), submissionPayload);
 
             setIsSuccess(true);
         } catch (error: any) {
