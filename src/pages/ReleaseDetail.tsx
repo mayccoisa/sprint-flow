@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { useLocalData } from '@/hooks/useLocalData';
 import { Task } from '@/types';
 import { format } from 'date-fns';
+import { TYPE_LABEL_PT } from '@/utils/initiativeStatus';
 import { ArrowLeft, Plus, X } from 'lucide-react';
 import {
   Dialog,
@@ -184,7 +185,7 @@ export default function ReleaseDetail() {
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-medium">{task.title}</span>
-                    <Badge variant="outline">{task.task_type}</Badge>
+                    <Badge variant="outline">{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</Badge>
                     <Badge>{task.status}</Badge>
                   </div>
                   <div className="text-sm text-muted-foreground">
@@ -247,7 +248,7 @@ export default function ReleaseDetail() {
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{task.title}</span>
-                      <Badge variant="outline" className="text-xs">{task.task_type}</Badge>
+                      <Badge variant="outline" className="text-xs">{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</Badge>
                       <Badge className="text-xs">{task.status}</Badge>
                     </div>
                   </div>

@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { TYPE_LABEL_PT, PRIORITY_LABEL_PT } from '@/utils/initiativeStatus';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Table,
@@ -343,10 +344,10 @@ const SprintSummary = () => {
                             <p className="font-medium">{task.title}</p>
                             <div className="flex gap-2 mt-1">
                               <Badge variant="outline" className="text-xs">
-                                {task.task_type}
+                                {TYPE_LABEL_PT[task.task_type] ?? task.task_type}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {task.priority}
+                                {PRIORITY_LABEL_PT[task.priority] ?? task.priority}
                               </Badge>
                             </div>
                           </div>

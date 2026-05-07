@@ -5,6 +5,8 @@ export type TaskType = 'Feature' | 'Bug' | 'TechDebt' | 'Spike' | 'Improvement' 
 export type TaskPriority = 'High' | 'Medium' | 'Low';
 export type TaskStatus =
   | 'Discovery'
+  | 'ProductBacklog'
+  | 'Prototyping'
   | 'Refinement'
   | 'ReadyForEng'
   | 'Backlog' // Engineering Backlog
@@ -160,6 +162,8 @@ export interface Task {
   brice_effort?: number | null;
   // Jira Integration
   jira_key?: string | null;
+  /** UserProfile.id of who opened/requested this initiative. Set manually for imported items. */
+  requester_id?: string | null;
 }
 
 /**

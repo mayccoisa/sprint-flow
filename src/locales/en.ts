@@ -99,8 +99,16 @@ export const en = {
             table: "Table",
             columns: {
                 discovery: "Discovery",
+                productBacklog: "Product Backlog",
+                prototyping: "Prototyping",
                 refinement: "Refinement",
-                readyForEng: "Ready for Eng"
+                readyForEng: "Documented"
+            },
+            stats: {
+                total: "Total in product",
+                productBacklog: "Product Backlog",
+                inRefinement: "In refinement",
+                documented: "Documented"
             },
             tableHeaders: {
                 title: "Title",

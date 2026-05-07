@@ -100,9 +100,17 @@ export const pt = {
             kanban: "Kanban",
             table: "Tabela",
             columns: {
-                discovery: "Descoberta",
+                discovery: "Discovery",
+                productBacklog: "Backlog de Produto",
+                prototyping: "Prototipação",
                 refinement: "Refinamento",
-                readyForEng: "Pronto p/ Eng"
+                readyForEng: "Documentado"
+            },
+            stats: {
+                total: "Total em produto",
+                productBacklog: "Backlog de Produto",
+                inRefinement: "Em refinamento",
+                documented: "Documentado"
             },
             tableHeaders: {
                 title: "Título",
@@ -121,9 +129,9 @@ export const pt = {
             subtitle: "Gerencie tarefas de implementação e fluxo de sprint.",
             newTask: "Nova Tarefa",
             columns: {
-                backlog: "A Fazer (Backlog)",
-                inSprint: "No Sprint",
-                review: "Revisão / QA",
+                backlog: "Backlog",
+                inSprint: "Em Sprint",
+                review: "Revisão",
                 done: "Concluído"
             },
             stats: {

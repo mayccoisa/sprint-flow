@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { X } from 'lucide-react';
 import { Task } from '@/types';
+import { TYPE_LABEL_PT } from '@/utils/initiativeStatus';
 import {
   DndContext,
   DragEndEvent,
@@ -219,7 +220,7 @@ const TaskCard = ({
       <h4 className="font-medium text-sm mb-2 pr-6">{task.title}</h4>
       <div className="flex flex-wrap gap-1 mb-2">
         <Badge className={`text-xs ${typeColors[task.task_type]}`}>
-          {task.task_type}
+          {TYPE_LABEL_PT[task.task_type] ?? task.task_type}
         </Badge>
         <Badge className={`text-xs ${priorityColors[task.priority]}`}>
           {task.priority}
