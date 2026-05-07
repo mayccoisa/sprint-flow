@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { TYPE_LABEL_PT } from '@/utils/initiativeStatus';
 import { Users, AlertTriangle, X, GripVertical, Plus, UserCog } from 'lucide-react';
 import { Task, TeamMember, MemberSpecialty } from '@/types';
 
@@ -295,7 +296,7 @@ const SquadTaskCard = ({
             <Badge
               className={`text-[10px] py-0 px-1.5 ${typeColors[task.task_type] || ''}`}
             >
-              {task.task_type}
+              {TYPE_LABEL_PT[task.task_type] ?? task.task_type}
             </Badge>
             {task.estimate_frontend ? (
               <span className="text-[10px] bg-blue-50 text-blue-700 px-1 rounded">

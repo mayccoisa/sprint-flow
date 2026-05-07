@@ -5,6 +5,7 @@ import 'moment/locale/pt-br';
 import 'react-big-calendar/lib/css/react-big-calendar.css';
 import { Layout } from '@/components/Layout';
 import { Task, Sprint, Release, Squad } from '@/types';
+import { PRIORITY_LABEL_PT } from '@/utils/initiativeStatus';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import {
@@ -353,7 +354,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           )}
           <div className="flex flex-wrap gap-1.5">
             <Badge variant="secondary">{style.label}</Badge>
-            <Badge variant="outline">{task.priority}</Badge>
+            <Badge variant="outline">{PRIORITY_LABEL_PT[task.priority] ?? task.priority}</Badge>
             <Badge variant="outline">{task.status}</Badge>
           </div>
 

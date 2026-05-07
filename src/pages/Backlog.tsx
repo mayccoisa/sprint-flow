@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
   DragEndEvent,
@@ -138,9 +139,10 @@ const KanbanColumn = ({
 
   return (
     <div
+      ref={setNodeRef}
       className={cn(
-        'flex-1 min-w-[300px] bg-muted/40 rounded-lg p-4 flex flex-col transition-colors',
-        isOver && 'bg-muted/70'
+        'w-[300px] flex-shrink-0 bg-muted/40 rounded-lg p-4 flex flex-col transition-colors',
+        isOver && 'ring-2 ring-primary/40 bg-muted/70'
       )}
     >
       <h3 className="font-semibold mb-4 text-sm uppercase text-muted-foreground flex items-center justify-between">
@@ -150,28 +152,27 @@ const KanbanColumn = ({
         </Badge>
       </h3>
 
-      <ScrollArea className="flex-1">
-        <div ref={setNodeRef} className="space-y-3 min-h-[200px]">
-          {tasks.map((task) => (
-            <DraggableTaskCard
-              key={task.id}
-              task={task}
-              onClick={() => onCardClick(task)}
-            />
-          ))}
-          {tasks.length === 0 && (
-            <div className="h-24 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm">
-              {emptyLabel}
-            </div>
-          )}
-        </div>
-      </ScrollArea>
+      <div className="flex-1 overflow-y-auto space-y-3 min-h-[200px]">
+        {tasks.map((task) => (
+          <DraggableTaskCard
+            key={task.id}
+            task={task}
+            onClick={() => onCardClick(task)}
+          />
+        ))}
+        {tasks.length === 0 && (
+          <div className="h-24 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground text-sm">
+            {emptyLabel}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
 
 export default function Backlog() {
   const { t } = useTranslation();
+  const navigate = useNavigate();
   const { data, loading, addTask, updateTask, syncWithJira, addTaskDateChange } = useLocalData() as any;
   const [searchQuery, setSearchQuery] = useState('');
   const [isTaskDialogOpen, setIsTaskDialogOpen] = useState(false);
@@ -259,8 +260,7 @@ export default function Backlog() {
   };
 
   const handleEditTask = (task: Task) => {
-    setEditingTask(task);
-    setIsTaskDialogOpen(true);
+    navigate(`/initiatives/${task.id}`);
   };
 
   const columns: { id: ColumnId; title: string }[] = [
@@ -323,42 +323,42 @@ export default function Backlog() {
           </div>
         </div>
 
-        {/* Statistics Cards */}
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        {/* Statistics Cards (compactos) */}
+        <div className="grid gap-3 grid-cols-2 lg:grid-cols-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('engineeringBacklog.stats.total')}</CardTitle>
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.total')}</p>
+                <p className="text-lg font-semibold tabular-nums">{stats.totalBacklog}</p>
+              </div>
               <Circle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalBacklog}</div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('engineeringBacklog.stats.effort')}</CardTitle>
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.effort')}</p>
+                <p className="text-lg font-semibold tabular-nums">{stats.totalEffort}</p>
+              </div>
               <Clock className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.totalEffort}</div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('engineeringBacklog.stats.bugs')}</CardTitle>
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.bugs')}</p>
+                <p className="text-lg font-semibold tabular-nums">{stats.bugs}</p>
+              </div>
               <AlertCircle className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.bugs}</div>
             </CardContent>
           </Card>
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">{t('engineeringBacklog.stats.highPriority')}</CardTitle>
+            <CardContent className="p-3 flex items-center justify-between">
+              <div>
+                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.highPriority')}</p>
+                <p className="text-lg font-semibold tabular-nums">{stats.highPriority}</p>
+              </div>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{stats.highPriority}</div>
             </CardContent>
           </Card>
         </div>
@@ -386,8 +386,8 @@ export default function Backlog() {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="flex-1 overflow-x-auto">
-            <div className="flex space-x-6 min-w-[1000px] h-full pb-4">
+          <div className="flex-1 overflow-x-auto overflow-y-hidden">
+            <div className="flex gap-4 h-full pb-4 w-max">
               {columns.map((column) => (
                 <KanbanColumn
                   key={column.id}

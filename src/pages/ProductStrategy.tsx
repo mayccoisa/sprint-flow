@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
 import { useLocalData } from '@/hooks/useLocalData';
+import { TYPE_LABEL_PT } from '@/utils/initiativeStatus';
 import { useTranslation } from 'react-i18next';
 import {
     BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
@@ -373,7 +374,7 @@ export default function ProductStrategy() {
                                                 return (
                                                     <TableRow key={task.id}>
                                                         <TableCell>
-                                                            <Badge variant="outline">{task.task_type}</Badge>
+                                                            <Badge variant="outline">{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</Badge>
                                                         </TableCell>
                                                         <TableCell className="font-medium">
                                                             {task.title}

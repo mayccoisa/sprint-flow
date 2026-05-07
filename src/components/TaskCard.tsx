@@ -1,6 +1,7 @@
 import { Task } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { TYPE_LABEL_PT, PRIORITY_LABEL_PT } from '@/utils/initiativeStatus';
 import { Button } from '@/components/ui/button';
 import { Edit, Archive } from 'lucide-react';
 import { useSortable } from '@dnd-kit/sortable';
@@ -60,8 +61,8 @@ export const TaskCard = ({ task, onEdit, onArchive }: TaskCardProps) => {
       <CardContent className="p-4">
         <div className="flex items-start justify-between mb-2">
           <div className="flex gap-2">
-            <Badge className={typeColors[task.task_type]}>{task.task_type}</Badge>
-            <Badge className={priorityColors[task.priority]}>{task.priority}</Badge>
+            <Badge className={typeColors[task.task_type]}>{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</Badge>
+            <Badge className={priorityColors[task.priority]}>{PRIORITY_LABEL_PT[task.priority] ?? task.priority}</Badge>
           </div>
           <div className="flex gap-1">
             <Button

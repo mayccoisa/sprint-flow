@@ -22,8 +22,20 @@ import {
     DropdownMenuCheckboxItem,
     DropdownMenuItem,
 } from '@/components/ui/dropdown-menu';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover';
+import { InitiativesDashboard } from '@/components/initiatives/InitiativesDashboard';
 import { useTranslation } from 'react-i18next';
-import { Lightbulb, Search, Plus, SlidersHorizontal, MoreHorizontal, Pencil, Trash2, X } from 'lucide-react';
+import { Lightbulb, Search, Plus, SlidersHorizontal, MoreHorizontal, Pencil, Trash2, X, User as UserIcon, BarChart3, List as ListIcon, Filter } from 'lucide-react';
+import { TYPE_DOT, STATUS_ORDER, TYPE_LABEL_PT } from '@/utils/initiativeStatus';
+import type { TaskStatus, TaskType, TaskPriority } from '@/types';
 import { Button } from '@/components/ui/button';
 import { InitiativeTypeSelectionDialog } from '@/components/InitiativeTypeSelectionDialog';
 import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
@@ -34,37 +46,15 @@ import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getTaskScore } from '@/utils/prioritization';
 
-const PRIORITY_DOT: Record<string, string> = {
-    High: 'bg-rose-500',
-    Medium: 'bg-amber-500',
-    Low: 'bg-slate-400',
-};
-
-const PRIORITY_LABEL_PT: Record<string, string> = {
-    High: 'Alta',
-    Medium: 'Média',
-    Low: 'Baixa',
-};
-
-const STATUS_STYLES: Record<string, string> = {
-    Discovery: 'bg-violet-50 text-violet-700 ring-violet-200',
-    Refinement: 'bg-blue-50 text-blue-700 ring-blue-200',
-    ReadyForEng: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-    Backlog: 'bg-slate-50 text-slate-700 ring-slate-200',
-    InSprint: 'bg-amber-50 text-amber-700 ring-amber-200',
-    Review: 'bg-indigo-50 text-indigo-700 ring-indigo-200',
-    Done: 'bg-emerald-50 text-emerald-800 ring-emerald-200',
-};
-
-const STATUS_DOT: Record<string, string> = {
-    Discovery: 'bg-violet-500',
-    Refinement: 'bg-blue-500',
-    ReadyForEng: 'bg-emerald-500',
-    Backlog: 'bg-slate-400',
-    InSprint: 'bg-amber-500',
-    Review: 'bg-indigo-500',
-    Done: 'bg-emerald-600',
-};
+import {
+    PRIORITY_DOT,
+    PRIORITY_LABEL_PT,
+    STATUS_DOT,
+    STATUS_STYLES,
+    STATUS_LABEL_PT,
+    PRODUCT_PHASE_STATUSES,
+    ENG_PHASE_STATUSES,
+} from '@/utils/initiativeStatus';
 
 type ColumnKey =
     | 'type' | 'priority' | 'phase' | 'status' | 'created' | 'effort'
@@ -148,6 +138,45 @@ const InitiativesOverview = () => {
     const navigate = useNavigate();
     const { data, loading, addTask, updateTask, deleteTask } = useLocalData() as any;
     const [searchQuery, setSearchQuery] = useState('');
+    const [requesterFilter, setRequesterFilter] = useState<string>(() => {
+        try {
+            return sessionStorage.getItem('initiatives.requesterFilter') ?? 'all';
+        } catch {
+            return 'all';
+        }
+    });
+    const [statusFilter, setStatusFilter] = useState<TaskStatus[]>(() => {
+        try {
+            const raw = sessionStorage.getItem('initiatives.statusFilter');
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [typeFilter, setTypeFilter] = useState<TaskType[]>(() => {
+        try {
+            const raw = sessionStorage.getItem('initiatives.typeFilter');
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [priorityFilter, setPriorityFilter] = useState<TaskPriority[]>(() => {
+        try {
+            const raw = sessionStorage.getItem('initiatives.priorityFilter');
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    });
+    const [activeTab, setActiveTab] = useState<'list' | 'dashboard'>(() => {
+        try {
+            const v = sessionStorage.getItem('initiatives.activeTab');
+            return v === 'dashboard' ? 'dashboard' : 'list';
+        } catch {
+            return 'list';
+        }
+    });
     const [isSelectionOpen, setIsSelectionOpen] = useState(false);
     const [isProductFormOpen, setIsProductFormOpen] = useState(false);
     const [isEngFormOpen, setIsEngFormOpen] = useState(false);
@@ -165,11 +194,62 @@ const InitiativesOverview = () => {
         }
     }, [visibleColumns]);
 
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('initiatives.requesterFilter', requesterFilter);
+        } catch {
+            // sessionStorage unavailable; ignore.
+        }
+    }, [requesterFilter]);
+
+    useEffect(() => {
+        try {
+            sessionStorage.setItem('initiatives.activeTab', activeTab);
+        } catch {
+            // sessionStorage unavailable; ignore.
+        }
+    }, [activeTab]);
+
+    useEffect(() => {
+        try { sessionStorage.setItem('initiatives.statusFilter', JSON.stringify(statusFilter)); } catch { /* ignore */ }
+    }, [statusFilter]);
+    useEffect(() => {
+        try { sessionStorage.setItem('initiatives.typeFilter', JSON.stringify(typeFilter)); } catch { /* ignore */ }
+    }, [typeFilter]);
+    useEffect(() => {
+        try { sessionStorage.setItem('initiatives.priorityFilter', JSON.stringify(priorityFilter)); } catch { /* ignore */ }
+    }, [priorityFilter]);
+
+    const activeFilterCount =
+        (requesterFilter !== 'all' ? 1 : 0) +
+        (statusFilter.length > 0 ? 1 : 0) +
+        (typeFilter.length > 0 ? 1 : 0) +
+        (priorityFilter.length > 0 ? 1 : 0);
+
+    const toggleInArray = <T,>(arr: T[], value: T): T[] =>
+        arr.includes(value) ? arr.filter((x) => x !== value) : [...arr, value];
+
+    const clearAllFilters = () => {
+        setStatusFilter([]);
+        setTypeFilter([]);
+        setPriorityFilter([]);
+        setRequesterFilter('all');
+    };
+
     const allInitiatives = useMemo(() => {
-        return data.tasks.filter((t: any) =>
-            t.title.toLowerCase().includes(searchQuery.toLowerCase())
-        ).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [data.tasks, searchQuery]);
+        return data.tasks.filter((t: any) => {
+            if (!t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
+            if (requesterFilter === '__none__') {
+                if (t.requester_id) return false;
+            } else if (requesterFilter !== 'all' && t.requester_id !== requesterFilter) {
+                return false;
+            }
+            if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
+            if (typeFilter.length > 0 && !typeFilter.includes(t.task_type)) return false;
+            if (priorityFilter.length > 0 && !priorityFilter.includes(t.priority)) return false;
+            return true;
+        }).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    }, [data.tasks, searchQuery, requesterFilter, statusFilter, typeFilter, priorityFilter]);
 
     // Drop selection ids that no longer match the filtered list.
     useEffect(() => {
@@ -185,8 +265,8 @@ const InitiativesOverview = () => {
     }, [allInitiatives, selectedIds]);
 
     const getPhase = (status: string) => {
-        if (['Discovery', 'Refinement', 'ReadyForEng'].includes(status)) return t('initiatives.phases.product');
-        if (['Backlog', 'InSprint', 'Review', 'Done'].includes(status)) return t('initiatives.phases.engineering');
+        if ((PRODUCT_PHASE_STATUSES as string[]).includes(status)) return t('initiatives.phases.product');
+        if ((ENG_PHASE_STATUSES as string[]).includes(status)) return t('initiatives.phases.engineering');
         return t('initiatives.phases.archived');
     };
 
@@ -267,33 +347,116 @@ const InitiativesOverview = () => {
         if (task) openEditor(task);
     };
 
+    const handleBulkSetRequester = async (requesterId: string | null) => {
+        const ids = Array.from(selectedIds);
+        await Promise.all(ids.map((id) => updateTask(id, { requester_id: requesterId } as any)));
+        const userName = requesterId
+            ? ((data.users as any[]) ?? []).find((u: any) => u.id === requesterId)?.name
+                ?? ((data.users as any[]) ?? []).find((u: any) => u.id === requesterId)?.email
+                ?? '—'
+            : t('initiatives.noRequester', 'Sem solicitante');
+        setSelectedIds(new Set());
+        toast({
+            title: t('initiatives.bulkRequesterApplied', 'Solicitante atualizado'),
+            description: `${ids.length} iniciativa(s) → ${userName}`,
+        });
+    };
+
     const renderColumnLabel = (def: ColumnDef) => t(def.i18nKey, def.defaultLabel);
 
     const renderCell = (def: ColumnDef, task: any) => {
         switch (def.key) {
             case 'type':
-                return <span className="text-sm text-muted-foreground">{task.task_type}</span>;
+                return (
+                    <span data-row-control onClick={(e) => e.stopPropagation()}>
+                        <Select
+                            value={task.task_type}
+                            onValueChange={(v) => updateTask(task.id, { task_type: v } as any)}
+                        >
+                            <SelectTrigger className="h-7 px-2 border-transparent hover:border-input focus:border-input bg-transparent text-sm w-auto min-w-[110px] gap-1.5">
+                                <span className="inline-flex items-center gap-2">
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', TYPE_DOT[task.task_type] ?? 'bg-slate-400')} />
+                                    {TYPE_LABEL_PT[task.task_type] ?? task.task_type}
+                                </span>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {([
+                                    ['Feature', TYPE_LABEL_PT.Feature],
+                                    ['Improvement', TYPE_LABEL_PT.Improvement],
+                                    ['Bug', TYPE_LABEL_PT.Bug],
+                                    ['Deployment', TYPE_LABEL_PT.Deployment],
+                                    ['TechDebt', TYPE_LABEL_PT.TechDebt],
+                                    ['Spike', TYPE_LABEL_PT.Spike],
+                                ] as [string, string][]).map(([value, label]) => (
+                                    <SelectItem key={value} value={value}>
+                                        <span className="inline-flex items-center gap-2">
+                                            <span className={cn('h-2 w-2 rounded-full', TYPE_DOT[value] ?? 'bg-slate-400')} />
+                                            {label}
+                                        </span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </span>
+                );
             case 'priority':
                 return (
-                    <span className="inline-flex items-center gap-2 text-sm text-foreground">
-                        <span className={cn('h-1.5 w-1.5 rounded-full', PRIORITY_DOT[task.priority] ?? 'bg-slate-300')} />
-                        {PRIORITY_LABEL_PT[task.priority] ?? task.priority}
+                    <span data-row-control onClick={(e) => e.stopPropagation()}>
+                        <Select
+                            value={task.priority}
+                            onValueChange={(v) => updateTask(task.id, { priority: v } as any)}
+                        >
+                            <SelectTrigger className="h-7 px-2 border-transparent hover:border-input focus:border-input bg-transparent text-sm w-auto min-w-[90px] gap-1.5">
+                                <span className="inline-flex items-center gap-2">
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', PRIORITY_DOT[task.priority] ?? 'bg-slate-300')} />
+                                    {PRIORITY_LABEL_PT[task.priority] ?? task.priority}
+                                </span>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {(['High', 'Medium', 'Low'] as const).map((p) => (
+                                    <SelectItem key={p} value={p}>
+                                        <span className="inline-flex items-center gap-2">
+                                            <span className={cn('h-2 w-2 rounded-full', PRIORITY_DOT[p] ?? 'bg-slate-400')} />
+                                            {PRIORITY_LABEL_PT[p] ?? p}
+                                        </span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </span>
                 );
             case 'phase':
                 return <span className="text-sm text-muted-foreground">{getPhase(task.status)}</span>;
             case 'status':
                 return (
-                    <Badge
-                        variant="outline"
-                        className={cn(
-                            'font-medium border-0 ring-1 px-2 py-0.5 text-[11px] inline-flex items-center gap-1.5',
-                            STATUS_STYLES[task.status] ?? 'bg-slate-50 text-slate-700 ring-slate-200'
-                        )}
-                    >
-                        <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[task.status] ?? 'bg-slate-400')} />
-                        {task.status}
-                    </Badge>
+                    <span data-row-control onClick={(e) => e.stopPropagation()}>
+                        <Select
+                            value={task.status}
+                            onValueChange={(v) => updateTask(task.id, { status: v } as any)}
+                        >
+                            <SelectTrigger
+                                className={cn(
+                                    'h-7 px-2 border-transparent hover:opacity-80 focus:border-input text-[11px] font-medium ring-1 w-auto min-w-[120px] gap-1.5',
+                                    STATUS_STYLES[task.status] ?? 'bg-slate-50 text-slate-700 ring-slate-200',
+                                )}
+                            >
+                                <span className="inline-flex items-center gap-1.5">
+                                    <span className={cn('h-1.5 w-1.5 rounded-full', STATUS_DOT[task.status] ?? 'bg-slate-400')} />
+                                    {STATUS_LABEL_PT[task.status] ?? task.status}
+                                </span>
+                            </SelectTrigger>
+                            <SelectContent>
+                                {STATUS_ORDER.map((s) => (
+                                    <SelectItem key={s} value={s}>
+                                        <span className="inline-flex items-center gap-2">
+                                            <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s] ?? 'bg-slate-400')} />
+                                            {STATUS_LABEL_PT[s] ?? s}
+                                        </span>
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </span>
                 );
             case 'created':
                 return (
@@ -342,6 +505,7 @@ const InitiativesOverview = () => {
                     </Button>
                 </header>
 
+                <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'list' | 'dashboard')}>
                 <div className="flex items-center gap-3">
                     <div className="relative flex-1 max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
@@ -352,6 +516,121 @@ const InitiativesOverview = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
+                    <Select value={requesterFilter} onValueChange={setRequesterFilter}>
+                        <SelectTrigger className="h-9 w-56">
+                            <SelectValue placeholder={t('initiatives.filterByRequester', 'Solicitante')} />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">
+                                {t('initiatives.allRequesters', 'Todos os solicitantes')}
+                            </SelectItem>
+                            <SelectItem value="__none__">
+                                {t('initiatives.noRequester', 'Sem solicitante')}
+                            </SelectItem>
+                            {(((data.users as any[]) ?? [])
+                                .slice()
+                                .sort((a: any, b: any) => (a.name ?? a.email).localeCompare(b.name ?? b.email))
+                            ).map((u: any) => (
+                                <SelectItem key={u.id} value={u.id}>
+                                    {u.name ?? u.email}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <Button variant="outline" size="sm" className="gap-1.5 h-9">
+                                <Filter className="h-3.5 w-3.5" />
+                                {t('initiatives.filters', 'Filtros')}
+                                {activeFilterCount > 0 && (
+                                    <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] tabular-nums">
+                                        {activeFilterCount}
+                                    </Badge>
+                                )}
+                            </Button>
+                        </PopoverTrigger>
+                        <PopoverContent align="end" className="w-72 p-0">
+                            <div className="flex items-center justify-between px-3 py-2 border-b">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                    {t('initiatives.filters', 'Filtros')}
+                                </span>
+                                {activeFilterCount > 0 && (
+                                    <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        className="h-6 px-2 text-xs"
+                                        onClick={clearAllFilters}
+                                    >
+                                        {t('common.clearAll', 'Limpar')}
+                                    </Button>
+                                )}
+                            </div>
+                            <div className="max-h-[60vh] overflow-y-auto p-3 space-y-4">
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                                        {t('initiatives.table.status', 'Status')}
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {STATUS_ORDER.map((s) => (
+                                            <label key={s} className="flex items-center gap-2 cursor-pointer">
+                                                <Checkbox
+                                                    checked={statusFilter.includes(s)}
+                                                    onCheckedChange={() => setStatusFilter((prev) => toggleInArray(prev, s))}
+                                                />
+                                                <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s] ?? 'bg-slate-400')} />
+                                                <span className="text-sm">{STATUS_LABEL_PT[s] ?? s}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                                        {t('initiatives.table.type', 'Tipo')}
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {([
+                                            ['Feature', 'Feature'],
+                                            ['Improvement', 'Melhoria'],
+                                            ['Bug', 'Bug'],
+                                            ['Deployment', 'Implantação'],
+                                            ['TechDebt', 'Tech Debt'],
+                                            ['Spike', 'Spike'],
+                                        ] as [TaskType, string][]).map(([value, label]) => (
+                                            <label key={value} className="flex items-center gap-2 cursor-pointer">
+                                                <Checkbox
+                                                    checked={typeFilter.includes(value)}
+                                                    onCheckedChange={() => setTypeFilter((prev) => toggleInArray(prev, value))}
+                                                />
+                                                <span className={cn('h-2 w-2 rounded-full', TYPE_DOT[value] ?? 'bg-slate-400')} />
+                                                <span className="text-sm">{label}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                                        {t('initiatives.table.priority', 'Prioridade')}
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        {(['High', 'Medium', 'Low'] as TaskPriority[]).map((p) => (
+                                            <label key={p} className="flex items-center gap-2 cursor-pointer">
+                                                <Checkbox
+                                                    checked={priorityFilter.includes(p)}
+                                                    onCheckedChange={() => setPriorityFilter((prev) => toggleInArray(prev, p))}
+                                                />
+                                                <span className={cn('h-2 w-2 rounded-full', PRIORITY_DOT[p] ?? 'bg-slate-400')} />
+                                                <span className="text-sm">{PRIORITY_LABEL_PT[p] ?? p}</span>
+                                            </label>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        </PopoverContent>
+                    </Popover>
+
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5 h-9">
@@ -391,7 +670,31 @@ const InitiativesOverview = () => {
                     <span className="text-xs text-muted-foreground tabular-nums">
                         {allInitiatives.length} {allInitiatives.length === 1 ? 'item' : 'itens'}
                     </span>
+                    <TabsList className="ml-auto">
+                        <TabsTrigger value="list" className="gap-1.5">
+                            <ListIcon className="h-3.5 w-3.5" />
+                            {t('initiatives.tabs.list', 'Lista')}
+                        </TabsTrigger>
+                        <TabsTrigger value="dashboard" className="gap-1.5">
+                            <BarChart3 className="h-3.5 w-3.5" />
+                            {t('initiatives.tabs.dashboard', 'Dashboard')}
+                        </TabsTrigger>
+                    </TabsList>
                 </div>
+
+                    <TabsContent value="dashboard" className="pt-4">
+                        <InitiativesDashboard
+                            tasks={allInitiatives}
+                            users={(data.users as any[]) ?? []}
+                            auditLogs={(data.taskAuditLogs as any[]) ?? []}
+                            onFocusNoRequester={() => {
+                                setRequesterFilter('__none__');
+                                setActiveTab('list');
+                            }}
+                        />
+                    </TabsContent>
+
+                    <TabsContent value="list" className="pt-4">
 
                 {allInitiatives.length === 0 ? (
                     <EmptyState
@@ -443,10 +746,9 @@ const InitiativesOverview = () => {
                                     return (
                                         <TableRow
                                             key={task.id}
-                                            onClick={(e) => handleRowClick(task, e)}
                                             data-state={isSelected ? 'selected' : undefined}
                                             className={cn(
-                                                'cursor-pointer border-border/40 transition-colors hover:bg-muted/40 relative',
+                                                'border-border/40 transition-colors hover:bg-muted/40 relative',
                                                 isSelected && 'bg-primary/5 hover:bg-primary/10'
                                             )}
                                         >
@@ -463,14 +765,18 @@ const InitiativesOverview = () => {
                                                 </span>
                                             </TableCell>
                                             <TableCell className="py-3">
-                                                <div className="flex flex-col gap-0.5 min-w-0">
-                                                    <span className="text-sm font-medium text-foreground line-clamp-1">{task.title}</span>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => openEditor(task)}
+                                                    className="flex flex-col gap-0.5 min-w-0 text-left cursor-pointer group"
+                                                >
+                                                    <span className="text-sm font-medium text-foreground line-clamp-1 group-hover:underline">{task.title}</span>
                                                     {task.product_objective && (
                                                         <span className="text-xs text-muted-foreground line-clamp-1 max-w-[480px]">
                                                             {task.product_objective}
                                                         </span>
                                                     )}
-                                                </div>
+                                                </button>
                                             </TableCell>
                                             {visibleColumnDefs.map((def) => (
                                                 <TableCell
@@ -526,6 +832,8 @@ const InitiativesOverview = () => {
                         </Table>
                     </div>
                 )}
+                    </TabsContent>
+                </Tabs>
 
                 <InitiativeTypeSelectionDialog
                     open={isSelectionOpen}
@@ -548,7 +856,7 @@ const InitiativesOverview = () => {
                 />
             </div>
 
-            {selectedIds.size > 0 && (
+            {activeTab === 'list' && selectedIds.size > 0 && (
                 <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 rounded-full bg-slate-900 text-white shadow-2xl shadow-slate-900/30 pl-2 pr-2 py-2">
                     <Button
                         variant="ghost"
@@ -579,6 +887,40 @@ const InitiativesOverview = () => {
                             {t('common.edit', 'Editar')}
                         </Button>
                     )}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 rounded-full text-slate-100 hover:text-white hover:bg-white/10 gap-1.5"
+                            >
+                                <UserIcon className="h-3.5 w-3.5" />
+                                {t('initiatives.bulkSetRequester', 'Definir solicitante')}
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end" className="w-64 max-h-[60vh] overflow-y-auto">
+                            <DropdownMenuLabel>
+                                {t('initiatives.bulkSetRequesterLabel', 'Vincular a um usuário')}
+                            </DropdownMenuLabel>
+                            <DropdownMenuItem onSelect={() => handleBulkSetRequester(null)}>
+                                <span className="text-muted-foreground">
+                                    {t('initiatives.noRequester', 'Sem solicitante')}
+                                </span>
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {(((data.users as any[]) ?? [])
+                                .slice()
+                                .sort((a: any, b: any) => (a.name ?? a.email).localeCompare(b.name ?? b.email))
+                            ).map((u: any) => (
+                                <DropdownMenuItem
+                                    key={u.id}
+                                    onSelect={() => handleBulkSetRequester(u.id)}
+                                >
+                                    {u.name ?? u.email}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
                     <Button
                         variant="ghost"
                         size="sm"

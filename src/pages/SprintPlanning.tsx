@@ -35,8 +35,9 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { useLocalData } from '@/hooks/useLocalData';
 import { Task, Sprint, Squad, TeamMember } from '@/types';
+import { STATUS_LABEL_PT, TYPE_LABEL_PT } from '@/utils/initiativeStatus';
 import { format } from 'date-fns';
-import { GripVertical, CheckCircle } from 'lucide-react';
+import { GripVertical, CheckCircle, ExternalLink } from 'lucide-react';
 import {
   DndContext,
   DragEndEvent,
@@ -650,6 +651,8 @@ const BacklogTaskCard = ({
 
   const statusColors: Record<string, string> = {
     Discovery: 'bg-purple-100 text-purple-800 border-purple-200',
+    ProductBacklog: 'bg-fuchsia-100 text-fuchsia-800 border-fuchsia-200',
+    Prototyping: 'bg-pink-100 text-pink-800 border-pink-200',
     Refinement: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     ReadyForEng: 'bg-teal-100 text-teal-800 border-teal-200',
     Backlog: 'bg-slate-100 text-slate-800 border-slate-200',
@@ -659,16 +662,7 @@ const BacklogTaskCard = ({
     Archived: 'bg-gray-200 text-gray-700 border-gray-300',
   };
 
-  const statusLabels: Record<string, string> = {
-    Discovery: 'Discovery',
-    Refinement: 'Refinement',
-    ReadyForEng: 'Ready Eng',
-    Backlog: 'Backlog',
-    InSprint: 'Em Sprint',
-    Review: 'Review',
-    Done: 'Done',
-    Archived: 'Arquivado',
-  };
+  const statusLabels = STATUS_LABEL_PT;
 
   const total =
     (task.estimate_frontend || 0) +
@@ -685,14 +679,27 @@ const BacklogTaskCard = ({
       <div className="flex items-start gap-1.5">
         <GripVertical className="h-3.5 w-3.5 text-muted-foreground mt-0.5 flex-shrink-0" />
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium leading-snug mb-1.5 line-clamp-2">
-            {task.title}
-          </p>
+          <div className="flex items-start gap-1 mb-1.5">
+            <p className="text-xs font-medium leading-snug line-clamp-2 flex-1">
+              {task.title}
+            </p>
+            <a
+              href={`/initiatives/${task.id}`}
+              target="_blank"
+              rel="noreferrer"
+              onClick={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              className="text-muted-foreground hover:text-foreground shrink-0"
+              title="Abrir iniciativa em nova aba"
+            >
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
           <div className="flex flex-wrap items-center gap-1">
             <Badge
               className={`text-[10px] py-0 px-1.5 ${typeColors[task.task_type] || ''}`}
             >
-              {task.task_type}
+              {TYPE_LABEL_PT[task.task_type] ?? task.task_type}
             </Badge>
             <Badge
               className={`text-[10px] py-0 px-1.5 ${priorityColors[task.priority] || ''}`}

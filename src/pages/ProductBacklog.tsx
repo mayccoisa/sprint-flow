@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +8,8 @@ import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
 import { GenerateShapeUpDialog } from '@/components/ai/GenerateShapeUpDialog';
 import { useLocalData } from '@/hooks/useLocalData';
 import { Task, TaskStatus } from '@/types';
-import { Plus, ArrowRight, Target, Users, MoreHorizontal, BarChart2, LayoutList, Columns, RefreshCw } from 'lucide-react';
+import { Plus, ArrowRight, Target, Users, MoreHorizontal, BarChart2, LayoutList, Columns, RefreshCw, Search, Lightbulb, FileCheck2, Sparkles, ListChecks } from 'lucide-react';
+import { TYPE_LABEL_PT, PRIORITY_LABEL_PT } from '@/utils/initiativeStatus';
 import {
     Table,
     TableBody,
@@ -51,6 +53,7 @@ import {
     defaultDropAnimationSideEffects,
     DragStartEvent,
     DragEndEvent,
+    useDroppable,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -64,7 +67,22 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { TaskDateChangeDialog } from '@/components/TaskDateChangeDialog';
 
 // Sortable Item Component
-const SortableTaskCard = ({ 
+const DroppableColumn = ({ id, children }: { id: TaskStatus; children: React.ReactNode }) => {
+    const { setNodeRef, isOver } = useDroppable({ id });
+    return (
+        <div
+            ref={setNodeRef}
+            className={cn(
+                'flex-1 overflow-y-auto min-h-[150px] rounded-md transition-colors',
+                isOver && 'ring-2 ring-primary/40',
+            )}
+        >
+            {children}
+        </div>
+    );
+};
+
+const SortableTaskCard = ({
     task, 
     onClick, 
     onPromote, 
@@ -118,7 +136,7 @@ const SortableTaskCard = ({
                             </DropdownMenuTrigger>
                             <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
                                 <DropdownMenuItem onClick={onClick}>{t('common.edit')}</DropdownMenuItem>
-                                {['Discovery', 'Refinement'].includes(task.status) && (
+                                {['Discovery', 'ProductBacklog', 'Prototyping', 'Refinement'].includes(task.status) && (
                                     <DropdownMenuItem onClick={onShapeUp} className="text-violet-600">✨ Shape Up (AI)</DropdownMenuItem>
                                 )}
                                 {task.status === 'ReadyForEng' && (
@@ -129,8 +147,8 @@ const SortableTaskCard = ({
                     </div>
 
                     <div className="flex flex-wrap gap-1.5 text-xs">
-                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-5">{task.task_type}</Badge>
-                        <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-5">{task.priority}</Badge>
+                        <Badge variant="outline" className="text-[10px] py-0 px-1.5 h-5">{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</Badge>
+                        <Badge variant="secondary" className="text-[10px] py-0 px-1.5 h-5">{PRIORITY_LABEL_PT[task.priority] ?? task.priority}</Badge>
                         <Badge className="bg-indigo-50 text-indigo-700 border-indigo-200 text-[10px] py-0 px-1.5 h-5">
                             {activeModel}: {score.toFixed(1)}
                         </Badge>
@@ -153,6 +171,7 @@ const SortableTaskCard = ({
 
 const ProductBacklog = () => {
     const { t } = useTranslation();
+    const navigate = useNavigate();
     const { data, loading, addTask, updateTask, syncWithJira, addTaskDateChange } = useLocalData() as any;
     const [isSyncing, setIsSyncing] = useState(false);
     const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -175,14 +194,29 @@ const ProductBacklog = () => {
     );
 
     const columns: { id: TaskStatus; title: string; color: string }[] = [
-        { id: 'Discovery', title: 'Discovery', color: 'bg-purple-50 border-purple-100' },
-        { id: 'Refinement', title: 'Refinement', color: 'bg-blue-50 border-blue-100' },
-        { id: 'ReadyForEng', title: 'Ready for Eng', color: 'bg-green-50 border-green-100' },
+        { id: 'ProductBacklog', title: t('productBacklog.columns.productBacklog', 'Backlog de Produto'), color: 'bg-fuchsia-50 border-fuchsia-100' },
+        { id: 'Refinement', title: t('productBacklog.columns.refinement', 'Refinamento'), color: 'bg-blue-50 border-blue-100' },
+        { id: 'Discovery', title: t('productBacklog.columns.discovery', 'Discovery'), color: 'bg-purple-50 border-purple-100' },
+        { id: 'Prototyping', title: t('productBacklog.columns.prototyping', 'Prototipação'), color: 'bg-pink-50 border-pink-100' },
+        { id: 'ReadyForEng', title: t('productBacklog.columns.readyForEng', 'Documentado'), color: 'bg-green-50 border-green-100' },
     ];
 
+    const productTasks = useMemo(() =>
+        data.tasks.filter((t: Task) =>
+            ['Discovery', 'ProductBacklog', 'Prototyping', 'Refinement', 'ReadyForEng'].includes(t.status),
+        ),
+    [data.tasks]);
+
+    const stats = useMemo(() => {
+        const total = productTasks.length;
+        const inProductBacklog = productTasks.filter((t: Task) => t.status === 'ProductBacklog').length;
+        const inRefinement = productTasks.filter((t: Task) => t.status === 'Refinement').length;
+        const ready = productTasks.filter((t: Task) => t.status === 'ReadyForEng').length;
+        return { total, inProductBacklog, inRefinement, ready };
+    }, [productTasks]);
+
     const tasks = useMemo(() => {
-        return data.tasks.filter(t =>
-            ['Discovery', 'Refinement', 'ReadyForEng'].includes(t.status) &&
+        return productTasks.filter((t: Task) =>
             t.title.toLowerCase().includes(searchQuery.toLowerCase())
         ).sort((a, b) => {
             const scoreA = getTaskScore(a, activeModel);
@@ -194,7 +228,7 @@ const ProductBacklog = () => {
 
             return a.order_index - b.order_index;
         });
-    }, [data.tasks, searchQuery, activeModel]);
+    }, [productTasks, searchQuery, activeModel]);
 
     const getModelFields = () => {
         switch (activeModel) {
@@ -372,12 +406,6 @@ const ProductBacklog = () => {
                                     </SelectContent>
                                 </Select>
                             </div>
-                            <Input
-                                placeholder={t('productBacklog.searchPlaceholder')}
-                                value={searchQuery}
-                                onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-[200px]"
-                            />
                             <Button variant="outline" onClick={handleJiraSync} disabled={isSyncing}>
                                 <RefreshCw className={cn("mr-2 h-4 w-4", isSyncing && "animate-spin")} />
                                 Sincronizar Jira
@@ -390,6 +418,59 @@ const ProductBacklog = () => {
                     </div>
                 </div>
 
+                {/* Statistics Cards (compactos) */}
+                <div className="grid gap-3 grid-cols-2 lg:grid-cols-4 shrink-0">
+                    <Card>
+                        <CardContent className="p-3 flex items-center justify-between">
+                            <div>
+                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.total', 'Total em produto')}</p>
+                                <p className="text-lg font-semibold tabular-nums">{stats.total}</p>
+                            </div>
+                            <ListChecks className="h-4 w-4 text-muted-foreground" />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-3 flex items-center justify-between">
+                            <div>
+                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.productBacklog', 'Backlog de Produto')}</p>
+                                <p className="text-lg font-semibold tabular-nums">{stats.inProductBacklog}</p>
+                            </div>
+                            <Lightbulb className="h-4 w-4 text-muted-foreground" />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-3 flex items-center justify-between">
+                            <div>
+                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.inRefinement', 'Em refinamento')}</p>
+                                <p className="text-lg font-semibold tabular-nums">{stats.inRefinement}</p>
+                            </div>
+                            <Sparkles className="h-4 w-4 text-muted-foreground" />
+                        </CardContent>
+                    </Card>
+                    <Card>
+                        <CardContent className="p-3 flex items-center justify-between">
+                            <div>
+                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.documented', 'Documentado')}</p>
+                                <p className="text-lg font-semibold tabular-nums">{stats.ready}</p>
+                            </div>
+                            <FileCheck2 className="h-4 w-4 text-muted-foreground" />
+                        </CardContent>
+                    </Card>
+                </div>
+
+                {/* Search bar */}
+                <div className="flex items-center space-x-2 shrink-0">
+                    <div className="relative flex-1 max-w-sm">
+                        <Search className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                            placeholder={t('productBacklog.searchPlaceholder')}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            className="pl-8"
+                        />
+                    </div>
+                </div>
+
                 {viewMode === 'kanban' ? (
                     <DndContext
                         sensors={sensors}
@@ -397,40 +478,42 @@ const ProductBacklog = () => {
                         onDragStart={handleDragStart}
                         onDragEnd={handleDragEnd}
                     >
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 h-full overflow-hidden pb-4">
+                        <div className="flex gap-4 h-full overflow-x-auto overflow-y-hidden pb-4">
                             {columns.map((col) => {
                                 const colTasks = tasks.filter(t => t.status === col.id);
                                 return (
-                                    <div key={col.id} className={cn("rounded-lg flex flex-col h-full max-h-screen", col.color)}>
+                                    <div key={col.id} className={cn("rounded-lg flex flex-col h-full w-[280px] flex-shrink-0", col.color)}>
                                         <div className="p-3 font-semibold border-b border-black/5 flex justify-between items-center bg-white/50 rounded-t-lg">
                                             <span className="flex items-center gap-2">
-                                                {t(`productBacklog.columns.${col.id === 'ReadyForEng' ? 'readyForEng' : col.id.toLowerCase()}`)}
+                                                {col.title}
                                                 <Badge variant="outline" className="ml-1 bg-white/50">{colTasks.length}</Badge>
                                             </span>
                                         </div>
-                                        <CardContent className="p-3 flex-1 overflow-y-auto min-h-[150px]">
-                                            <SortableContext
-                                                id={col.id}
-                                                items={colTasks.map(t => t.id)}
-                                                strategy={verticalListSortingStrategy}
-                                            >
-                                                {colTasks.map(task => (
-                                                    <SortableTaskCard
-                                                        key={task.id}
-                                                        task={task}
-                                                        activeModel={activeModel}
-                                                        onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}
-                                                        onPromote={() => setPromoteTaskId(task.id)}
-                                                        onShapeUp={() => setShapeUpTask(task)}
-                                                    />
-                                                ))}
-                                                {colTasks.length === 0 && (
-                                                    <div className="text-center py-8 text-black/20 text-sm dashed border-2 border-black/5 rounded-md">
-                                                        {t('engineeringBacklog.dragDrop')}
-                                                    </div>
-                                                )}
-                                            </SortableContext>
-                                        </CardContent>
+                                        <DroppableColumn id={col.id}>
+                                            <div className="p-3">
+                                                <SortableContext
+                                                    id={col.id}
+                                                    items={colTasks.map(t => t.id)}
+                                                    strategy={verticalListSortingStrategy}
+                                                >
+                                                    {colTasks.map(task => (
+                                                        <SortableTaskCard
+                                                            key={task.id}
+                                                            task={task}
+                                                            activeModel={activeModel}
+                                                            onClick={() => navigate(`/initiatives/${task.id}`)}
+                                                            onPromote={() => setPromoteTaskId(task.id)}
+                                                            onShapeUp={() => setShapeUpTask(task)}
+                                                        />
+                                                    ))}
+                                                    {colTasks.length === 0 && (
+                                                        <div className="text-center py-8 text-black/20 text-sm dashed border-2 border-black/5 rounded-md">
+                                                            {t('engineeringBacklog.dragDrop')}
+                                                        </div>
+                                                    )}
+                                                </SortableContext>
+                                            </div>
+                                        </DroppableColumn>
                                         {col.id === 'ReadyForEng' && colTasks.length > 0 && (
                                             <div className="p-2 border-t border-black/5 bg-white/30 rounded-b-lg">
                                                 <p className="text-xs text-center text-muted-foreground">{t('productBacklog.readyMsg')}</p>
@@ -486,14 +569,14 @@ const ProductBacklog = () => {
                                                 </TableCell>
                                                 <TableCell>
                                                     <Badge className={cn("font-normal border-none", statusColor.replace('bg-', 'bg-').replace('border-', 'text-').replace('50', '200').replace('100', '700'))}>
-                                                        {t(`productBacklog.columns.${task.status === 'ReadyForEng' ? 'readyForEng' : task.status.toLowerCase()}`)}
+                                                        {columns.find(c => c.id === task.status)?.title ?? task.status}
                                                     </Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <Badge variant="outline" className="font-normal capitalize">{task.priority}</Badge>
+                                                    <Badge variant="outline" className="font-normal">{PRIORITY_LABEL_PT[task.priority] ?? task.priority}</Badge>
                                                 </TableCell>
                                                 <TableCell>
-                                                    <span className="text-sm text-muted-foreground capitalize">{task.task_type}</span>
+                                                    <span className="text-sm text-muted-foreground">{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</span>
                                                 </TableCell>
                                                 {modelFields.map(field => (
                                                     <TableCell key={field.key} className="text-center font-medium tabular-nums">
@@ -511,8 +594,8 @@ const ProductBacklog = () => {
                                                             <Button variant="ghost" size="icon" className="h-8 w-8"><MoreHorizontal className="h-4 w-4" /></Button>
                                                         </DropdownMenuTrigger>
                                                         <DropdownMenuContent align="end">
-                                                            <DropdownMenuItem onClick={() => { setEditingTask(task); setIsDialogOpen(true); }}>{t('common.edit')}</DropdownMenuItem>
-                                                            {['Discovery', 'Refinement'].includes(task.status) && (
+                                                            <DropdownMenuItem onClick={() => navigate(`/initiatives/${task.id}`)}>{t('common.edit')}</DropdownMenuItem>
+                                                            {['Discovery', 'ProductBacklog', 'Prototyping', 'Refinement'].includes(task.status) && (
                                                                 <DropdownMenuItem onClick={() => setShapeUpTask(task)} className="text-violet-600">✨ Shape Up (AI)</DropdownMenuItem>
                                                             )}
                                                             {task.status === 'ReadyForEng' && (
