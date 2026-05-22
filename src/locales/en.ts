@@ -120,7 +120,10 @@ export const en = {
             promote: "Promote to Engineering",
             promoteConfirmTitle: "Promote to Engineering Backlog?",
             promoteConfirmDesc: "This item will be moved to the 'Backlog' status and become visible to the engineering team.",
-            readyMsg: "Ready items can be promoted"
+            readyMsg: "Ready items can be promoted",
+            returnToProduct: "Return to Product Backlog",
+            returnConfirmTitle: "Return to Product Backlog?",
+            returnConfirmDesc: "This item will be moved back to 'Ready for Eng' in the Product Backlog."
         },
         engineeringBacklog: {
             title: "Engineering Backlog",

@@ -122,7 +122,10 @@ export const pt = {
             promote: "Promover p/ Engenharia",
             promoteConfirmTitle: "Promover para Backlog de Engenharia?",
             promoteConfirmDesc: "Este item será movido para o status 'Backlog' e ficará visível para a equipe de engenharia.",
-            readyMsg: "Itens prontos podem ser promovidos"
+            readyMsg: "Itens prontos podem ser promovidos",
+            returnToProduct: "Devolver p/ Backlog de Produto",
+            returnConfirmTitle: "Devolver para Backlog de Produto?",
+            returnConfirmDesc: "Este item voltará ao status 'Pronto p/ Eng' no Backlog de Produto."
         },
         engineeringBacklog: {
             title: "Backlog de Engenharia",

@@ -13,12 +13,23 @@ import {
   useDroppable,
   useDraggable,
 } from '@dnd-kit/core';
-import { Plus, Search, Filter, AlertCircle, CheckCircle2, Circle, Clock, RefreshCw } from 'lucide-react';
+import { Plus, Search, Filter, AlertCircle, CheckCircle2, Circle, Clock, RefreshCw, MoreHorizontal, Undo2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Task, TaskStatus, TaskPriority, TaskType } from '@/types';
 import { TaskFormDialog } from '@/components/TaskFormDialog';
@@ -60,50 +71,80 @@ const typeIcon = (type: TaskType) => {
 interface TaskCardProps {
   task: Task;
   onClick?: () => void;
+  onReturnToProduct?: () => void;
   isOverlay?: boolean;
 }
 
-const TaskCardContent = ({ task, onClick, isOverlay }: TaskCardProps) => (
-  <Card
-    onClick={onClick}
-    className={cn(
-      'cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group',
-      isOverlay && 'shadow-xl rotate-1'
-    )}
-  >
-    <CardHeader className="p-4 space-y-0 pb-2">
-      <div className="flex justify-between items-start gap-2">
-        <Badge variant="outline" className={cn('text-[10px] px-1 py-0 h-5', priorityColor(task.priority))}>
-          {task.priority}
-        </Badge>
-        {task.task_type && (
-          <div title={task.task_type}>{typeIcon(task.task_type)}</div>
-        )}
-      </div>
-      <CardTitle className="text-sm font-medium leading-tight mt-2 line-clamp-2">
-        {task.title}
-      </CardTitle>
-    </CardHeader>
-    <CardContent className="p-4 pt-2">
-      {task.description && (
-        <CardDescription className="line-clamp-2 text-xs mb-2">
-          {task.description}
-        </CardDescription>
+const TaskCardContent = ({ task, onClick, onReturnToProduct, isOverlay }: TaskCardProps) => {
+  const { t } = useTranslation();
+  return (
+    <Card
+      onClick={onClick}
+      className={cn(
+        'cursor-grab active:cursor-grabbing hover:shadow-md transition-shadow relative group',
+        isOverlay && 'shadow-xl rotate-1'
       )}
-      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50 text-xs text-muted-foreground">
-        <span>{task.id}</span>
-        {(task.estimate_frontend || task.estimate_backend || task.estimate_qa) && (
-          <span className="flex items-center gap-1">
-            <Circle className="h-3 w-3" />
-            {(task.estimate_frontend || 0) + (task.estimate_backend || 0) + (task.estimate_qa || 0)} pts
-          </span>
+    >
+      <CardHeader className="p-4 space-y-0 pb-2">
+        <div className="flex justify-between items-start gap-2">
+          <Badge variant="outline" className={cn('text-[10px] px-1 py-0 h-5', priorityColor(task.priority))}>
+            {task.priority}
+          </Badge>
+          <div className="flex items-center gap-1">
+            {task.task_type && (
+              <div title={task.task_type}>{typeIcon(task.task_type)}</div>
+            )}
+            {onReturnToProduct && task.status === 'Backlog' && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 -mr-1 shrink-0"
+                    onClick={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <MoreHorizontal className="h-3.5 w-3.5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenuItem
+                    onClick={(e) => { e.stopPropagation(); onReturnToProduct(); }}
+                    className="text-amber-600"
+                  >
+                    <Undo2 className="h-3.5 w-3.5 mr-2" />
+                    {t('productBacklog.returnToProduct')}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+          </div>
+        </div>
+        <CardTitle className="text-sm font-medium leading-tight mt-2 line-clamp-2">
+          {task.title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="p-4 pt-2">
+        {task.description && (
+          <CardDescription className="line-clamp-2 text-xs mb-2">
+            {task.description}
+          </CardDescription>
         )}
-      </div>
-    </CardContent>
-  </Card>
-);
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50 text-xs text-muted-foreground">
+          <span>{task.id}</span>
+          {(task.estimate_frontend || task.estimate_backend || task.estimate_qa) && (
+            <span className="flex items-center gap-1">
+              <Circle className="h-3 w-3" />
+              {(task.estimate_frontend || 0) + (task.estimate_backend || 0) + (task.estimate_qa || 0)} pts
+            </span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
 
-const DraggableTaskCard = ({ task, onClick }: { task: Task; onClick: () => void }) => {
+const DraggableTaskCard = ({ task, onClick, onReturnToProduct }: { task: Task; onClick: () => void; onReturnToProduct?: () => void }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
   });
@@ -117,7 +158,7 @@ const DraggableTaskCard = ({ task, onClick }: { task: Task; onClick: () => void 
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <TaskCardContent task={task} onClick={onClick} />
+      <TaskCardContent task={task} onClick={onClick} onReturnToProduct={onReturnToProduct} />
     </div>
   );
 };
@@ -128,12 +169,14 @@ const KanbanColumn = ({
   tasks,
   emptyLabel,
   onCardClick,
+  onReturnToProduct,
 }: {
   id: ColumnId;
   title: string;
   tasks: Task[];
   emptyLabel: string;
   onCardClick: (task: Task) => void;
+  onReturnToProduct?: (task: Task) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id });
 
@@ -158,6 +201,7 @@ const KanbanColumn = ({
             key={task.id}
             task={task}
             onClick={() => onCardClick(task)}
+            onReturnToProduct={onReturnToProduct ? () => onReturnToProduct(task) : undefined}
           />
         ))}
         {tasks.length === 0 && (
@@ -180,7 +224,18 @@ export default function Backlog() {
   const [isSyncing, setIsSyncing] = useState(false);
   const [pendingDateChange, setPendingDateChange] = useState<{ task: Task; newDate: string; data: Partial<Task> } | null>(null);
   const [activeId, setActiveId] = useState<number | null>(null);
+  const [returnTaskId, setReturnTaskId] = useState<number | null>(null);
   const { toast } = useToast();
+
+  const handleReturnToProduct = () => {
+    if (!returnTaskId) return;
+    updateTask(returnTaskId, { status: 'ReadyForEng' });
+    toast({
+      title: t('common.updated') || 'Updated',
+      description: t('productBacklog.returnConfirmDesc'),
+    });
+    setReturnTaskId(null);
+  };
 
   const tasks = data.tasks;
 
@@ -396,6 +451,7 @@ export default function Backlog() {
                   tasks={tasksByColumn[column.id]}
                   emptyLabel={t('engineeringBacklog.dragDrop')}
                   onCardClick={handleEditTask}
+                  onReturnToProduct={column.id === 'Backlog' ? (task) => setReturnTaskId(task.id) : undefined}
                 />
               ))}
             </div>
@@ -420,6 +476,19 @@ export default function Backlog() {
           newEndDate={pendingDateChange?.newDate || null}
           onConfirm={handleConfirmDateChange}
         />
+
+        <AlertDialog open={!!returnTaskId} onOpenChange={(open) => !open && setReturnTaskId(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>{t('productBacklog.returnConfirmTitle')}</AlertDialogTitle>
+              <AlertDialogDescription>{t('productBacklog.returnConfirmDesc')}</AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>{t('common.cancel')}</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReturnToProduct}>{t('productBacklog.returnToProduct')}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
     </Layout>
   );
