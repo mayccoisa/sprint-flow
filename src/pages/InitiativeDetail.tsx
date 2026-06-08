@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
 } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarPicker } from '@/components/ui/calendar';
 import {
     Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList,
     BreadcrumbPage, BreadcrumbSeparator,
@@ -428,6 +430,78 @@ const InitiativeDetail = () => {
                                             onChange={(e) => handleField('user_impact', (e.target.value || null) as any)}
                                             rows={3}
                                         />
+                                    </div>
+                                </CardContent>
+                            </Card>
+
+                            {/* Datas planejadas */}
+                            <Card>
+                                <CardContent className="space-y-4 p-6">
+                                    <header className="flex items-center gap-2 pb-1 border-b">
+                                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                                        <h3 className="text-sm font-semibold">Datas planejadas</h3>
+                                        <span className="text-xs text-muted-foreground ml-auto">
+                                            Opcional — quando preenchidas, a iniciativa aparece no calendário
+                                        </span>
+                                    </header>
+                                    <div className="grid gap-4 sm:grid-cols-2">
+                                        {(['start_date', 'end_date'] as const).map((field) => {
+                                            const raw = effective[field] as string | null;
+                                            const value = raw ? new Date(raw) : null;
+                                            return (
+                                                <div key={field} className="space-y-2">
+                                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                                        {field === 'start_date' ? 'Data de início' : 'Data de fim'}
+                                                    </Label>
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <Button
+                                                                type="button"
+                                                                variant="outline"
+                                                                className={cn(
+                                                                    'w-full justify-start text-left font-normal',
+                                                                    !value && 'text-muted-foreground'
+                                                                )}
+                                                            >
+                                                                <Calendar className="mr-2 h-4 w-4" />
+                                                                {value
+                                                                    ? format(value, 'dd/MM/yyyy')
+                                                                    : 'Selecionar data'}
+                                                            </Button>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-auto p-0" align="start">
+                                                            <CalendarPicker
+                                                                mode="single"
+                                                                selected={value ?? undefined}
+                                                                onSelect={(d) => {
+                                                                    handleField(
+                                                                        field,
+                                                                        (d ? format(d, 'yyyy-MM-dd') : null) as any
+                                                                    );
+                                                                }}
+                                                                initialFocus
+                                                                className="pointer-events-auto"
+                                                            />
+                                                            {value && (
+                                                                <div className="p-2 border-t">
+                                                                    <Button
+                                                                        type="button"
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="w-full"
+                                                                        onClick={() =>
+                                                                            handleField(field, null as any)
+                                                                        }
+                                                                    >
+                                                                        Limpar
+                                                                    </Button>
+                                                                </div>
+                                                            )}
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </CardContent>
                             </Card>
