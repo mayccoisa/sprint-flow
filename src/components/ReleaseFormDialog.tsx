@@ -198,8 +198,10 @@ export function ReleaseFormDialog({
                 <FormItem>
                   <FormLabel>Squad</FormLabel>
                   <Select
-                    onValueChange={(value) => field.onChange(value ? parseInt(value) : null)}
-                    value={field.value?.toString() || ''}
+                    onValueChange={(value) =>
+                      field.onChange(value && value !== 'none' ? parseInt(value) : null)
+                    }
+                    value={field.value?.toString() || 'none'}
                   >
                     <FormControl>
                       <SelectTrigger>
@@ -207,7 +209,7 @@ export function ReleaseFormDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="">Nenhum</SelectItem>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {squads.map((squad) => (
                         <SelectItem key={squad.id} value={squad.id.toString()}>
                           {squad.name}
