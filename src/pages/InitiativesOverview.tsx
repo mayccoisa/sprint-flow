@@ -35,7 +35,7 @@ import { InitiativesDashboard } from '@/components/initiatives/InitiativesDashbo
 import { useTranslation } from 'react-i18next';
 import { Lightbulb, Search, Plus, SlidersHorizontal, MoreHorizontal, Pencil, Trash2, X, User as UserIcon, BarChart3, List as ListIcon, Filter } from 'lucide-react';
 import { TYPE_DOT, STATUS_ORDER, TYPE_LABEL_PT } from '@/utils/initiativeStatus';
-import type { TaskStatus, TaskType, TaskPriority } from '@/types';
+import type { Sprint, TaskStatus, TaskType, TaskPriority } from '@/types';
 import { Button } from '@/components/ui/button';
 import { InitiativeTypeSelectionDialog } from '@/components/InitiativeTypeSelectionDialog';
 import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
@@ -169,6 +169,16 @@ const InitiativesOverview = () => {
             return [];
         }
     });
+    /** Sprint filter. Numeric sprint IDs, plus optional sentinel -1 to mean
+     *  "iniciativas sem sprint vinculada". Empty = no filter. */
+    const [sprintFilter, setSprintFilter] = useState<number[]>(() => {
+        try {
+            const raw = sessionStorage.getItem('initiatives.sprintFilter');
+            return raw ? JSON.parse(raw) : [];
+        } catch {
+            return [];
+        }
+    });
     const [activeTab, setActiveTab] = useState<'list' | 'dashboard'>(() => {
         try {
             const v = sessionStorage.getItem('initiatives.activeTab');
@@ -219,12 +229,16 @@ const InitiativesOverview = () => {
     useEffect(() => {
         try { sessionStorage.setItem('initiatives.priorityFilter', JSON.stringify(priorityFilter)); } catch { /* ignore */ }
     }, [priorityFilter]);
+    useEffect(() => {
+        try { sessionStorage.setItem('initiatives.sprintFilter', JSON.stringify(sprintFilter)); } catch { /* ignore */ }
+    }, [sprintFilter]);
 
     const activeFilterCount =
         (requesterFilter !== 'all' ? 1 : 0) +
         (statusFilter.length > 0 ? 1 : 0) +
         (typeFilter.length > 0 ? 1 : 0) +
-        (priorityFilter.length > 0 ? 1 : 0);
+        (priorityFilter.length > 0 ? 1 : 0) +
+        (sprintFilter.length > 0 ? 1 : 0);
 
     const toggleInArray = <T,>(arr: T[], value: T): T[] =>
         arr.includes(value) ? arr.filter((x) => x !== value) : [...arr, value];
@@ -234,7 +248,30 @@ const InitiativesOverview = () => {
         setTypeFilter([]);
         setPriorityFilter([]);
         setRequesterFilter('all');
+        setSprintFilter([]);
     };
+
+    /** Maps task ID → set of sprint IDs it belongs to, computed once per render
+     *  of sprintTasks. Used by the sprint filter to avoid a nested .find() per
+     *  initiative on every keystroke. */
+    const sprintIdsByTaskId = useMemo<Map<number, Set<number>>>(() => {
+        const map = new Map<number, Set<number>>();
+        (data.sprintTasks as any[]).forEach((st) => {
+            const set = map.get(st.task_id) ?? new Set<number>();
+            set.add(st.sprint_id);
+            map.set(st.task_id, set);
+        });
+        return map;
+    }, [data.sprintTasks]);
+
+    const sprintsForFilter = useMemo<Sprint[]>(() => {
+        return (data.sprints as Sprint[])
+            .slice()
+            .sort(
+                (a, b) =>
+                    new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+            );
+    }, [data.sprints]);
 
     const allInitiatives = useMemo(() => {
         return data.tasks.filter((t: any) => {
@@ -247,9 +284,26 @@ const InitiativesOverview = () => {
             if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
             if (typeFilter.length > 0 && !typeFilter.includes(t.task_type)) return false;
             if (priorityFilter.length > 0 && !priorityFilter.includes(t.priority)) return false;
+            if (sprintFilter.length > 0) {
+                const taskSprintIds = sprintIdsByTaskId.get(t.id);
+                // -1 is the sentinel for "no sprint" — matches tasks that aren't
+                // in any sprint at all.
+                const wantsNoSprint = sprintFilter.includes(-1);
+                if (wantsNoSprint && (!taskSprintIds || taskSprintIds.size === 0)) {
+                    // matches "sem sprint"
+                } else if (!taskSprintIds || taskSprintIds.size === 0) {
+                    return false;
+                } else {
+                    const matchesAny = sprintFilter.some(
+                        (sid) => sid !== -1 && taskSprintIds.has(sid)
+                    );
+                    if (!matchesAny && !wantsNoSprint) return false;
+                    if (!matchesAny && wantsNoSprint) return false; // wants "no sprint" but task has sprints
+                }
+            }
             return true;
         }).sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    }, [data.tasks, searchQuery, requesterFilter, statusFilter, typeFilter, priorityFilter]);
+    }, [data.tasks, searchQuery, requesterFilter, statusFilter, typeFilter, priorityFilter, sprintFilter, sprintIdsByTaskId]);
 
     // Drop selection ids that no longer match the filtered list.
     useEffect(() => {
@@ -625,6 +679,49 @@ const InitiativesOverview = () => {
                                                 <span className="text-sm">{PRIORITY_LABEL_PT[p] ?? p}</span>
                                             </label>
                                         ))}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
+                                        Sprint
+                                    </p>
+                                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+                                        <label className="flex items-center gap-2 cursor-pointer">
+                                            <Checkbox
+                                                checked={sprintFilter.includes(-1)}
+                                                onCheckedChange={() =>
+                                                    setSprintFilter((prev) => toggleInArray(prev, -1))
+                                                }
+                                            />
+                                            <span className="text-sm italic text-muted-foreground">
+                                                Sem sprint vinculada
+                                            </span>
+                                        </label>
+                                        {sprintsForFilter.length === 0 ? (
+                                            <p className="text-xs text-muted-foreground italic pl-1">
+                                                Nenhuma sprint cadastrada.
+                                            </p>
+                                        ) : (
+                                            sprintsForFilter.map((sprint) => (
+                                                <label
+                                                    key={sprint.id}
+                                                    className="flex items-center gap-2 cursor-pointer"
+                                                >
+                                                    <Checkbox
+                                                        checked={sprintFilter.includes(sprint.id)}
+                                                        onCheckedChange={() =>
+                                                            setSprintFilter((prev) =>
+                                                                toggleInArray(prev, sprint.id)
+                                                            )
+                                                        }
+                                                    />
+                                                    <span className="text-sm truncate">
+                                                        {sprint.name}
+                                                    </span>
+                                                </label>
+                                            ))
+                                        )}
                                     </div>
                                 </div>
                             </div>
