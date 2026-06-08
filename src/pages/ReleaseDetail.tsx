@@ -6,11 +6,70 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Caption, KpiCard, SectionLabel, StatusBadge, TypeBadge } from '@/components/ui-patterns';
 import { useLocalData } from '@/hooks/useLocalData';
-import { Sprint, Task } from '@/types';
-import { format } from 'date-fns';
+import { Release, ReleaseAuditLog, Sprint, Task } from '@/types';
+import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TYPE_LABEL_PT } from '@/utils/initiativeStatus';
-import { ArrowLeft, CalendarDays, Plus, Rocket, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ArrowRightLeft,
+  CalendarDays,
+  History,
+  Pencil,
+  Plus,
+  PlusCircle,
+  Rocket,
+  Trash2,
+  X,
+} from 'lucide-react';
+import { ReleaseFormDialog } from '@/components/ReleaseFormDialog';
+
+/** Maps each audit action to its visual signature in the history list. */
+const RELEASE_ACTION_META: Record<
+  ReleaseAuditLog['action'],
+  { icon: typeof PlusCircle; label: string; bg: string; color: string }
+> = {
+  create: {
+    icon: PlusCircle,
+    label: 'criou a release',
+    bg: 'bg-emerald-50',
+    color: 'text-emerald-700',
+  },
+  update: {
+    icon: Pencil,
+    label: 'editou a release',
+    bg: 'bg-blue-50',
+    color: 'text-blue-700',
+  },
+  delete: {
+    icon: Trash2,
+    label: 'excluiu a release',
+    bg: 'bg-rose-50',
+    color: 'text-rose-700',
+  },
+};
+
+/** Friendly field labels for the per-field diff in the history. */
+const RELEASE_FIELD_LABELS: Record<string, string> = {
+  version_name: 'Nome',
+  release_date: 'Data de lançamento',
+  squad_id: 'Squad',
+  status: 'Status',
+  description: 'Descrição',
+  release_notes: 'Release notes',
+  color: 'Cor',
+};
+
+function formatReleaseAuditValue(v: unknown): string {
+  if (v === null || v === undefined || v === '') return '—';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return String(v);
+  }
+}
 import {
   Dialog,
   DialogContent,
@@ -27,12 +86,14 @@ export default function ReleaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data, addReleaseTask, removeReleaseTask } = useLocalData() as any;
+  const { data, addReleaseTask, removeReleaseTask, updateRelease, setReleaseSprints } =
+    useLocalData() as any;
 
   const releaseId = id ? parseInt(id) : null;
   const [isAddTasksOpen, setIsAddTasksOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
+  const [isEditOpen, setIsEditOpen] = useState(false);
   /** When true, the picker shows every task in the workspace. When false (default),
    *  it restricts to tasks of the sprints linked to this release. */
   const [showAllInPicker, setShowAllInPicker] = useState(false);
@@ -69,6 +130,33 @@ export default function ReleaseDetail() {
           new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
       );
   }, [data.releaseSprints, data.sprints, releaseId]);
+
+  /** IDs of sprints currently linked to this release — drives the edit dialog
+   *  pre-selection. */
+  const linkedSprintIds = useMemo<number[]>(
+    () => linkedSprints.map((s) => s.id),
+    [linkedSprints]
+  );
+
+  /** Audit log entries for this release, newest first. */
+  const auditLogs = useMemo<ReleaseAuditLog[]>(
+    () =>
+      ((data.releaseAuditLogs as ReleaseAuditLog[]) || [])
+        .filter((l) => l.release_id === releaseId)
+        .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()),
+    [data.releaseAuditLogs, releaseId]
+  );
+
+  const handleEditSave = async (
+    releaseData: Omit<Release, 'id' | 'created_at'>,
+    sprintIds: number[]
+  ) => {
+    if (!releaseId) return;
+    await updateRelease(releaseId, releaseData);
+    await setReleaseSprints(releaseId, sprintIds);
+    setIsEditOpen(false);
+    toast({ title: 'Release atualizada' });
+  };
 
   /** Group tasks of the release by the linked sprints where they were worked.
    *  A task may belong to multiple linked sprints; it appears under each. Tasks
@@ -203,6 +291,15 @@ export default function ReleaseDetail() {
           </Button>
           <h1 className="text-2xl font-semibold tracking-tight">{release.version_name}</h1>
           <StatusBadge kind="release" status={release.status} />
+          <Button
+            variant="outline"
+            size="sm"
+            className="ml-auto gap-2"
+            onClick={() => setIsEditOpen(true)}
+          >
+            <Pencil className="h-4 w-4" />
+            Editar
+          </Button>
         </div>
 
         <div className="grid gap-6 md:grid-cols-3">
@@ -362,7 +459,98 @@ export default function ReleaseDetail() {
           )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <History className="h-5 w-5 text-muted-foreground" />
+              Histórico de alterações
+              {auditLogs.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                  {auditLogs.length}
+                </Badge>
+              )}
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="p-0">
+            {auditLogs.length === 0 ? (
+              <div className="p-8 text-center text-sm text-muted-foreground">
+                Sem alterações registradas ainda.
+              </div>
+            ) : (
+              <ol className="divide-y">
+                {auditLogs.map((log) => {
+                  const meta = RELEASE_ACTION_META[log.action];
+                  const Icon = meta.icon;
+                  return (
+                    <li key={log.id} className="p-4 flex gap-3">
+                      <span
+                        className={`h-8 w-8 shrink-0 rounded-full flex items-center justify-center ${meta.bg} ${meta.color}`}
+                      >
+                        <Icon className="h-4 w-4" />
+                      </span>
+                      <div className="flex-1 min-w-0 space-y-1">
+                        <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                          <span className="text-sm font-medium">
+                            {log.changed_by_name || 'Sistema'}
+                          </span>
+                          <span className="text-sm text-muted-foreground">{meta.label}</span>
+                          <span
+                            className="text-xs text-muted-foreground"
+                            title={format(new Date(log.changed_at), 'dd/MM/yyyy HH:mm:ss')}
+                          >
+                            ·{' '}
+                            {formatDistanceToNow(new Date(log.changed_at), {
+                              locale: ptBR,
+                              addSuffix: true,
+                            })}
+                          </span>
+                        </div>
+                        {log.summary && (
+                          <p className="text-sm text-muted-foreground">{log.summary}</p>
+                        )}
+                        {log.changes.length > 0 && (
+                          <ul className="text-xs space-y-1 mt-1">
+                            {log.changes.slice(0, 8).map((c, idx) => (
+                              <li key={idx} className="flex flex-wrap items-center gap-1.5">
+                                <span className="font-medium text-foreground">
+                                  {RELEASE_FIELD_LABELS[c.field] ?? c.field}:
+                                </span>
+                                <span className="text-muted-foreground line-through max-w-[200px] truncate">
+                                  {formatReleaseAuditValue(c.old)}
+                                </span>
+                                <ArrowRightLeft className="h-3 w-3 text-muted-foreground" />
+                                <span className="text-foreground max-w-[260px] truncate">
+                                  {formatReleaseAuditValue(c.new)}
+                                </span>
+                              </li>
+                            ))}
+                            {log.changes.length > 8 && (
+                              <li className="text-muted-foreground italic">
+                                + {log.changes.length - 8} alteração(ões)
+                              </li>
+                            )}
+                          </ul>
+                        )}
+                      </div>
+                    </li>
+                  );
+                })}
+              </ol>
+            )}
+          </CardContent>
+        </Card>
       </div>
+
+      <ReleaseFormDialog
+        open={isEditOpen}
+        onClose={() => setIsEditOpen(false)}
+        onSave={handleEditSave}
+        release={release}
+        squads={data.squads}
+        sprints={data.sprints || []}
+        initialSprintIds={linkedSprintIds}
+      />
 
       <Dialog open={isAddTasksOpen} onOpenChange={setIsAddTasksOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">

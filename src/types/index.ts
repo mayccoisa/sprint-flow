@@ -124,6 +124,21 @@ export interface ReleaseSprint {
   sprint_id: number;
 }
 
+export type ReleaseAuditAction = 'create' | 'update' | 'delete';
+
+export interface ReleaseAuditLog {
+  id: string;
+  workspace_id?: string;
+  release_id: number;
+  action: ReleaseAuditAction;
+  changed_at: string;
+  changed_by_id?: string | null;
+  changed_by_name?: string | null;
+  /** Reuses `TaskAuditChange` shape: { field, old, new } per modified field. */
+  changes: TaskAuditChange[];
+  summary?: string | null;
+}
+
 
 
 export type PrioritizationModel = 'ICE' | 'RICE' | 'BRICE';

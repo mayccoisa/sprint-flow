@@ -20,7 +20,7 @@ import type {
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument,
     CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange,
-    Release, ReleaseTask, ReleaseSprint, SprintParticipant, Role, TaskAuditLog, TaskAuditChange
+    Release, ReleaseTask, ReleaseSprint, ReleaseAuditLog, SprintParticipant, Role, TaskAuditLog, TaskAuditChange
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +52,7 @@ interface FirestoreData {
     releases: Release[];
     releaseTasks: ReleaseTask[];
     releaseSprints: ReleaseSprint[];
+    releaseAuditLogs: ReleaseAuditLog[];
 }
 
 const initialData: FirestoreData = {
@@ -78,7 +79,8 @@ const initialData: FirestoreData = {
     taskDateChanges: [],
     releases: [],
     releaseTasks: [],
-    releaseSprints: []
+    releaseSprints: [],
+    releaseAuditLogs: []
 }
 
 export const useFirestoreData = () => {
@@ -116,6 +118,47 @@ export const useFirestoreData = () => {
         } catch (err) {
             console.error('Failed to write audit log:', err);
         }
+    };
+
+    const writeReleaseAuditLog = async (
+        releaseId: number,
+        action: ReleaseAuditLog['action'],
+        changes: TaskAuditChange[],
+        summary?: string | null,
+    ) => {
+        if (!currentWorkspaceId) return;
+        const id = `ral_${releaseId}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+        const log: ReleaseAuditLog = {
+            id,
+            workspace_id: currentWorkspaceId,
+            release_id: releaseId,
+            action,
+            changed_at: new Date().toISOString(),
+            changed_by_id: userProfile?.id ?? null,
+            changed_by_name: userProfile?.name ?? userProfile?.email ?? null,
+            changes,
+            summary: summary ?? null,
+        };
+        try {
+            await setDoc(doc(db, 'release_audit_logs', id), log);
+        } catch (err) {
+            console.error('Failed to write release audit log:', err);
+        }
+    };
+
+    /** Generic per-field diff. Same shape as diffTask — reused for releases. */
+    const diffEntity = (before: any, after: any): TaskAuditChange[] => {
+        const keys = new Set([...Object.keys(before || {}), ...Object.keys(after || {})]);
+        const changes: TaskAuditChange[] = [];
+        keys.forEach((k) => {
+            if (AUDIT_IGNORED_FIELDS.has(k)) return;
+            const a = before?.[k];
+            const b = after?.[k];
+            const aJson = JSON.stringify(a ?? null);
+            const bJson = JSON.stringify(b ?? null);
+            if (aJson !== bJson) changes.push({ field: k, old: a ?? null, new: b ?? null });
+        });
+        return changes;
     };
 
     const diffTask = (before: any, after: any): TaskAuditChange[] => {
@@ -192,6 +235,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('releases', 'releases', true),
             subscribeToCollection('release_tasks', 'releaseTasks', true),
             subscribeToCollection('release_sprints', 'releaseSprints', true),
+            subscribeToCollection('release_audit_logs', 'releaseAuditLogs', true),
             subscribeToCollection('roles', 'roles', true),
             subscribeToCollection('task_audit_logs', 'taskAuditLogs', true),
         ];
@@ -502,9 +546,32 @@ export const useFirestoreData = () => {
         },
 
         // Releases
-        addRelease: (release: Omit<Release, 'id' | 'created_at'>) =>
-            addItem('releases', { ...release, created_at: new Date().toISOString() }),
-        updateRelease: (id: number | string, updates: Partial<Release>) => updateItem('releases', id, updates),
+        addRelease: async (release: Omit<Release, 'id' | 'created_at'>) => {
+            const created = await addItem('releases', {
+                ...release,
+                created_at: new Date().toISOString(),
+            });
+            const initialChanges = diffEntity({}, created);
+            await writeReleaseAuditLog(
+                created.id,
+                'create',
+                initialChanges,
+                `Release "${release.version_name}" criada`,
+            );
+            return created;
+        },
+        updateRelease: async (id: number | string, updates: Partial<Release>) => {
+            const numericId = typeof id === 'number' ? id : Number(id);
+            const release = data.releases.find((r) => r.id === numericId);
+            await updateItem('releases', id, updates);
+            if (release) {
+                const after = { ...release, ...updates };
+                const changes = diffEntity(release, after);
+                if (changes.length > 0) {
+                    await writeReleaseAuditLog(numericId, 'update', changes);
+                }
+            }
+        },
         deleteRelease: async (id: number | string) => {
             const numericId = typeof id === 'number' ? id : Number(id);
             await Promise.all([
@@ -515,7 +582,14 @@ export const useFirestoreData = () => {
                     .filter(rs => rs.release_id === numericId)
                     .map(rs => deleteItem('release_sprints', rs.id)),
             ]);
+            const release = data.releases.find(r => r.id === numericId);
             await deleteItem('releases', id);
+            await writeReleaseAuditLog(
+                numericId,
+                'delete',
+                [],
+                release ? `Release "${release.version_name}" excluída` : 'Release excluída',
+            );
         },
         addReleaseTask: (rt: Omit<ReleaseTask, 'id' | 'created_at'>) =>
             addItem('release_tasks', { ...rt, created_at: new Date().toISOString() }),
