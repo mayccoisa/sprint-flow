@@ -6,10 +6,9 @@ import { useLocalData } from '@/hooks/useLocalData';
 import { Release } from '@/types';
 import { ReleaseFormDialog } from '@/components/ReleaseFormDialog';
 import { Plus, Package, Calendar as CalendarIcon, Users } from 'lucide-react';
-import { EmptyState, PageSkeleton } from '@/components/ui-patterns';
+import { EmptyState, PageSkeleton, PageHeader, StatusBadge } from '@/components/ui-patterns';
 import { useNavigate } from 'react-router-dom';
-import { Badge } from '@/components/ui/badge';
-import { Card } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle } from '@/components/ui/card';
 import { format } from 'date-fns';
 
 export default function Releases() {
@@ -52,13 +51,6 @@ export default function Releases() {
     setEditingRelease(undefined);
   };
 
-  const statusColors: Record<string, string> = {
-    Planned: 'bg-muted text-muted-foreground',
-    InProgress: 'bg-status-info text-white',
-    Released: 'bg-status-success text-white',
-    Cancelled: 'bg-destructive text-destructive-foreground',
-  };
-
   if (loading) {
     return (
       <Layout>
@@ -70,16 +62,16 @@ export default function Releases() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Package className="h-5 w-5 text-muted-foreground" />
-            <h1 className="text-2xl font-semibold tracking-tight">{t('releases.title')}</h1>
-          </div>
-          <Button onClick={() => setIsFormOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('releases.new')}
-          </Button>
-        </div>
+        <PageHeader
+          icon={Package}
+          title={t('releases.title')}
+          actions={
+            <Button onClick={() => setIsFormOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('releases.new')}
+            </Button>
+          }
+        />
 
         <div className="grid gap-4">
           {releases.map((release) => {
@@ -88,41 +80,40 @@ export default function Releases() {
             return (
               <Card
                 key={release.id}
-                className="p-4 cursor-pointer hover:shadow-md hover:border-primary/40 transition-all"
+                className="cursor-pointer hover:shadow-md hover:border-primary/40 transition-all"
                 onClick={() => navigate(`/releases/${release.id}`)}
               >
-                <div className="flex items-start justify-between">
-                  <div className="space-y-2 flex-1">
-                    <div className="flex items-center gap-3">
-                      <h3 className="text-lg font-semibold">{release.version_name}</h3>
-                      <Badge className={statusColors[release.status]}>
-                        {t(`releases.statuses.${release.status}`, release.status)}
-                      </Badge>
+                <CardHeader className="space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="space-y-1 flex-1 min-w-0">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <CardTitle className="text-lg font-semibold">
+                          {release.version_name}
+                        </CardTitle>
+                        <StatusBadge kind="release" status={release.status} />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {release.description || t('releases.noDescription')}
+                      </p>
                     </div>
-
-                    <p className="text-sm text-muted-foreground">
-                      {release.description || t('releases.noDescription')}
-                    </p>
-
-                    <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <CalendarIcon className="h-4 w-4" />
-                        {format(new Date(release.release_date), 'dd/MM/yyyy')}
-                      </span>
-                      {squad && (
-                        <span className="flex items-center gap-1">
-                          <Users className="h-4 w-4" />
-                          {squad.name}
-                        </span>
-                      )}
-                    </div>
+                    <div
+                      className="w-4 h-4 rounded-full border border-border shrink-0"
+                      style={{ backgroundColor: release.color || 'hsl(var(--primary))' }}
+                    />
                   </div>
-
-                  <div
-                    className="w-4 h-4 rounded-full border border-border"
-                    style={{ backgroundColor: release.color || 'hsl(var(--primary))' }}
-                  />
-                </div>
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <CalendarIcon className="h-4 w-4" />
+                      {format(new Date(release.release_date), 'dd/MM/yyyy')}
+                    </span>
+                    {squad && (
+                      <span className="flex items-center gap-1">
+                        <Users className="h-4 w-4" />
+                        {squad.name}
+                      </span>
+                    )}
+                  </div>
+                </CardHeader>
               </Card>
             );
           })}

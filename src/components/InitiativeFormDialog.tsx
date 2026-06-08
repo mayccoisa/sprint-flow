@@ -39,7 +39,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useTranslation } from 'react-i18next';
 import { CalendarIcon, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
-import { cn } from '@/lib/utils';
+import { cn, parseDateLocal } from '@/lib/utils';
 import { GeneratePRDDialog } from './ai/GeneratePRDDialog';
 import { PRDSection } from '@/services/aiService';
 import { toast } from '@/hooks/use-toast';
@@ -225,8 +225,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 brice_impact: task.brice_impact ?? 0,
                 brice_confidence: task.brice_confidence ?? 0,
                 brice_effort: task.brice_effort ?? 0,
-                start_date: task.start_date ? new Date(task.start_date) : null,
-                end_date: task.end_date ? new Date(task.end_date) : null,
+                start_date: parseDateLocal(task.start_date),
+                end_date: parseDateLocal(task.end_date),
             });
         } else {
             form.reset({
@@ -324,7 +324,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                 <ScrollArea className="h-[400px] pr-4">
                                     <div className="space-y-4">
                                         <div className="space-y-4">
-                                            <h3 className="font-semibold text-lg">{t('initiativeForm.sections.whatWhy')}</h3>
+                                            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('initiativeForm.sections.whatWhy')}</h3>
 
                                             <FormField
                                                 control={form.control}

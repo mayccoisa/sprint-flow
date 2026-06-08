@@ -63,6 +63,8 @@ import {
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn, parseDateLocal } from '@/lib/utils';
+import { PageHeader } from '@/components/ui-patterns';
 
 moment.locale('pt-br');
 const localizer = momentLocalizer(moment);
@@ -216,6 +218,15 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
     );
   }, [firestoreData.tasks, zoomedSprintTaskIds, zoomedSprint]);
 
+  /** All tasks linked to the zoomed sprint, regardless of whether they have a
+   *  date. Used by the sidebar so nothing the sprint contains is hidden — the
+   *  calendar canvas may not render a task whose date sits outside the visible
+   *  month, but the user still sees it here. */
+  const zoomedAllSprintTasks = useMemo<Task[]>(() => {
+    if (!zoomedSprint) return [];
+    return firestoreData.tasks.filter((t) => zoomedSprintTaskIds.includes(t.id));
+  }, [firestoreData.tasks, zoomedSprintTaskIds, zoomedSprint]);
+
   // When entering zoom mode, focus the calendar on the sprint range and pick
   // a sensible default view (week for short sprints, month otherwise).
   useEffect(() => {
@@ -239,26 +250,51 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   const events = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
 
-    // Zoom mode: render only the tasks linked to the zoomed sprint that have
-    // explicit start_date. Sprints/releases are hidden — the zoom view is
-    // dedicated to the sprint's task plan.
+    // Zoom mode: render tasks linked to the zoomed sprint that have explicit
+    // start_date, plus any releases linked to this sprint (so their delivery
+    // dates show up alongside the sprint plan).
     if (zoomedSprint) {
       tasks.forEach((task) => {
         if (!zoomedSprintTaskIds.includes(task.id)) return;
-        if (!task.start_date) return;
+        const start = parseDateLocal(task.start_date);
+        if (!start) return;
+        const end = parseDateLocal(task.end_date) ?? start;
         const style = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
         const hasChanges = taskDateChanges.some((c) => c.task_id === task.id);
         result.push({
           id: task.id,
           title: task.title,
-          start: new Date(task.start_date),
-          end: task.end_date ? new Date(task.end_date) : new Date(task.start_date),
+          start,
+          end,
           type: 'task',
           data: task,
           color: style.color,
           meta: { icon: style.icon, subtitle: style.label, hasAlert: hasChanges },
         });
       });
+
+      const releaseIdsForSprint = new Set(
+        (firestoreData.releaseSprints ?? [])
+          .filter((rs) => rs.sprint_id === zoomedSprint.id)
+          .map((rs) => rs.release_id)
+      );
+      releases.forEach((release) => {
+        if (!releaseIdsForSprint.has(release.id)) return;
+        const start = parseDateLocal(release.release_date);
+        if (!start) return;
+        const style = RELEASE_STATUS_STYLES[release.status] || RELEASE_STATUS_STYLES.Planned;
+        result.push({
+          id: release.id,
+          title: release.version_name,
+          start,
+          end: start,
+          type: 'release',
+          data: release,
+          color: release.color || style.color,
+          meta: { icon: Flag, subtitle: style.label },
+        });
+      });
+
       return result;
     }
 
@@ -345,7 +381,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
       <Popover>
         <PopoverTrigger asChild>
           <div
-            className="cursor-pointer h-full px-1.5 py-0.5 rounded-sm flex items-center gap-1 overflow-hidden text-[11px] leading-tight hover:brightness-95 transition"
+            className="cursor-pointer h-full px-1.5 py-0.5 rounded-sm flex items-center gap-1 overflow-hidden text-xs leading-tight hover:brightness-95 transition"
             style={baseStyle}
           >
             <Icon className="h-3 w-3 shrink-0" strokeWidth={2.25} />
@@ -440,14 +476,14 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                   .map((change, idx) => (
                     <div
                       key={idx}
-                      className="p-2 rounded-md bg-amber-50 border border-amber-100 text-[11px] space-y-1"
+                      className="p-2 rounded-md bg-amber-50 border border-amber-100 text-xs space-y-1"
                     >
                       <div className="flex justify-between text-amber-800 font-medium">
                         <span>De: {format(new Date(change.old_end_date), 'dd/MM/yy')}</span>
                         <span>Para: {format(new Date(change.new_end_date), 'dd/MM/yy')}</span>
                       </div>
                       <p className="italic text-amber-700">"{change.reason}"</p>
-                      <div className="text-[10px] text-amber-600/70 text-right">
+                      <div className="text-xs text-amber-600/70 text-right">
                         {format(new Date(change.changed_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
                       </div>
                     </div>
@@ -519,7 +555,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
-          <h2 className="text-base font-semibold capitalize">{label}</h2>
+          <h2 className="text-lg font-semibold capitalize">{label}</h2>
         </div>
         <div className="inline-flex rounded-md border bg-card p-0.5">
           {views.map((v) => (
@@ -556,7 +592,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           {isPublic ? <Globe className="h-4 w-4 text-emerald-600" /> : <Share2 className="h-4 w-4" />}
           Compartilhar
           {isPublic && (
-            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">
+            <Badge variant="secondary" className="h-5 px-1.5 text-xs">
               público
             </Badge>
           )}
@@ -590,7 +626,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
               <Label htmlFor="public-toggle" className="text-sm font-medium cursor-pointer">
                 Tornar público
               </Label>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 {isPublic ? 'Acesso liberado por link' : 'Acesso restrito ao workspace'}
               </p>
             </div>
@@ -621,7 +657,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                   )}
                 </Button>
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Desabilite o toggle a qualquer momento para revogar o acesso.
               </p>
             </div>
@@ -633,46 +669,46 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
 
   const content = (
       <div className="space-y-6">
-        <div className="flex items-center justify-between gap-3 flex-wrap">
-          <div>
-            <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-              <CalendarDays className="h-6 w-6 text-primary" />
-              Calendário
-              {publicMode && (
-                <Badge variant="secondary" className="ml-1 gap-1">
-                  <Globe className="h-3 w-3" /> público
-                </Badge>
-              )}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              {publicMode
-                ? 'Visualização somente leitura compartilhada via link.'
-                : 'Sprints e releases em uma linha do tempo. Clique em uma sprint para ver as tarefas planejadas.'}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 flex-wrap">
-          {sharePopover}
-          <Select value={selectedSquad} onValueChange={setSelectedSquad}>
-            <SelectTrigger className="w-[220px]">
-              <SelectValue placeholder="Todos os squads" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todos os squads</SelectItem>
-              {squads.map((squad) => (
-                <SelectItem key={squad.id} value={squad.name}>
-                  <div className="flex items-center gap-2">
-                    <span
-                      className="h-2.5 w-2.5 rounded-full"
-                      style={{ background: squadColorMap[squad.id] }}
-                    />
-                    {squad.name}
-                  </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          </div>
-        </div>
+        <PageHeader
+          icon={CalendarDays}
+          title="Calendário"
+          subtitle={
+            publicMode
+              ? 'Visualização somente leitura compartilhada via link.'
+              : 'Sprints e releases em uma linha do tempo. Clique em uma sprint para ver as tarefas planejadas.'
+          }
+          badge={
+            publicMode && (
+              <Badge variant="secondary" className="ml-1 gap-1">
+                <Globe className="h-3 w-3" /> público
+              </Badge>
+            )
+          }
+          actions={
+            <>
+              {sharePopover}
+              <Select value={selectedSquad} onValueChange={setSelectedSquad}>
+                <SelectTrigger className="w-[220px]">
+                  <SelectValue placeholder="Todos os squads" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os squads</SelectItem>
+                  {squads.map((squad) => (
+                    <SelectItem key={squad.id} value={squad.name}>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="h-2.5 w-2.5 rounded-full"
+                          style={{ background: squadColorMap[squad.id] }}
+                        />
+                        {squad.name}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </>
+          }
+        />
 
         {zoomedSprint && (
           <div className="rounded-lg border bg-accent/40 p-3 flex items-center gap-3 flex-wrap">
@@ -720,30 +756,51 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
               <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-sm">
-                    Iniciativas sem data
-                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">
-                      {zoomedTasksWithoutDates.length}
+                    Iniciativas da sprint
+                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-xs">
+                      {zoomedAllSprintTasks.length}
                     </Badge>
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {zoomedTasksWithoutDates.length === 0 ? (
+                  {zoomedAllSprintTasks.length === 0 ? (
                     <p className="text-xs text-muted-foreground">
-                      Todas as iniciativas da sprint têm data definida.
+                      Nenhuma iniciativa nesta sprint ainda.
                     </p>
                   ) : (
                     <ul className="space-y-1.5">
-                      {zoomedTasksWithoutDates.map((task) => {
+                      {zoomedAllSprintTasks.map((task) => {
                         const style =
                           TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
                         const Icon = style.icon;
+                        const start = parseDateLocal(task.start_date);
+                        const end = parseDateLocal(task.end_date);
+                        const hasDate = !!start;
+                        const dateLabel = !start
+                          ? 'sem data'
+                          : end && task.end_date !== task.start_date
+                            ? `${format(start, 'dd/MM', { locale: ptBR })} → ${format(end, 'dd/MM', { locale: ptBR })}`
+                            : format(start, 'dd/MM/yyyy', { locale: ptBR });
                         return (
                           <li
                             key={task.id}
-                            className="flex items-center gap-2 text-xs p-1.5 rounded-md hover:bg-accent/50"
+                            className="flex items-start gap-2 text-xs p-1.5 rounded-md hover:bg-accent/50"
                           >
-                            <Icon className="h-3 w-3 shrink-0" style={{ color: style.color }} />
-                            <span className="truncate flex-1">{task.title}</span>
+                            <Icon
+                              className="h-3 w-3 shrink-0 mt-0.5"
+                              style={{ color: style.color }}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="truncate">{task.title}</div>
+                              <div
+                                className={cn(
+                                  'text-xs mt-0.5',
+                                  hasDate ? 'text-muted-foreground' : 'text-amber-600'
+                                )}
+                              >
+                                {dateLabel}
+                              </div>
+                            </div>
                           </li>
                         );
                       })}
@@ -819,20 +876,39 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                 )}
 
                 {zoomedSprint && (
-                  <LegendSection title="Tarefas por tipo" hint="Cor identifica o tipo">
-                    {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
-                      const Icon = s.icon;
-                      return (
-                        <LegendItem
-                          key={key}
-                          color={s.color}
-                          variant="bar"
-                          label={s.label}
-                          icon={<Icon className="h-3 w-3" style={{ color: s.color }} />}
-                        />
-                      );
-                    })}
-                  </LegendSection>
+                  <>
+                    <LegendSection title="Tarefas por tipo" hint="Cor identifica o tipo">
+                      {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
+                        const Icon = s.icon;
+                        return (
+                          <LegendItem
+                            key={key}
+                            color={s.color}
+                            variant="bar"
+                            label={s.label}
+                            icon={<Icon className="h-3 w-3" style={{ color: s.color }} />}
+                          />
+                        );
+                      })}
+                    </LegendSection>
+
+                    <Separator />
+
+                    <LegendSection title="Releases vinculadas" hint="Pílula sólida na data">
+                      {Object.entries(RELEASE_STATUS_STYLES).map(([key, s]) => {
+                        const Icon = s.icon;
+                        return (
+                          <LegendItem
+                            key={key}
+                            color={s.color}
+                            variant="solid"
+                            label={s.label}
+                            icon={<Icon className="h-3 w-3 text-white" />}
+                          />
+                        );
+                      })}
+                    </LegendSection>
+                  </>
                 )}
 
                 <Separator />
@@ -941,7 +1017,7 @@ function FilterRow({
       >
         <span className="text-muted-foreground">{icon}</span>
         {label}
-        <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-[10px]">
+        <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
           {count}
         </Badge>
       </Label>
@@ -962,10 +1038,10 @@ function LegendSection({
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
           {title}
         </p>
-        {hint && <p className="text-[10px] text-muted-foreground/80">{hint}</p>}
+        {hint && <p className="text-xs text-muted-foreground/80">{hint}</p>}
       </div>
       <div className="space-y-1.5">{children}</div>
     </div>

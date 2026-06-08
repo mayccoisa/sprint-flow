@@ -298,7 +298,7 @@ export function ReleaseFormDialog({
                           onCheckedChange={() => toggleSprint(sprint.id)}
                         />
                         <span className="font-medium truncate flex-1">{sprint.name}</span>
-                        <span className="text-[11px] text-muted-foreground shrink-0">
+                        <span className="text-xs text-muted-foreground shrink-0">
                           {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
                           {format(new Date(sprint.end_date), 'dd MMM', { locale: ptBR })}
                         </span>
@@ -307,7 +307,7 @@ export function ReleaseFormDialog({
                   })
                 )}
               </div>
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground">
                 Selecione as sprints cujo trabalho compõe esta release.
               </p>
             </FormItem>

@@ -2,7 +2,8 @@ import { useState, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Plus } from 'lucide-react';
+import { Plus, Rocket, Inbox } from 'lucide-react';
+import { EmptyState, PageHeader } from '@/components/ui-patterns';
 import { SprintFormDialog } from '@/components/SprintFormDialog';
 import { SprintCard } from '@/components/SprintCard';
 import { SprintRosterDialog } from '@/components/SprintRosterDialog';
@@ -14,13 +15,14 @@ import { useTranslation } from 'react-i18next';
 
 const Sprints = () => {
   const { t } = useTranslation();
-  const { data, addSprint, updateSprint } = useLocalData();
+  const { data, addSprint, updateSprint, deleteSprint } = useLocalData();
   const { toast } = useToast();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingSprint, setEditingSprint] = useState<Sprint | null>(null);
   const [selectedSquadFilter, setSelectedSquadFilter] = useState<string>('all');
   const [selectedStatusFilter, setSelectedStatusFilter] = useState<string>('all');
   const [completingSprint, setCompletingSprint] = useState<Sprint | null>(null);
+  const [deletingSprint, setDeletingSprint] = useState<Sprint | null>(null);
   const [rosterSprint, setRosterSprint] = useState<Sprint | null>(null);
 
   const handleSaveSprint = async (sprintData: Omit<Sprint, 'id' | 'created_at'>) => {
@@ -42,6 +44,24 @@ const Sprints = () => {
       setEditingSprint(null);
       if (created?.id) setRosterSprint(created as Sprint);
     }
+  };
+
+  const handleDeleteSprint = async () => {
+    if (!deletingSprint) return;
+    try {
+      await deleteSprint(deletingSprint.id);
+      toast({
+        title: 'Sprint excluída',
+        description: 'A sprint e seus vínculos foram removidos. As tarefas voltaram para o backlog.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro ao excluir sprint',
+        description: error?.message || 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
+    }
+    setDeletingSprint(null);
   };
 
   const handleCompleteSprint = () => {
@@ -96,13 +116,17 @@ const Sprints = () => {
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-semibold tracking-tight">{t('pages.sprints.title')}</h1>
-          <Button onClick={() => setIsDialogOpen(true)}>
-            <Plus className="mr-2 h-4 w-4" />
-            Nova Sprint
-          </Button>
-        </div>
+        <PageHeader
+          icon={Rocket}
+          title={t('pages.sprints.title')}
+          subtitle="Planeje, acompanhe e finalize as sprints dos squads."
+          actions={
+            <Button onClick={() => setIsDialogOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Nova Sprint
+            </Button>
+          }
+        />
 
         <div className="flex gap-4">
           <Select value={selectedSquadFilter} onValueChange={setSelectedSquadFilter}>
@@ -133,11 +157,17 @@ const Sprints = () => {
         </div>
 
         {Object.keys(sprintsBySquad).length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
-            <p className="text-lg text-muted-foreground">
-              Nenhuma sprint criada. Crie a primeira!
-            </p>
-          </div>
+          <EmptyState
+            icon={Inbox}
+            title="Nenhuma sprint criada"
+            description="Comece criando a primeira sprint para um dos squads."
+            action={
+              <Button onClick={() => setIsDialogOpen(true)}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nova Sprint
+              </Button>
+            }
+          />
         ) : (
           <div className="space-y-8">
             {Object.entries(sprintsBySquad).map(([squadId, sprints]) => {
@@ -146,7 +176,7 @@ const Sprints = () => {
 
               return (
                 <div key={squadId} className="space-y-4">
-                  <h2 className="text-2xl font-semibold">{squad.name}</h2>
+                  <h2 className="text-lg font-semibold">{squad.name}</h2>
                   <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                     {sprints.map(sprint => (
                       <SprintCard
@@ -160,6 +190,7 @@ const Sprints = () => {
                           setIsDialogOpen(true);
                         }}
                         onComplete={sprint.status === 'Active' ? () => setCompletingSprint(sprint) : undefined}
+                        onDelete={() => setDeletingSprint(sprint)}
                       />
                     ))}
                   </div>
@@ -203,6 +234,28 @@ const Sprints = () => {
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={handleCompleteSprint}>Finalizar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={!!deletingSprint} onOpenChange={() => setDeletingSprint(null)}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Excluir sprint</AlertDialogTitle>
+              <AlertDialogDescription>
+                Tem certeza que deseja excluir a sprint <strong>{deletingSprint?.name}</strong>?
+                Esta ação remove os vínculos com tarefas (que voltam para o backlog), participantes
+                e releases. As tarefas em si não são apagadas.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={handleDeleteSprint}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Excluir
+              </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>

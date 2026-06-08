@@ -1,8 +1,8 @@
-import { Card, CardContent, CardHeader } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Calendar, Edit, ListTodo, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Calendar, Edit, ListTodo, CheckCircle2, BarChart3, Trash2 } from 'lucide-react';
+import { StatusBadge } from '@/components/ui-patterns';
 import { format } from 'date-fns';
 import { Link } from 'react-router-dom';
 import type { Sprint, Task, SprintTask, TeamMember } from '@/types';
@@ -15,9 +15,10 @@ interface SprintCardProps {
   squadMembers: TeamMember[];
   onEdit: () => void;
   onComplete?: () => void;
+  onDelete?: () => void;
 }
 
-export const SprintCard = ({ sprint, tasks, sprintTasks, squadMembers, onEdit, onComplete }: SprintCardProps) => {
+export const SprintCard = ({ sprint, tasks, sprintTasks, squadMembers, onEdit, onComplete, onDelete }: SprintCardProps) => {
   const sprintTaskIds = sprintTasks.filter(st => st.sprint_id === sprint.id).map(st => st.task_id);
   const sprintTasksData = tasks.filter(t => sprintTaskIds.includes(t.id));
   
@@ -31,15 +32,6 @@ export const SprintCard = ({ sprint, tasks, sprintTasks, squadMembers, onEdit, o
     .reduce((sum, m) => sum + m.capacity, 0);
 
   const capacityPercentage = squadCapacity > 0 ? (totalPoints / squadCapacity) * 100 : 0;
-
-  const getStatusColor = (status: Sprint['status']) => {
-    switch (status) {
-      case 'Planning': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'Active': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'Completed': return 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200';
-      case 'Cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-    }
-  };
 
   const getProgressColor = () => {
     if (capacityPercentage <= 100) return 'bg-green-500';
@@ -56,9 +48,9 @@ export const SprintCard = ({ sprint, tasks, sprintTasks, squadMembers, onEdit, o
       sprint.status === 'Cancelled' && "border-l-4 border-l-red-500"
     )}>
       <CardHeader className="pb-3">
-        <div className="flex items-start justify-between">
-          <div className="space-y-1">
-            <h3 className="font-semibold text-lg">{sprint.name}</h3>
+        <div className="flex items-start justify-between gap-2">
+          <div className="space-y-1 min-w-0">
+            <CardTitle className="text-lg font-semibold">{sprint.name}</CardTitle>
             <div className="flex items-center gap-2 text-sm text-muted-foreground">
               <Calendar className="h-4 w-4" />
               <span>
@@ -66,13 +58,23 @@ export const SprintCard = ({ sprint, tasks, sprintTasks, squadMembers, onEdit, o
               </span>
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <Badge className={getStatusColor(sprint.status)}>
-              {sprint.status}
-            </Badge>
-            <Button variant="ghost" size="icon" onClick={onEdit}>
+          <div className="flex items-center gap-1 shrink-0">
+            <StatusBadge kind="sprint" status={sprint.status} />
+            <Button variant="ghost" size="icon" onClick={onEdit} title="Editar sprint" aria-label="Editar sprint">
               <Edit className="h-4 w-4" />
             </Button>
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={onDelete}
+                title="Excluir sprint"
+                aria-label="Excluir sprint"
+                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         </div>
       </CardHeader>

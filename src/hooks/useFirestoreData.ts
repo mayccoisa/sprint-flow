@@ -419,7 +419,38 @@ export const useFirestoreData = () => {
         // Sprints
         addSprint: (sprint: Omit<Sprint, 'id' | 'created_at'>) => addItem('sprints', { ...sprint, created_at: new Date().toISOString() }),
         updateSprint: (id: number, updates: Partial<Sprint>) => updateItem('sprints', id, updates),
-        deleteSprint: (id: number) => deleteItem('sprints', id),
+        deleteSprint: async (id: number) => {
+            // Cascade cleanup: remove all sprint_tasks, sprint_participants
+            // and release_sprints links that point at this sprint. Tasks
+            // themselves stay (they go back to the backlog automatically since
+            // they're no longer linked).
+            await Promise.all([
+                ...data.sprintTasks
+                    .filter((st) => st.sprint_id === id)
+                    .map((st) => deleteItem('sprint_tasks', st.id)),
+                ...data.sprintParticipants
+                    .filter((sp) => sp.sprint_id === id)
+                    .map((sp) => deleteItem('sprint_participants', sp.id)),
+                ...data.releaseSprints
+                    .filter((rs) => rs.sprint_id === id)
+                    .map((rs) => deleteItem('release_sprints', rs.id)),
+            ]);
+            // Also reset task.status for tasks that were in this sprint, so they
+            // reappear in the Backlog kanban instead of being stuck in 'InSprint'.
+            const orphanTaskIds = data.sprintTasks
+                .filter((st) => st.sprint_id === id)
+                .map((st) => st.task_id);
+            await Promise.all(
+                orphanTaskIds.map((taskId) => {
+                    const task = data.tasks.find((t) => t.id === taskId);
+                    if (task && task.status === 'InSprint') {
+                        return updateItem('tasks', taskId, { status: 'Backlog' });
+                    }
+                    return Promise.resolve();
+                })
+            );
+            await deleteItem('sprints', id);
+        },
 
         // Sprint Tasks
         addSprintTask: (st: Omit<SprintTask, 'id' | 'created_at'>) => addItem('sprint_tasks', { ...st, created_at: new Date().toISOString() }),

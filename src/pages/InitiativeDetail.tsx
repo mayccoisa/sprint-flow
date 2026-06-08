@@ -24,7 +24,7 @@ import {
     PlusCircle, Edit3, ArrowRightLeft, MinusCircle, Calendar, User as UserIcon,
     Zap, X, Save,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, parseDateLocal } from '@/lib/utils';
 import { useLocalData } from '@/hooks/useLocalData';
 import { useToast } from '@/hooks/use-toast';
 import { useConfirm } from '@/components/ui-patterns';
@@ -168,7 +168,7 @@ const InitiativeDetail = () => {
         return (
             <Layout>
                 <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
-                    <h1 className="text-xl font-semibold">Iniciativa não encontrada</h1>
+                    <h1 className="text-2xl font-semibold tracking-tight">Iniciativa não encontrada</h1>
                     <p className="text-muted-foreground">Talvez tenha sido excluída.</p>
                     <Button onClick={() => navigate('/initiatives')}>
                         <ArrowLeft className="h-4 w-4 mr-2" />
@@ -379,7 +379,7 @@ const InitiativeDetail = () => {
                                 <History className="h-3.5 w-3.5 mr-1.5" />
                                 Histórico
                                 {auditLogs.length > 0 && (
-                                    <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-[10px] tabular-nums">
+                                    <Badge variant="secondary" className="ml-2 h-4 px-1.5 text-xs tabular-nums">
                                         {auditLogs.length}
                                     </Badge>
                                 )}
@@ -447,7 +447,7 @@ const InitiativeDetail = () => {
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         {(['start_date', 'end_date'] as const).map((field) => {
                                             const raw = effective[field] as string | null;
-                                            const value = raw ? new Date(raw) : null;
+                                            const value = parseDateLocal(raw);
                                             return (
                                                 <div key={field} className="space-y-2">
                                                     <Label className="text-xs uppercase tracking-wider text-muted-foreground">
@@ -556,7 +556,7 @@ const InitiativeDetail = () => {
                                             </Select>
                                         </div>
                                         <div className="rounded-md border bg-muted/30 px-4 py-3 text-right">
-                                            <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Score atual</div>
+                                            <div className="text-xs uppercase tracking-wider text-muted-foreground">Score atual</div>
                                             <div className="text-2xl font-bold tabular-nums">
                                                 {score && score > 0 ? (Number.isInteger(score) ? score : score.toFixed(2)) : '—'}
                                             </div>
@@ -971,7 +971,7 @@ const NumberField = ({
                 onChange(v);
             }}
         />
-        {hint && <p className="text-[11px] text-muted-foreground">{hint}</p>}
+        {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
     </div>
 );
 
