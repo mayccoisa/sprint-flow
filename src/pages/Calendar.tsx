@@ -142,6 +142,9 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   /** Active when the user "zooms" into a sprint — calendar then renders the
    *  tasks inside that sprint instead of the sprint/release overview. */
   const [zoomedSprintId, setZoomedSprintId] = useState<number | null>(null);
+  /** Cross-sprint mode: shows every initiative attached to any sprint with a
+   *  start_date on the canvas. Mutually exclusive with zoom into a single sprint. */
+  const [allInitiativesMode, setAllInitiativesMode] = useState(false);
 
   const initialShare = currentWorkspaceId ? getShareInfo(currentWorkspaceId) : null;
   const [isPublic, setIsPublic] = useState<boolean>(!!initialShare?.isPublic);
@@ -227,6 +230,31 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
     return firestoreData.tasks.filter((t) => zoomedSprintTaskIds.includes(t.id));
   }, [firestoreData.tasks, zoomedSprintTaskIds, zoomedSprint]);
 
+  /** All-initiatives view: tasks attached to *any* sprint, grouped by sprint.
+   *  Each entry carries the parent sprint so the sidebar can show them in
+   *  buckets. Tasks linked to multiple sprints appear under each. */
+  const allInitiativesGroups = useMemo<
+    { sprint: Sprint; tasks: Task[] }[]
+  >(() => {
+    if (!allInitiativesMode) return [];
+    const taskById = new Map(firestoreData.tasks.map((t) => [t.id, t]));
+    return sprints
+      .map((sprint) => {
+        const taskIds = firestoreData.sprintTasks
+          .filter((st) => st.sprint_id === sprint.id)
+          .map((st) => st.task_id);
+        const sprintTasksData = taskIds
+          .map((id) => taskById.get(id))
+          .filter((t): t is Task => !!t);
+        return { sprint, tasks: sprintTasksData };
+      })
+      .filter((g) => g.tasks.length > 0)
+      .sort(
+        (a, b) =>
+          new Date(b.sprint.start_date).getTime() - new Date(a.sprint.start_date).getTime()
+      );
+  }, [allInitiativesMode, sprints, firestoreData.sprintTasks, firestoreData.tasks]);
+
   // When entering zoom mode, focus the calendar on the sprint range and pick
   // a sensible default view (week for short sprints, month otherwise).
   useEffect(() => {
@@ -298,6 +326,71 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
       return result;
     }
 
+    // All-initiatives mode: every task linked to any sprint with start_date.
+    // No sprint bars (those would just duplicate the info).
+    if (allInitiativesMode) {
+      const taskToSprintColor = new Map<number, string>();
+      firestoreData.sprintTasks.forEach((st) => {
+        if (!taskToSprintColor.has(st.task_id)) {
+          const sprint = sprints.find((s) => s.id === st.sprint_id);
+          if (sprint) {
+            taskToSprintColor.set(st.task_id, squadColorMap[sprint.squad_id] || '#6366f1');
+          }
+        }
+      });
+      tasks.forEach((task) => {
+        if (!taskToSprintColor.has(task.id)) return;
+        if (selectedSquad !== 'all') {
+          const taskSprintIds = firestoreData.sprintTasks
+            .filter((st) => st.task_id === task.id)
+            .map((st) => st.sprint_id);
+          const anyMatches = taskSprintIds.some((sid) => {
+            const sprint = sprints.find((s) => s.id === sid);
+            const squad = sprint && squads.find((sq) => sq.id === sprint.squad_id);
+            return squad?.name === selectedSquad;
+          });
+          if (!anyMatches) return;
+        }
+        const start = parseDateLocal(task.start_date);
+        if (!start) return;
+        const end = parseDateLocal(task.end_date) ?? start;
+        const style = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
+        const hasChanges = taskDateChanges.some((c) => c.task_id === task.id);
+        result.push({
+          id: task.id,
+          title: task.title,
+          start,
+          end,
+          type: 'task',
+          data: task,
+          color: style.color,
+          meta: { icon: style.icon, subtitle: style.label, hasAlert: hasChanges },
+        });
+      });
+      if (showReleases) {
+        releases.forEach((release) => {
+          if (selectedSquad !== 'all' && release.squad_id) {
+            const squad = squads.find((s) => s.id === release.squad_id);
+            if (!squad || squad.name !== selectedSquad) return;
+          }
+          const start = parseDateLocal(release.release_date);
+          if (!start) return;
+          const style = RELEASE_STATUS_STYLES[release.status] || RELEASE_STATUS_STYLES.Planned;
+          result.push({
+            id: release.id,
+            title: release.version_name,
+            start,
+            end: start,
+            type: 'release',
+            data: release,
+            color: release.color || style.color,
+            meta: { icon: Flag, subtitle: style.label },
+          });
+        });
+      }
+      return result;
+    }
+
     if (showSprints) {
       sprints.forEach((sprint) => {
         if (selectedSquad !== 'all') {
@@ -351,6 +444,9 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
     taskDateChanges,
     zoomedSprint,
     zoomedSprintTaskIds,
+    allInitiativesMode,
+    firestoreData.releaseSprints,
+    firestoreData.sprintTasks,
   ]);
 
   // ---------- event renderer ----------
@@ -687,6 +783,23 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           actions={
             <>
               {sharePopover}
+              {!zoomedSprint && (
+                <Select
+                  value={allInitiativesMode ? 'initiatives' : 'sprints'}
+                  onValueChange={(v) => {
+                    setAllInitiativesMode(v === 'initiatives');
+                    setZoomedSprintId(null);
+                  }}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="sprints">Sprints + Releases</SelectItem>
+                    <SelectItem value="initiatives">Todas as iniciativas</SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
               <Select value={selectedSquad} onValueChange={setSelectedSquad}>
                 <SelectTrigger className="w-[220px]">
                   <SelectValue placeholder="Todos os squads" />
@@ -808,6 +921,73 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                   )}
                 </CardContent>
               </Card>
+            ) : allInitiativesMode ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm flex items-center gap-2">
+                    Iniciativas por sprint
+                    <Badge variant="secondary" className="ml-auto h-5 px-1.5 text-xs">
+                      {allInitiativesGroups.reduce((sum, g) => sum + g.tasks.length, 0)}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {allInitiativesGroups.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Nenhuma iniciativa vinculada a sprints.
+                    </p>
+                  ) : (
+                    allInitiativesGroups.map((group) => (
+                      <div key={group.sprint.id} className="space-y-1">
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAllInitiativesMode(false);
+                              setZoomedSprintId(group.sprint.id);
+                            }}
+                            className="text-xs font-semibold hover:text-primary text-left truncate"
+                          >
+                            {group.sprint.name}
+                          </button>
+                          <Badge variant="outline" className="h-4 px-1 text-xs">
+                            {group.tasks.length}
+                          </Badge>
+                        </div>
+                        <ul className="space-y-0.5 pl-2">
+                          {group.tasks.slice(0, 5).map((task) => {
+                            const style =
+                              TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
+                            const Icon = style.icon;
+                            return (
+                              <li
+                                key={`${group.sprint.id}-${task.id}`}
+                                className="flex items-center gap-1.5 text-xs"
+                              >
+                                <Icon
+                                  className="h-3 w-3 shrink-0"
+                                  style={{ color: style.color }}
+                                />
+                                <span className="truncate text-muted-foreground">
+                                  {task.title}
+                                </span>
+                                {!task.start_date && (
+                                  <span className="text-amber-600 shrink-0">·</span>
+                                )}
+                              </li>
+                            );
+                          })}
+                          {group.tasks.length > 5 && (
+                            <li className="text-xs text-muted-foreground italic pl-4">
+                              + {group.tasks.length - 5} mais
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+                    ))
+                  )}
+                </CardContent>
+              </Card>
             ) : (
               <Card>
                 <CardHeader className="pb-3">
@@ -839,7 +1019,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                 <CardTitle className="text-sm">Legenda</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {!zoomedSprint && (
+                {!zoomedSprint && !allInitiativesMode && (
                   <>
                     <LegendSection title="Sprints por squad" hint="Barra colorida por squad">
                       {squads.length === 0 ? (
@@ -875,7 +1055,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                   </>
                 )}
 
-                {zoomedSprint && (
+                {(zoomedSprint || allInitiativesMode) && (
                   <>
                     <LegendSection title="Tarefas por tipo" hint="Cor identifica o tipo">
                       {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
@@ -894,7 +1074,10 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
 
                     <Separator />
 
-                    <LegendSection title="Releases vinculadas" hint="Pílula sólida na data">
+                    <LegendSection
+                      title={allInitiativesMode ? 'Releases por status' : 'Releases vinculadas'}
+                      hint="Pílula sólida na data"
+                    >
                       {Object.entries(RELEASE_STATUS_STYLES).map(([key, s]) => {
                         const Icon = s.icon;
                         return (
