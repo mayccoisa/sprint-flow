@@ -81,6 +81,7 @@ export const en = {
                 priority: "Priority",
                 phase: "Lifecycle Phase",
                 status: "Current Status",
+                sprint: "Sprint",
                 empty: "No initiatives found."
             },
             phases: {

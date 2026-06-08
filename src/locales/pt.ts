@@ -83,6 +83,7 @@ export const pt = {
                 priority: "Prioridade",
                 phase: "Fase do Ciclo",
                 status: "Status Atual",
+                sprint: "Sprint",
                 empty: "Nenhuma iniciativa encontrada."
             },
             phases: {

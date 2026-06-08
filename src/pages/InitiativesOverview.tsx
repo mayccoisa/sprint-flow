@@ -57,7 +57,7 @@ import {
 } from '@/utils/initiativeStatus';
 
 type ColumnKey =
-    | 'type' | 'priority' | 'phase' | 'status' | 'created' | 'effort'
+    | 'type' | 'priority' | 'phase' | 'status' | 'sprint' | 'created' | 'effort'
     | 'model' | 'score'
     | 'ice_impact' | 'ice_confidence' | 'ice_ease'
     | 'rice_reach' | 'rice_impact' | 'rice_confidence' | 'rice_effort'
@@ -77,6 +77,7 @@ const COLUMN_DEFS: ColumnDef[] = [
     { key: 'priority', defaultLabel: 'Prioridade', i18nKey: 'initiatives.table.priority', defaultVisible: true, group: 'general' },
     { key: 'phase', defaultLabel: 'Fase do Ciclo', i18nKey: 'initiatives.table.phase', defaultVisible: true, group: 'general' },
     { key: 'status', defaultLabel: 'Status', i18nKey: 'initiatives.table.status', defaultVisible: true, group: 'general' },
+    { key: 'sprint', defaultLabel: 'Sprint', i18nKey: 'initiatives.table.sprint', defaultVisible: true, group: 'general' },
     { key: 'created', defaultLabel: 'Criado em', i18nKey: 'initiatives.table.created', defaultVisible: false, group: 'general' },
     { key: 'effort', defaultLabel: 'Esforço', i18nKey: 'initiatives.table.effort', defaultVisible: false, group: 'general', numeric: true },
     { key: 'model', defaultLabel: 'Modelo', i18nKey: 'initiatives.table.model', defaultVisible: false, group: 'general' },
@@ -512,6 +513,37 @@ const InitiativesOverview = () => {
                         </Select>
                     </span>
                 );
+            case 'sprint': {
+                const sprintIdSet = sprintIdsByTaskId.get(task.id);
+                if (!sprintIdSet || sprintIdSet.size === 0) {
+                    return <span className="text-sm text-muted-foreground italic">—</span>;
+                }
+                const linkedSprints = (data.sprints as Sprint[])
+                    .filter((s) => sprintIdSet.has(s.id))
+                    .sort(
+                        (a, b) =>
+                            new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+                    );
+                const first = linkedSprints[0];
+                const rest = linkedSprints.length - 1;
+                return (
+                    <span data-row-control onClick={(e) => e.stopPropagation()}>
+                        <button
+                            type="button"
+                            onClick={() => navigate(`/sprints/${first.id}/planning`)}
+                            className="inline-flex items-center gap-1 text-sm hover:text-primary"
+                            title={linkedSprints.map((s) => s.name).join(', ')}
+                        >
+                            <span className="truncate max-w-[160px]">{first.name}</span>
+                            {rest > 0 && (
+                                <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                                    +{rest}
+                                </Badge>
+                            )}
+                        </button>
+                    </span>
+                );
+            }
             case 'created':
                 return (
                     <span className="text-sm text-muted-foreground">
