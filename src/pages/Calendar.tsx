@@ -143,8 +143,10 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
    *  tasks inside that sprint instead of the sprint/release overview. */
   const [zoomedSprintId, setZoomedSprintId] = useState<number | null>(null);
   /** Cross-sprint mode: shows every initiative attached to any sprint with a
-   *  start_date on the canvas. Mutually exclusive with zoom into a single sprint. */
-  const [allInitiativesMode, setAllInitiativesMode] = useState(false);
+   *  start_date on the canvas. Mutually exclusive with zoom into a single sprint.
+   *  Defaults ON — the main calendar lands on the initiative view; the
+   *  Sprints+Releases overview is one click away in the header selector. */
+  const [allInitiativesMode, setAllInitiativesMode] = useState(true);
 
   const initialShare = currentWorkspaceId ? getShareInfo(currentWorkspaceId) : null;
   const [isPublic, setIsPublic] = useState<boolean>(!!initialShare?.isPublic);
