@@ -27,6 +27,7 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { useNavigate } from 'react-router-dom';
 import { useLocalData } from '@/hooks/useLocalData';
+import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useToast } from '@/hooks/use-toast';
 import { useTranslation } from 'react-i18next';
@@ -131,7 +132,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { currentWorkspaceId } = useWorkspace();
-  const { data: firestoreData } = useLocalData();
+  const { data: firestoreData, updateTask } = useLocalData() as any;
   const taskDateChanges = firestoreData.taskDateChanges;
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
@@ -147,6 +148,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
    *  Defaults ON — the main calendar lands on the initiative view; the
    *  Sprints+Releases overview is one click away in the header selector. */
   const [allInitiativesMode, setAllInitiativesMode] = useState(true);
+  /** Task currently being edited via the calendar popover → "Editar" flow. */
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
 
   const initialShare = currentWorkspaceId ? getShareInfo(currentWorkspaceId) : null;
   const [isPublic, setIsPublic] = useState<boolean>(!!initialShare?.isPublic);
@@ -561,6 +564,26 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             <Badge variant="outline">{task.status}</Badge>
           </div>
 
+          {!publicMode && (
+            <div className="flex gap-2 pt-1">
+              <Button
+                size="sm"
+                variant="default"
+                className="flex-1"
+                onClick={() => setEditingTask(task)}
+              >
+                Editar
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => navigate(`/initiatives/${task.id}`)}
+              >
+                Abrir detalhes
+              </Button>
+            </div>
+          )}
+
           {changes.length > 0 && (
             <div className="space-y-2">
               <Separator />
@@ -765,8 +788,29 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
     </Popover>
   );
 
+  const handleSaveEditedTask = async (data: any) => {
+    if (!editingTask) return;
+    try {
+      await updateTask(editingTask.id, data);
+      toast({ title: 'Iniciativa atualizada' });
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao atualizar iniciativa',
+        description: e?.message,
+        variant: 'destructive',
+      });
+    }
+    setEditingTask(null);
+  };
+
   const content = (
       <div className="space-y-6">
+        <InitiativeFormDialog
+          open={!!editingTask}
+          onClose={() => setEditingTask(null)}
+          onSave={handleSaveEditedTask}
+          task={editingTask}
+        />
         <PageHeader
           icon={CalendarDays}
           title="Calendário"
