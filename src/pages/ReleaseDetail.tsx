@@ -86,14 +86,24 @@ export default function ReleaseDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { data, addReleaseTask, removeReleaseTask, updateRelease, setReleaseSprints } =
-    useLocalData() as any;
+  const {
+    data,
+    addReleaseTask,
+    removeReleaseTask,
+    updateRelease,
+    setReleaseSprints,
+    addReleaseSprint,
+    removeReleaseSprint,
+  } = useLocalData() as any;
 
   const releaseId = id ? parseInt(id) : null;
   const [isAddTasksOpen, setIsAddTasksOpen] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<number[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [isEditOpen, setIsEditOpen] = useState(false);
+  const [isAddSprintsOpen, setIsAddSprintsOpen] = useState(false);
+  const [selectedSprintIds, setSelectedSprintIds] = useState<number[]>([]);
+  const [sprintSearch, setSprintSearch] = useState('');
   /** When true, the picker shows every task in the workspace. When false (default),
    *  it restricts to tasks of the sprints linked to this release. */
   const [showAllInPicker, setShowAllInPicker] = useState(false);
@@ -156,6 +166,56 @@ export default function ReleaseDetail() {
     await setReleaseSprints(releaseId, sprintIds);
     setIsEditOpen(false);
     toast({ title: 'Release atualizada' });
+  };
+
+  /** Sprints not yet linked to this release — used to populate the "add" picker. */
+  const availableSprintsForRelease = useMemo<Sprint[]>(() => {
+    const linkedIds = new Set(linkedSprints.map((s) => s.id));
+    const matchesSearch = (s: Sprint) =>
+      s.name.toLowerCase().includes(sprintSearch.toLowerCase());
+    return (data.sprints as Sprint[])
+      .filter((s) => !linkedIds.has(s.id) && matchesSearch(s))
+      .sort(
+        (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+      );
+  }, [data.sprints, linkedSprints, sprintSearch]);
+
+  const handleAddSprints = async () => {
+    if (!releaseId || selectedSprintIds.length === 0) return;
+    try {
+      await Promise.all(
+        selectedSprintIds.map((sprintId) =>
+          addReleaseSprint({ release_id: releaseId, sprint_id: sprintId })
+        )
+      );
+      toast({
+        title: 'Sprints vinculadas',
+        description: `${selectedSprintIds.length} sprint(s) adicionada(s) à release`,
+      });
+      setIsAddSprintsOpen(false);
+      setSelectedSprintIds([]);
+      setSprintSearch('');
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao vincular sprints',
+        description: e.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleRemoveSprint = async (sprintId: number) => {
+    if (!releaseId) return;
+    try {
+      await removeReleaseSprint(releaseId, sprintId);
+      toast({ title: 'Sprint desvinculada da release' });
+    } catch (e: any) {
+      toast({
+        title: 'Erro ao desvincular sprint',
+        description: e.message,
+        variant: 'destructive',
+      });
+    }
   };
 
   /** Group tasks of the release by the linked sprints where they were worked.
@@ -346,33 +406,65 @@ export default function ReleaseDetail() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Rocket className="h-5 w-5 text-muted-foreground" />
-              Sprints vinculadas
-            </CardTitle>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Rocket className="h-5 w-5 text-muted-foreground" />
+                Sprints vinculadas
+                {linkedSprints.length > 0 && (
+                  <Badge variant="secondary" className="ml-1 h-5 px-1.5">
+                    {linkedSprints.length}
+                  </Badge>
+                )}
+              </CardTitle>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setSelectedSprintIds([]);
+                  setSprintSearch('');
+                  setIsAddSprintsOpen(true);
+                }}
+              >
+                <Plus className="mr-2 h-4 w-4" />
+                Adicionar sprint
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {linkedSprints.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                Nenhuma sprint vinculada. Edite a release para vincular as sprints que compõem o
+                Nenhuma sprint vinculada. Use o botão acima para vincular as sprints que compõem o
                 trabalho desta entrega.
               </p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {linkedSprints.map((sprint) => (
-                  <button
+                  <div
                     key={sprint.id}
-                    type="button"
-                    onClick={() => navigate(`/sprints/${sprint.id}/planning`)}
-                    className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition"
+                    className="group inline-flex items-center gap-2 rounded-md border pl-3 pr-1 py-1 text-sm hover:bg-accent/40 transition"
                   >
-                    <span className="font-medium">{sprint.name}</span>
-                    <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                      <CalendarDays className="h-3 w-3" />
-                      {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
-                      {format(new Date(sprint.end_date), 'dd MMM', { locale: ptBR })}
-                    </span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => navigate(`/sprints/${sprint.id}/planning`)}
+                      className="inline-flex items-center gap-2 py-0.5"
+                    >
+                      <span className="font-medium">{sprint.name}</span>
+                      <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                        <CalendarDays className="h-3 w-3" />
+                        {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
+                        {format(new Date(sprint.end_date), 'dd MMM', { locale: ptBR })}
+                      </span>
+                    </button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-6 w-6 shrink-0 text-muted-foreground hover:text-destructive"
+                      aria-label={`Desvincular ${sprint.name}`}
+                      onClick={() => handleRemoveSprint(sprint.id)}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
                 ))}
               </div>
             )}
@@ -551,6 +643,84 @@ export default function ReleaseDetail() {
         sprints={data.sprints || []}
         initialSprintIds={linkedSprintIds}
       />
+
+      <Dialog
+        open={isAddSprintsOpen}
+        onOpenChange={(open) => {
+          setIsAddSprintsOpen(open);
+          if (!open) {
+            setSelectedSprintIds([]);
+            setSprintSearch('');
+          }
+        }}
+      >
+        <DialogContent className="max-w-lg max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Adicionar sprints à release</DialogTitle>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <Input
+              placeholder="Buscar sprints..."
+              value={sprintSearch}
+              onChange={(e) => setSprintSearch(e.target.value)}
+            />
+
+            <div className="space-y-2 max-h-[50vh] overflow-y-auto">
+              {availableSprintsForRelease.length === 0 ? (
+                <div className="text-center py-8 text-sm text-muted-foreground">
+                  {linkedSprints.length === data.sprints.length
+                    ? 'Todas as sprints já estão vinculadas a esta release.'
+                    : 'Nenhuma sprint encontrada.'}
+                </div>
+              ) : (
+                availableSprintsForRelease.map((sprint) => {
+                  const squad = data.squads.find((s: any) => s.id === sprint.squad_id);
+                  return (
+                    <label
+                      key={sprint.id}
+                      className="flex items-start space-x-3 p-3 border rounded-lg hover:bg-accent cursor-pointer"
+                    >
+                      <Checkbox
+                        checked={selectedSprintIds.includes(sprint.id)}
+                        onCheckedChange={(checked) => {
+                          if (checked) {
+                            setSelectedSprintIds([...selectedSprintIds, sprint.id]);
+                          } else {
+                            setSelectedSprintIds(
+                              selectedSprintIds.filter((id) => id !== sprint.id)
+                            );
+                          }
+                        }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium">{sprint.name}</div>
+                        <div className="text-xs text-muted-foreground flex items-center gap-2 flex-wrap">
+                          {squad && <span>{squad.name}</span>}
+                          <span className="inline-flex items-center gap-1">
+                            <CalendarDays className="h-3 w-3" />
+                            {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
+                            {format(new Date(sprint.end_date), 'dd MMM yyyy', { locale: ptBR })}
+                          </span>
+                        </div>
+                      </div>
+                    </label>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setIsAddSprintsOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleAddSprints} disabled={selectedSprintIds.length === 0}>
+                Adicionar {selectedSprintIds.length} selecionada(s)
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={isAddTasksOpen} onOpenChange={setIsAddTasksOpen}>
         <DialogContent className="max-w-2xl max-h-[85vh] overflow-y-auto">
