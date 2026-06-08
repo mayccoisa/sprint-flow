@@ -435,6 +435,9 @@ export const en = {
             noDescription: "No description",
             empty: "No releases yet",
             emptyDesc: "Plan and ship a release to track delivery milestones.",
+            linkedSprints: "Linked sprints",
+            linkedSprintsEmpty: "No sprints linked yet. Edit the release to link the sprints whose work ships in it.",
+            tasksGroupOther: "Other",
             statuses: {
                 Planned: "Planned",
                 InProgress: "In Progress",

@@ -116,6 +116,14 @@ export interface ReleaseTask {
   task_id: number;
 }
 
+export interface ReleaseSprint {
+  id: number;
+  workspace_id?: string;
+  created_at: string;
+  release_id: number;
+  sprint_id: number;
+}
+
 
 
 export type PrioritizationModel = 'ICE' | 'RICE' | 'BRICE';

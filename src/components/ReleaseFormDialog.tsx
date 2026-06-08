@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -26,17 +26,20 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Button } from '@/components/ui/button';
-import { Release, Squad, VersionStatus } from '@/types';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Release, Squad, Sprint, VersionStatus } from '@/types';
 import { Calendar } from '@/components/ui/calendar';
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { CalendarIcon } from 'lucide-react';
+import { CalendarIcon, X } from 'lucide-react';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 const releaseSchema = z.object({
   version_name: z.string().min(1, 'Nome da versão é obrigatório'),
@@ -53,9 +56,11 @@ type ReleaseFormValues = z.infer<typeof releaseSchema>;
 interface ReleaseFormDialogProps {
   open: boolean;
   onClose: () => void;
-  onSave: (release: Omit<Release, 'id' | 'created_at'>) => void;
+  onSave: (release: Omit<Release, 'id' | 'created_at'>, sprintIds: number[]) => void;
   release?: Release;
   squads: Squad[];
+  sprints: Sprint[];
+  initialSprintIds?: number[];
 }
 
 const colorPresets = [
@@ -73,6 +78,8 @@ export function ReleaseFormDialog({
   onSave,
   release,
   squads,
+  sprints,
+  initialSprintIds = [],
 }: ReleaseFormDialogProps) {
   const form = useForm<ReleaseFormValues>({
     resolver: zodResolver(releaseSchema),
@@ -86,6 +93,8 @@ export function ReleaseFormDialog({
       color: '#6366f1',
     },
   });
+
+  const [selectedSprintIds, setSelectedSprintIds] = useState<number[]>(initialSprintIds);
 
   useEffect(() => {
     if (release) {
@@ -109,14 +118,42 @@ export function ReleaseFormDialog({
         color: '#6366f1',
       });
     }
-  }, [release, form, open]);
+    setSelectedSprintIds(initialSprintIds);
+    // initialSprintIds is intentionally not in deps — only sync when the dialog
+    // opens for a different release, to avoid clobbering in-progress edits.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [release, open]);
+
+  const squadId = form.watch('squad_id');
+
+  const availableSprints = useMemo(() => {
+    const filtered = squadId ? sprints.filter((s) => s.squad_id === squadId) : sprints;
+    return [...filtered].sort(
+      (a, b) => new Date(b.start_date).getTime() - new Date(a.start_date).getTime()
+    );
+  }, [sprints, squadId]);
+
+  const selectedSprints = useMemo(
+    () => sprints.filter((s) => selectedSprintIds.includes(s.id)),
+    [sprints, selectedSprintIds]
+  );
+
+  const toggleSprint = (sprintId: number) => {
+    setSelectedSprintIds((prev) =>
+      prev.includes(sprintId) ? prev.filter((id) => id !== sprintId) : [...prev, sprintId]
+    );
+  };
 
   const onSubmit = (data: ReleaseFormValues) => {
-    onSave({
-      ...data,
-      release_date: format(data.release_date, 'yyyy-MM-dd'),
-    } as Omit<Release, 'id' | 'created_at'>);
+    onSave(
+      {
+        ...data,
+        release_date: format(data.release_date, 'yyyy-MM-dd'),
+      } as Omit<Release, 'id' | 'created_at'>,
+      selectedSprintIds
+    );
     form.reset();
+    setSelectedSprintIds([]);
   };
 
   return (
@@ -221,6 +258,59 @@ export function ReleaseFormDialog({
                 </FormItem>
               )}
             />
+
+            <FormItem>
+              <FormLabel>Sprints vinculadas</FormLabel>
+              {selectedSprints.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {selectedSprints.map((s) => (
+                    <Badge key={s.id} variant="secondary" className="gap-1">
+                      {s.name}
+                      <button
+                        type="button"
+                        onClick={() => toggleSprint(s.id)}
+                        className="ml-1 rounded-sm hover:bg-muted-foreground/20"
+                        aria-label={`Remover ${s.name}`}
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              <div className="max-h-44 overflow-y-auto border rounded-md divide-y">
+                {availableSprints.length === 0 ? (
+                  <div className="text-xs text-muted-foreground p-3 text-center">
+                    {squadId
+                      ? 'Nenhuma sprint cadastrada para este squad.'
+                      : 'Nenhuma sprint cadastrada.'}
+                  </div>
+                ) : (
+                  availableSprints.map((sprint) => {
+                    const checked = selectedSprintIds.includes(sprint.id);
+                    return (
+                      <label
+                        key={sprint.id}
+                        className="flex items-center gap-2 p-2 text-sm cursor-pointer hover:bg-accent/40"
+                      >
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={() => toggleSprint(sprint.id)}
+                        />
+                        <span className="font-medium truncate flex-1">{sprint.name}</span>
+                        <span className="text-[11px] text-muted-foreground shrink-0">
+                          {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
+                          {format(new Date(sprint.end_date), 'dd MMM', { locale: ptBR })}
+                        </span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Selecione as sprints cujo trabalho compõe esta release.
+              </p>
+            </FormItem>
 
             <FormField
               control={form.control}

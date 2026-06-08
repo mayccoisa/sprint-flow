@@ -11,17 +11,28 @@ export default function PublicCalendar() {
   const [status, setStatus] = useState<'loading' | 'ok' | 'forbidden'>('loading');
 
   useEffect(() => {
+    let cancelled = false;
     if (!token) {
       setStatus('forbidden');
       return;
     }
-    const entry = resolveShareToken(token);
-    if (!entry || !entry.isPublic) {
-      setStatus('forbidden');
-      return;
-    }
-    setCurrentWorkspaceId(entry.workspaceId);
-    setStatus('ok');
+    (async () => {
+      try {
+        const entry = await resolveShareToken(token);
+        if (cancelled) return;
+        if (!entry || !entry.isPublic) {
+          setStatus('forbidden');
+          return;
+        }
+        setCurrentWorkspaceId(entry.workspaceId);
+        setStatus('ok');
+      } catch {
+        if (!cancelled) setStatus('forbidden');
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, [token, setCurrentWorkspaceId]);
 
   if (status === 'loading') {

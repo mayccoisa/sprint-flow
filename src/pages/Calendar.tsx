@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Calendar as BigCalendar, momentLocalizer, View, ToolbarProps } from 'react-big-calendar';
 import moment from 'moment';
 import 'moment/locale/pt-br';
@@ -51,7 +51,6 @@ import {
   FlaskConical,
   Truck,
   Flag,
-  CircleDot,
   CheckCircle2,
   XCircle,
   Clock,
@@ -135,27 +134,40 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   const [view, setView] = useState<View>('month');
   const [date, setDate] = useState(new Date());
   const [showSprints, setShowSprints] = useState(true);
-  const [showTasks, setShowTasks] = useState(true);
   const [showReleases, setShowReleases] = useState(true);
   const [selectedSquad, setSelectedSquad] = useState<string>('all');
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  /** Active when the user "zooms" into a sprint — calendar then renders the
+   *  tasks inside that sprint instead of the sprint/release overview. */
+  const [zoomedSprintId, setZoomedSprintId] = useState<number | null>(null);
 
   const initialShare = currentWorkspaceId ? getShareInfo(currentWorkspaceId) : null;
   const [isPublic, setIsPublic] = useState<boolean>(!!initialShare?.isPublic);
   const [shareToken, setShareToken] = useState<string | null>(initialShare?.token || null);
   const [copied, setCopied] = useState(false);
 
-  const handleTogglePublic = (value: boolean) => {
+  const handleTogglePublic = async (value: boolean) => {
     if (!currentWorkspaceId) return;
-    if (value) {
-      const entry = enablePublicCalendar(currentWorkspaceId);
-      setShareToken(entry.token);
-      setIsPublic(true);
-      toast({ title: 'Calendário público', description: 'Qualquer pessoa com o link pode visualizar.' });
-    } else {
-      disablePublicCalendar(currentWorkspaceId);
-      setIsPublic(false);
-      toast({ title: 'Calendário privado', description: 'O link público foi desativado.' });
+    try {
+      if (value) {
+        const entry = await enablePublicCalendar(currentWorkspaceId);
+        setShareToken(entry.token);
+        setIsPublic(true);
+        toast({
+          title: 'Calendário público',
+          description: 'Qualquer pessoa com o link pode visualizar.',
+        });
+      } else {
+        await disablePublicCalendar(currentWorkspaceId);
+        setIsPublic(false);
+        toast({ title: 'Calendário privado', description: 'O link público foi desativado.' });
+      }
+    } catch (err: any) {
+      toast({
+        title: 'Não foi possível atualizar o link',
+        description: err?.message || 'Tente novamente em instantes.',
+        variant: 'destructive',
+      });
     }
   };
 
@@ -180,6 +192,42 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   const releases: Release[] = firestoreData.releases;
   const squads: Squad[] = firestoreData.squads;
 
+  const zoomedSprint = useMemo<Sprint | null>(
+    () => (zoomedSprintId != null ? sprints.find((s) => s.id === zoomedSprintId) ?? null : null),
+    [sprints, zoomedSprintId]
+  );
+  const zoomedSquad = useMemo(
+    () => (zoomedSprint ? squads.find((s) => s.id === zoomedSprint.squad_id) : null),
+    [squads, zoomedSprint]
+  );
+  /** IDs of tasks assigned to the zoomed sprint (via sprint_tasks). Empty when not zoomed. */
+  const zoomedSprintTaskIds = useMemo<number[]>(() => {
+    if (!zoomedSprint) return [];
+    return firestoreData.sprintTasks
+      .filter((st) => st.sprint_id === zoomedSprint.id)
+      .map((st) => st.task_id);
+  }, [firestoreData.sprintTasks, zoomedSprint]);
+  /** Tasks in the zoomed sprint that *don't* have explicit start_date — shown
+   *  in the sidebar so the user still knows they're part of the sprint. */
+  const zoomedTasksWithoutDates = useMemo<Task[]>(() => {
+    if (!zoomedSprint) return [];
+    return firestoreData.tasks.filter(
+      (t) => zoomedSprintTaskIds.includes(t.id) && !t.start_date
+    );
+  }, [firestoreData.tasks, zoomedSprintTaskIds, zoomedSprint]);
+
+  // When entering zoom mode, focus the calendar on the sprint range and pick
+  // a sensible default view (week for short sprints, month otherwise).
+  useEffect(() => {
+    if (!zoomedSprint) return;
+    setDate(new Date(zoomedSprint.start_date));
+    const spanDays =
+      (new Date(zoomedSprint.end_date).getTime() -
+        new Date(zoomedSprint.start_date).getTime()) /
+      (1000 * 60 * 60 * 24);
+    setView(spanDays <= 14 ? 'week' : 'month');
+  }, [zoomedSprint]);
+
   const squadColorMap = useMemo(() => {
     const map: Record<number, string> = {};
     squads.forEach((s, i) => {
@@ -190,6 +238,29 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
 
   const events = useMemo<CalendarEvent[]>(() => {
     const result: CalendarEvent[] = [];
+
+    // Zoom mode: render only the tasks linked to the zoomed sprint that have
+    // explicit start_date. Sprints/releases are hidden — the zoom view is
+    // dedicated to the sprint's task plan.
+    if (zoomedSprint) {
+      tasks.forEach((task) => {
+        if (!zoomedSprintTaskIds.includes(task.id)) return;
+        if (!task.start_date) return;
+        const style = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
+        const hasChanges = taskDateChanges.some((c) => c.task_id === task.id);
+        result.push({
+          id: task.id,
+          title: task.title,
+          start: new Date(task.start_date),
+          end: task.end_date ? new Date(task.end_date) : new Date(task.start_date),
+          type: 'task',
+          data: task,
+          color: style.color,
+          meta: { icon: style.icon, subtitle: style.label, hasAlert: hasChanges },
+        });
+      });
+      return result;
+    }
 
     if (showSprints) {
       sprints.forEach((sprint) => {
@@ -207,24 +278,6 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           data: sprint,
           color: squadColorMap[sprint.squad_id] || '#6366f1',
           meta: { icon: Rocket, subtitle: squad?.name },
-        });
-      });
-    }
-
-    if (showTasks) {
-      tasks.forEach((task) => {
-        if (!task.start_date) return;
-        const style = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
-        const hasChanges = taskDateChanges.some((c) => c.task_id === task.id);
-        result.push({
-          id: task.id,
-          title: task.title,
-          start: new Date(task.start_date),
-          end: task.end_date ? new Date(task.end_date) : new Date(task.start_date),
-          type: 'task',
-          data: task,
-          color: style.color,
-          meta: { icon: style.icon, subtitle: style.label, hasAlert: hasChanges },
         });
       });
     }
@@ -250,7 +303,19 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
     }
 
     return result;
-  }, [sprints, tasks, releases, squads, showSprints, showTasks, showReleases, selectedSquad, squadColorMap, taskDateChanges]);
+  }, [
+    sprints,
+    tasks,
+    releases,
+    squads,
+    showSprints,
+    showReleases,
+    selectedSquad,
+    squadColorMap,
+    taskDateChanges,
+    zoomedSprint,
+    zoomedSprintTaskIds,
+  ]);
 
   // ---------- event renderer ----------
   const EventComponent = ({ event }: { event: CalendarEvent }) => {
@@ -321,8 +386,12 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             </div>
             <Badge variant="secondary">{SPRINT_STATUS_LABELS[sprint.status] || sprint.status}</Badge>
           </div>
-          <Button size="sm" className="w-full" onClick={() => navigate(`/sprints/${event.id}/planning`)}>
-            Abrir sprint
+          <Button
+            size="sm"
+            className="w-full"
+            onClick={() => setZoomedSprintId(event.id)}
+          >
+            Ver tarefas no calendário
           </Button>
         </div>
       );
@@ -475,7 +544,6 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   const counts = useMemo(
     () => ({
       sprints: events.filter((e) => e.type === 'sprint').length,
-      tasks: events.filter((e) => e.type === 'task').length,
       releases: events.filter((e) => e.type === 'release').length,
     }),
     [events]
@@ -579,7 +647,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             <p className="text-sm text-muted-foreground mt-1">
               {publicMode
                 ? 'Visualização somente leitura compartilhada via link.'
-                : 'Visualize sprints, tarefas e releases em uma linha do tempo unificada.'}
+                : 'Sprints e releases em uma linha do tempo. Clique em uma sprint para ver as tarefas planejadas.'}
             </p>
           </div>
           <div className="flex items-center gap-2 flex-wrap">
@@ -606,97 +674,166 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           </div>
         </div>
 
+        {zoomedSprint && (
+          <div className="rounded-lg border bg-accent/40 p-3 flex items-center gap-3 flex-wrap">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setZoomedSprintId(null)}
+              className="gap-2"
+            >
+              <ChevronLeft className="h-4 w-4" />
+              Voltar ao calendário
+            </Button>
+            <div className="h-6 w-px bg-border" />
+            <div className="flex items-center gap-2 min-w-0">
+              <Rocket className="h-4 w-4 text-primary shrink-0" />
+              <div className="min-w-0">
+                <div className="font-semibold truncate">{zoomedSprint.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {zoomedSquad?.name ? `${zoomedSquad.name} · ` : ''}
+                  {format(new Date(zoomedSprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
+                  {format(new Date(zoomedSprint.end_date), 'dd MMM yyyy', { locale: ptBR })}
+                </div>
+              </div>
+            </div>
+            {!publicMode && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="ml-auto"
+                onClick={() => navigate(`/sprints/${zoomedSprint.id}/planning`)}
+              >
+                Abrir planning
+              </Button>
+            )}
+          </div>
+        )}
+
         <div
           className={`grid gap-4 ${sidebarOpen ? 'lg:grid-cols-[280px_1fr]' : 'lg:grid-cols-1'}`}
         >
           {/* Sidebar: filters + legend */}
           {sidebarOpen && (
           <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Filtros</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <FilterRow
-                  id="sprints"
-                  checked={showSprints}
-                  onChange={setShowSprints}
-                  label={t('pages.calendar.sprints') || 'Sprints'}
-                  count={counts.sprints}
-                  icon={<Rocket className="h-3.5 w-3.5" />}
-                />
-                <FilterRow
-                  id="tasks"
-                  checked={showTasks}
-                  onChange={setShowTasks}
-                  label="Tarefas"
-                  count={counts.tasks}
-                  icon={<CircleDot className="h-3.5 w-3.5" />}
-                />
-                <FilterRow
-                  id="releases"
-                  checked={showReleases}
-                  onChange={setShowReleases}
-                  label={t('pages.calendar.releases') || 'Releases'}
-                  count={counts.releases}
-                  icon={<Flag className="h-3.5 w-3.5" />}
-                />
-              </CardContent>
-            </Card>
+            {zoomedSprint ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">
+                    Iniciativas sem data
+                    <Badge variant="secondary" className="ml-2 h-5 px-1.5 text-[10px]">
+                      {zoomedTasksWithoutDates.length}
+                    </Badge>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {zoomedTasksWithoutDates.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">
+                      Todas as iniciativas da sprint têm data definida.
+                    </p>
+                  ) : (
+                    <ul className="space-y-1.5">
+                      {zoomedTasksWithoutDates.map((task) => {
+                        const style =
+                          TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
+                        const Icon = style.icon;
+                        return (
+                          <li
+                            key={task.id}
+                            className="flex items-center gap-2 text-xs p-1.5 rounded-md hover:bg-accent/50"
+                          >
+                            <Icon className="h-3 w-3 shrink-0" style={{ color: style.color }} />
+                            <span className="truncate flex-1">{task.title}</span>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Filtros</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <FilterRow
+                    id="sprints"
+                    checked={showSprints}
+                    onChange={setShowSprints}
+                    label={t('pages.calendar.sprints') || 'Sprints'}
+                    count={counts.sprints}
+                    icon={<Rocket className="h-3.5 w-3.5" />}
+                  />
+                  <FilterRow
+                    id="releases"
+                    checked={showReleases}
+                    onChange={setShowReleases}
+                    label={t('pages.calendar.releases') || 'Releases'}
+                    count={counts.releases}
+                    icon={<Flag className="h-3.5 w-3.5" />}
+                  />
+                </CardContent>
+              </Card>
+            )}
 
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm">Legenda</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <LegendSection title="Sprints por squad" hint="Barra colorida por squad">
-                  {squads.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">Nenhum squad cadastrado.</p>
-                  ) : (
-                    squads.map((squad) => (
-                      <LegendItem
-                        key={squad.id}
-                        color={squadColorMap[squad.id]}
-                        variant="bar"
-                        label={squad.name}
-                      />
-                    ))
-                  )}
-                </LegendSection>
+                {!zoomedSprint && (
+                  <>
+                    <LegendSection title="Sprints por squad" hint="Barra colorida por squad">
+                      {squads.length === 0 ? (
+                        <p className="text-xs text-muted-foreground">Nenhum squad cadastrado.</p>
+                      ) : (
+                        squads.map((squad) => (
+                          <LegendItem
+                            key={squad.id}
+                            color={squadColorMap[squad.id]}
+                            variant="bar"
+                            label={squad.name}
+                          />
+                        ))
+                      )}
+                    </LegendSection>
 
-                <Separator />
+                    <Separator />
 
-                <LegendSection title="Tarefas por tipo" hint="Cor identifica o tipo">
-                  {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
-                    const Icon = s.icon;
-                    return (
-                      <LegendItem
-                        key={key}
-                        color={s.color}
-                        variant="bar"
-                        label={s.label}
-                        icon={<Icon className="h-3 w-3" style={{ color: s.color }} />}
-                      />
-                    );
-                  })}
-                </LegendSection>
+                    <LegendSection title="Releases por status" hint="Pílula sólida na data">
+                      {Object.entries(RELEASE_STATUS_STYLES).map(([key, s]) => {
+                        const Icon = s.icon;
+                        return (
+                          <LegendItem
+                            key={key}
+                            color={s.color}
+                            variant="solid"
+                            label={s.label}
+                            icon={<Icon className="h-3 w-3 text-white" />}
+                          />
+                        );
+                      })}
+                    </LegendSection>
+                  </>
+                )}
 
-                <Separator />
-
-                <LegendSection title="Releases por status" hint="Pílula sólida na data">
-                  {Object.entries(RELEASE_STATUS_STYLES).map(([key, s]) => {
-                    const Icon = s.icon;
-                    return (
-                      <LegendItem
-                        key={key}
-                        color={s.color}
-                        variant="solid"
-                        label={s.label}
-                        icon={<Icon className="h-3 w-3 text-white" />}
-                      />
-                    );
-                  })}
-                </LegendSection>
+                {zoomedSprint && (
+                  <LegendSection title="Tarefas por tipo" hint="Cor identifica o tipo">
+                    {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
+                      const Icon = s.icon;
+                      return (
+                        <LegendItem
+                          key={key}
+                          color={s.color}
+                          variant="bar"
+                          label={s.label}
+                          icon={<Icon className="h-3 w-3" style={{ color: s.color }} />}
+                        />
+                      );
+                    })}
+                  </LegendSection>
+                )}
 
                 <Separator />
 
@@ -732,7 +869,36 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                   event: EventComponent,
                   toolbar: Toolbar,
                 }}
+                formats={{
+                  weekdayFormat: (date) => format(date, 'EEE', { locale: ptBR }).toUpperCase(),
+                  dayFormat: (date) => format(date, 'EEE dd/MM', { locale: ptBR }),
+                  monthHeaderFormat: (date) => format(date, "MMMM 'de' yyyy", { locale: ptBR }),
+                  dayHeaderFormat: (date) => format(date, "EEEE, dd 'de' MMMM", { locale: ptBR }),
+                  dayRangeHeaderFormat: ({ start, end }) =>
+                    `${format(start, 'dd MMM', { locale: ptBR })} – ${format(end, 'dd MMM yyyy', { locale: ptBR })}`,
+                  agendaHeaderFormat: ({ start, end }) =>
+                    `${format(start, 'dd/MM/yyyy')} – ${format(end, 'dd/MM/yyyy')}`,
+                  agendaDateFormat: (date) => format(date, 'EEE dd/MM', { locale: ptBR }),
+                  agendaTimeFormat: (date) => format(date, 'HH:mm'),
+                  agendaTimeRangeFormat: ({ start, end }) =>
+                    `${format(start, 'HH:mm')} – ${format(end, 'HH:mm')}`,
+                  timeGutterFormat: (date) => format(date, 'HH:mm'),
+                }}
                 messages={{
+                  date: 'Data',
+                  time: 'Hora',
+                  event: 'Evento',
+                  allDay: 'Dia inteiro',
+                  week: 'Semana',
+                  work_week: 'Semana útil',
+                  day: 'Dia',
+                  month: 'Mês',
+                  previous: 'Anterior',
+                  next: 'Próximo',
+                  yesterday: 'Ontem',
+                  tomorrow: 'Amanhã',
+                  today: 'Hoje',
+                  agenda: 'Agenda',
                   noEventsInRange: 'Nenhum evento neste período.',
                   showMore: (count) => `+${count} mais`,
                 }}

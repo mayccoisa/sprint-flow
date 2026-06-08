@@ -3,6 +3,33 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // Helper: read-only public calendar gate. The workspace doc carries a
+    // `public_calendar_active: true` flag set by enablePublicCalendar(). When
+    // present, anonymous viewers may read the calendar's data collections.
+    function isPublicWorkspace(wsId) {
+      return wsId is string &&
+        exists(/databases/$(database)/documents/workspaces/$(wsId)) &&
+        get(/databases/$(database)/documents/workspaces/$(wsId)).data.public_calendar_active == true;
+    }
+
+    // Public calendar share tokens. Anyone with the link can resolve the
+    // token while it's marked public; only authenticated owners can create
+    // or update entries.
+    match /public_calendars/{token} {
+      allow read: if request.auth != null ||
+        (resource != null && resource.data.isPublic == true);
+      allow write: if request.auth != null;
+    }
+
+    // Workspace docs: anyone authenticated; anonymous read is allowed only
+    // when the public calendar flag is on (so the public viewer can resolve
+    // the workspace metadata it needs).
+    match /workspaces/{wsId} {
+      allow read: if request.auth != null ||
+        (resource != null && resource.data.public_calendar_active == true);
+      allow write: if request.auth != null;
+    }
+
     // Public form viewer: anyone can read an active form, but only
     // authenticated users can create/update/delete forms.
     match /forms/{formId} {
@@ -24,12 +51,55 @@ service cloud.firestore {
 
     // Public submit also creates the originating task. Only restricted
     // statuses are allowed anonymously to limit abuse surface.
+    // Read is also allowed anonymously when the parent workspace has the
+    // public calendar flag enabled, so the public calendar can render tasks.
     match /tasks/{taskId} {
       allow create: if request.auth != null || (
         request.resource.data.workspace_id is string &&
         request.resource.data.status in ['Discovery', 'Backlog']
       );
-      allow read, update, delete: if request.auth != null;
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow update, delete: if request.auth != null;
+    }
+
+    // Calendar data collections: anonymous read is allowed when the parent
+    // workspace's `public_calendar_active` flag is true. Writes still
+    // require auth via the catch-all below.
+    match /sprints/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
+    }
+    match /sprint_tasks/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
+    }
+    match /releases/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
+    }
+    match /release_tasks/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
+    }
+    match /release_sprints/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
+    }
+    match /squads/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
+    }
+    match /task_date_changes/{docId} {
+      allow read: if request.auth != null ||
+        (resource != null && isPublicWorkspace(resource.data.workspace_id));
+      allow write: if request.auth != null;
     }
 
     // Everything else requires authentication.

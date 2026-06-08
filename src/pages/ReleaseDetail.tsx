@@ -5,10 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useLocalData } from '@/hooks/useLocalData';
-import { Task } from '@/types';
+import { Sprint, Task } from '@/types';
 import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { TYPE_LABEL_PT } from '@/utils/initiativeStatus';
-import { ArrowLeft, Plus, X } from 'lucide-react';
+import { ArrowLeft, CalendarDays, Plus, Rocket, X } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,41 @@ export default function ReleaseDetail() {
     [data.tasks, taskIdsInRelease]
   );
   const allTasks: Task[] = data.tasks;
+
+  const linkedSprints = useMemo<Sprint[]>(() => {
+    const ids = (data.releaseSprints || [])
+      .filter((rs: any) => rs.release_id === releaseId)
+      .map((rs: any) => rs.sprint_id);
+    return data.sprints
+      .filter((s: Sprint) => ids.includes(s.id))
+      .sort(
+        (a: Sprint, b: Sprint) =>
+          new Date(a.start_date).getTime() - new Date(b.start_date).getTime()
+      );
+  }, [data.releaseSprints, data.sprints, releaseId]);
+
+  /** Group tasks of the release by the linked sprints where they were worked.
+   *  A task may belong to multiple linked sprints; it appears under each. Tasks
+   *  not in any linked sprint go into the "Outras" bucket. */
+  const tasksByGroup = useMemo(() => {
+    const groups: { key: string; sprint: Sprint | null; tasks: Task[] }[] = [];
+    const remaining = new Set(tasks.map((t) => t.id));
+
+    linkedSprints.forEach((sprint) => {
+      const sprintTaskIds = data.sprintTasks
+        .filter((st: any) => st.sprint_id === sprint.id)
+        .map((st: any) => st.task_id);
+      const groupTasks = tasks.filter((t) => sprintTaskIds.includes(t.id));
+      groupTasks.forEach((t) => remaining.delete(t.id));
+      groups.push({ key: `sprint-${sprint.id}`, sprint, tasks: groupTasks });
+    });
+
+    const otherTasks = tasks.filter((t) => remaining.has(t.id));
+    if (otherTasks.length > 0 || linkedSprints.length === 0) {
+      groups.push({ key: 'other', sprint: null, tasks: otherTasks });
+    }
+    return groups;
+  }, [linkedSprints, tasks, data.sprintTasks]);
 
   const handleAddTasks = async () => {
     if (!releaseId || selectedTaskIds.length === 0) return;
@@ -168,6 +204,37 @@ export default function ReleaseDetail() {
         </Card>
 
         <Card className="p-6">
+          <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+            <Rocket className="h-5 w-5 text-muted-foreground" />
+            Sprints vinculadas
+          </h2>
+          {linkedSprints.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Nenhuma sprint vinculada. Edite a release para vincular as sprints que compõem o
+              trabalho desta entrega.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {linkedSprints.map((sprint) => (
+                <button
+                  key={sprint.id}
+                  type="button"
+                  onClick={() => navigate(`/sprints/${sprint.id}/planning`)}
+                  className="inline-flex items-center gap-2 rounded-md border px-3 py-1.5 text-sm hover:bg-accent transition"
+                >
+                  <span className="font-medium">{sprint.name}</span>
+                  <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                    <CalendarDays className="h-3 w-3" />
+                    {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
+                    {format(new Date(sprint.end_date), 'dd MMM', { locale: ptBR })}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-xl font-semibold">Tarefas Incluídas</h2>
             <Button onClick={() => setIsAddTasksOpen(true)}>
@@ -176,43 +243,71 @@ export default function ReleaseDetail() {
             </Button>
           </div>
 
-          <div className="space-y-2">
-            {tasks.map((task) => (
-              <div
-                key={task.id}
-                className="flex items-center justify-between p-4 border rounded-lg"
-              >
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-medium">{task.title}</span>
-                    <Badge variant="outline">{TYPE_LABEL_PT[task.task_type] ?? task.task_type}</Badge>
-                    <Badge>{task.status}</Badge>
+          {tasks.length === 0 ? (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhuma tarefa adicionada ainda.
+            </div>
+          ) : (
+            <div className="space-y-6">
+              {tasksByGroup.map((group) => (
+                <div key={group.key} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">
+                      {group.sprint ? group.sprint.name : 'Outras'}
+                    </h3>
+                    <Badge variant="secondary" className="text-[10px] h-5 px-1.5">
+                      {group.tasks.length}
+                    </Badge>
+                    {group.sprint && (
+                      <span className="text-xs text-muted-foreground">
+                        {format(new Date(group.sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
+                        {format(new Date(group.sprint.end_date), 'dd MMM yyyy', { locale: ptBR })}
+                      </span>
+                    )}
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {(task.estimate_frontend || 0) +
-                      (task.estimate_backend || 0) +
-                      (task.estimate_qa || 0) +
-                      (task.estimate_design || 0)}{' '}
-                    pontos
-                  </div>
+                  {group.tasks.length === 0 ? (
+                    <p className="text-xs text-muted-foreground italic pl-1">
+                      Nenhuma tarefa desta sprint está incluída na release.
+                    </p>
+                  ) : (
+                    <div className="space-y-2">
+                      {group.tasks.map((task) => (
+                        <div
+                          key={task.id}
+                          className="flex items-center justify-between p-4 border rounded-lg"
+                        >
+                          <div className="flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-medium">{task.title}</span>
+                              <Badge variant="outline">
+                                {TYPE_LABEL_PT[task.task_type] ?? task.task_type}
+                              </Badge>
+                              <Badge>{task.status}</Badge>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {(task.estimate_frontend || 0) +
+                                (task.estimate_backend || 0) +
+                                (task.estimate_qa || 0) +
+                                (task.estimate_design || 0)}{' '}
+                              pontos
+                            </div>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            aria-label="Remover tarefa"
+                            onClick={() => handleRemoveTask(task.id)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="Remover tarefa"
-                  onClick={() => handleRemoveTask(task.id)}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              </div>
-            ))}
-
-            {tasks.length === 0 && (
-              <div className="text-center py-8 text-muted-foreground">
-                Nenhuma tarefa adicionada ainda.
-              </div>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 

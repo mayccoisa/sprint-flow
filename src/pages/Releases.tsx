@@ -15,7 +15,7 @@ import { format } from 'date-fns';
 export default function Releases() {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const { data, loading, addRelease, updateRelease } = useLocalData() as any;
+  const { data, loading, addRelease, updateRelease, setReleaseSprints } = useLocalData() as any;
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingRelease, setEditingRelease] = useState<Release | undefined>();
 
@@ -28,12 +28,26 @@ export default function Releases() {
   );
   const squads = data.squads;
 
-  const handleSaveRelease = async (releaseData: Omit<Release, 'id' | 'created_at'>) => {
+  const editingSprintIds = useMemo<number[]>(() => {
+    if (!editingRelease) return [];
+    return (data.releaseSprints || [])
+      .filter((rs: any) => rs.release_id === editingRelease.id)
+      .map((rs: any) => rs.sprint_id);
+  }, [data.releaseSprints, editingRelease]);
+
+  const handleSaveRelease = async (
+    releaseData: Omit<Release, 'id' | 'created_at'>,
+    sprintIds: number[]
+  ) => {
+    let releaseId: number;
     if (editingRelease) {
       await updateRelease(editingRelease.id, releaseData);
+      releaseId = editingRelease.id;
     } else {
-      await addRelease(releaseData);
+      const created = await addRelease(releaseData);
+      releaseId = created.id;
     }
+    await setReleaseSprints(releaseId, sprintIds);
     setIsFormOpen(false);
     setEditingRelease(undefined);
   };
@@ -138,6 +152,8 @@ export default function Releases() {
         onSave={handleSaveRelease}
         release={editingRelease}
         squads={squads}
+        sprints={data.sprints || []}
+        initialSprintIds={editingSprintIds}
       />
     </Layout>
   );

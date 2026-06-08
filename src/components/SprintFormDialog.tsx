@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -61,6 +61,31 @@ export const SprintFormDialog = ({ open, onClose, onSave, sprint, squads }: Spri
           status: 'Planning',
         },
   });
+
+  // react-hook-form only reads defaultValues on init. The dialog stays mounted,
+  // so reset on every open/sprint change to populate fields when editing or to
+  // clear them when creating.
+  useEffect(() => {
+    if (!open) return;
+    if (sprint) {
+      form.reset({
+        name: sprint.name,
+        squad_id: sprint.squad_id,
+        start_date: new Date(sprint.start_date),
+        end_date: new Date(sprint.end_date),
+        status: sprint.status,
+      });
+    } else {
+      form.reset({
+        name: '',
+        squad_id: undefined as unknown as number,
+        start_date: undefined as unknown as Date,
+        end_date: undefined as unknown as Date,
+        status: 'Planning',
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sprint, open]);
 
   const { errors, isSubmitting, isValid } = form.formState;
 

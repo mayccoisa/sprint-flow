@@ -528,6 +528,9 @@ export const pt = {
             noDescription: "Sem descrição",
             empty: "Nenhuma release ainda",
             emptyDesc: "Planeje e entregue uma release para acompanhar marcos de entrega.",
+            linkedSprints: "Sprints vinculadas",
+            linkedSprintsEmpty: "Nenhuma sprint vinculada. Edite a release para vincular as sprints que compõem esta entrega.",
+            tasksGroupOther: "Outras",
             statuses: {
                 Planned: "Planejada",
                 InProgress: "Em Andamento",

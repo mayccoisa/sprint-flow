@@ -20,7 +20,7 @@ import type {
     ProductService, ProductFeature, ServiceDependency,
     UserProfile, UserRole, FeaturePermission, ProductDocument,
     CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange,
-    Release, ReleaseTask, SprintParticipant, Role, TaskAuditLog, TaskAuditChange
+    Release, ReleaseTask, ReleaseSprint, SprintParticipant, Role, TaskAuditLog, TaskAuditChange
 } from '@/types';
 import { useWorkspace } from '@/contexts/WorkspaceContext';
 import { useAuth } from '@/contexts/AuthContext';
@@ -51,6 +51,7 @@ interface FirestoreData {
     taskDateChanges: TaskDateChange[];
     releases: Release[];
     releaseTasks: ReleaseTask[];
+    releaseSprints: ReleaseSprint[];
 }
 
 const initialData: FirestoreData = {
@@ -76,7 +77,8 @@ const initialData: FirestoreData = {
     jiraSyncLogs: [],
     taskDateChanges: [],
     releases: [],
-    releaseTasks: []
+    releaseTasks: [],
+    releaseSprints: []
 }
 
 export const useFirestoreData = () => {
@@ -189,6 +191,7 @@ export const useFirestoreData = () => {
             subscribeToCollection('task_date_changes', 'taskDateChanges', true),
             subscribeToCollection('releases', 'releases', true),
             subscribeToCollection('release_tasks', 'releaseTasks', true),
+            subscribeToCollection('release_sprints', 'releaseSprints', true),
             subscribeToCollection('roles', 'roles', true),
             subscribeToCollection('task_audit_logs', 'taskAuditLogs', true),
         ];
@@ -471,13 +474,49 @@ export const useFirestoreData = () => {
         addRelease: (release: Omit<Release, 'id' | 'created_at'>) =>
             addItem('releases', { ...release, created_at: new Date().toISOString() }),
         updateRelease: (id: number | string, updates: Partial<Release>) => updateItem('releases', id, updates),
-        deleteRelease: (id: number | string) => deleteItem('releases', id),
+        deleteRelease: async (id: number | string) => {
+            const numericId = typeof id === 'number' ? id : Number(id);
+            await Promise.all([
+                ...data.releaseTasks
+                    .filter(rt => rt.release_id === numericId)
+                    .map(rt => deleteItem('release_tasks', rt.id)),
+                ...data.releaseSprints
+                    .filter(rs => rs.release_id === numericId)
+                    .map(rs => deleteItem('release_sprints', rs.id)),
+            ]);
+            await deleteItem('releases', id);
+        },
         addReleaseTask: (rt: Omit<ReleaseTask, 'id' | 'created_at'>) =>
             addItem('release_tasks', { ...rt, created_at: new Date().toISOString() }),
         deleteReleaseTask: (id: number | string) => deleteItem('release_tasks', id),
         removeReleaseTask: async (releaseId: number, taskId: number) => {
             const item = data.releaseTasks.find(rt => rt.release_id === releaseId && rt.task_id === taskId);
             if (item) await deleteItem('release_tasks', item.id);
+        },
+
+        // Release ↔ Sprint links
+        addReleaseSprint: (rs: Omit<ReleaseSprint, 'id' | 'created_at'>) =>
+            addItem('release_sprints', { ...rs, created_at: new Date().toISOString() }),
+        removeReleaseSprint: async (releaseId: number, sprintId: number) => {
+            const item = data.releaseSprints.find(rs => rs.release_id === releaseId && rs.sprint_id === sprintId);
+            if (item) await deleteItem('release_sprints', item.id);
+        },
+        setReleaseSprints: async (releaseId: number, sprintIds: number[]) => {
+            const current = data.releaseSprints.filter(rs => rs.release_id === releaseId);
+            const currentIds = new Set(current.map(rs => rs.sprint_id));
+            const nextIds = new Set(sprintIds);
+            const toAdd = sprintIds.filter(id => !currentIds.has(id));
+            const toRemove = current.filter(rs => !nextIds.has(rs.sprint_id));
+            await Promise.all([
+                ...toAdd.map(sprintId =>
+                    addItem('release_sprints', {
+                        release_id: releaseId,
+                        sprint_id: sprintId,
+                        created_at: new Date().toISOString(),
+                    })
+                ),
+                ...toRemove.map(rs => deleteItem('release_sprints', rs.id)),
+            ]);
         },
 
         // Squads & Members

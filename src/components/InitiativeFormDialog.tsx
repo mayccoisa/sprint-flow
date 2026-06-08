@@ -34,8 +34,12 @@ import {
 } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTranslation } from 'react-i18next';
-import { Sparkles } from 'lucide-react';
+import { CalendarIcon, Sparkles } from 'lucide-react';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 import { GeneratePRDDialog } from './ai/GeneratePRDDialog';
 import { PRDSection } from '@/services/aiService';
 import { toast } from '@/hooks/use-toast';
@@ -155,7 +159,12 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
         brice_impact: z.number().min(0).max(10).optional(),
         brice_confidence: z.number().min(0).max(10).optional(),
         brice_effort: z.number().min(0).optional(),
-    }), [t]);
+        start_date: z.date().nullable().optional(),
+        end_date: z.date().nullable().optional(),
+    }).refine(
+        (data) => !data.start_date || !data.end_date || data.end_date >= data.start_date,
+        { message: 'Data de fim deve ser igual ou posterior à data de início', path: ['end_date'] }
+    ), [t]);
 
     type InitiativeFormValues = z.infer<typeof initiativeSchema>;
 
@@ -185,6 +194,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
             brice_impact: 0,
             brice_confidence: 0,
             brice_effort: 0,
+            start_date: null,
+            end_date: null,
         },
     });
 
@@ -214,6 +225,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 brice_impact: task.brice_impact ?? 0,
                 brice_confidence: task.brice_confidence ?? 0,
                 brice_effort: task.brice_effort ?? 0,
+                start_date: task.start_date ? new Date(task.start_date) : null,
+                end_date: task.end_date ? new Date(task.end_date) : null,
             });
         } else {
             form.reset({
@@ -240,6 +253,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 brice_impact: 0,
                 brice_confidence: 0,
                 brice_effort: 0,
+                start_date: null,
+                end_date: null,
             });
         }
     }, [task, form, open]);
@@ -260,6 +275,8 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
             status: task?.status || 'Discovery', // Default to Discovery for new initiatives
             order_index: task?.order_index ?? 0,
             feature_id: data.feature_id ? parseInt(data.feature_id) : null,
+            start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
+            end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
         });
         form.reset();
         onClose();
@@ -379,6 +396,119 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                     </FormItem>
                                                 )}
                                             />
+
+                                            <div className="space-y-3 border-t pt-4">
+                                                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                                                    Datas planejadas
+                                                </h3>
+                                                <FormDescription>
+                                                    Opcional. Quando preenchidas, a iniciativa aparece no calendário no intervalo selecionado.
+                                                </FormDescription>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="start_date"
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex flex-col">
+                                                                <FormLabel>Data de início</FormLabel>
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <FormControl>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                className={cn(
+                                                                                    'w-full pl-3 text-left font-normal',
+                                                                                    !field.value && 'text-muted-foreground'
+                                                                                )}
+                                                                            >
+                                                                                {field.value
+                                                                                    ? format(field.value, 'dd/MM/yyyy')
+                                                                                    : 'Selecionar data'}
+                                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                            </Button>
+                                                                        </FormControl>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                                        <Calendar
+                                                                            mode="single"
+                                                                            selected={field.value ?? undefined}
+                                                                            onSelect={(d) => field.onChange(d ?? null)}
+                                                                            initialFocus
+                                                                            className="pointer-events-auto"
+                                                                        />
+                                                                        {field.value && (
+                                                                            <div className="p-2 border-t">
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="w-full"
+                                                                                    onClick={() => field.onChange(null)}
+                                                                                >
+                                                                                    Limpar
+                                                                                </Button>
+                                                                            </div>
+                                                                        )}
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                    <FormField
+                                                        control={form.control}
+                                                        name="end_date"
+                                                        render={({ field }) => (
+                                                            <FormItem className="flex flex-col">
+                                                                <FormLabel>Data de fim</FormLabel>
+                                                                <Popover>
+                                                                    <PopoverTrigger asChild>
+                                                                        <FormControl>
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                className={cn(
+                                                                                    'w-full pl-3 text-left font-normal',
+                                                                                    !field.value && 'text-muted-foreground'
+                                                                                )}
+                                                                            >
+                                                                                {field.value
+                                                                                    ? format(field.value, 'dd/MM/yyyy')
+                                                                                    : 'Selecionar data'}
+                                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                                                            </Button>
+                                                                        </FormControl>
+                                                                    </PopoverTrigger>
+                                                                    <PopoverContent className="w-auto p-0" align="start">
+                                                                        <Calendar
+                                                                            mode="single"
+                                                                            selected={field.value ?? undefined}
+                                                                            onSelect={(d) => field.onChange(d ?? null)}
+                                                                            initialFocus
+                                                                            className="pointer-events-auto"
+                                                                        />
+                                                                        {field.value && (
+                                                                            <div className="p-2 border-t">
+                                                                                <Button
+                                                                                    type="button"
+                                                                                    variant="ghost"
+                                                                                    size="sm"
+                                                                                    className="w-full"
+                                                                                    onClick={() => field.onChange(null)}
+                                                                                >
+                                                                                    Limpar
+                                                                                </Button>
+                                                                            </div>
+                                                                        )}
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        )}
+                                                    />
+                                                </div>
+                                            </div>
                                         </div>
                                     </div>
                                 </ScrollArea>
