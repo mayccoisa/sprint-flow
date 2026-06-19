@@ -25,7 +25,7 @@ export const MobileSidebar = () => {
         </SheetTrigger>
         <SheetContent side="left" className="w-72 p-0">
           <SheetTitle className="sr-only">{t('sidebar.menu', 'Menu')}</SheetTitle>
-          <SidebarContent onNavigate={() => setOpen(false)} />
+          <SidebarContent onNavigate={() => setOpen(false)} forceExpanded />
         </SheetContent>
       </Sheet>
 

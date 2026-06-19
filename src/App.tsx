@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/contexts/AuthContext";
 import { WorkspaceProvider } from "@/contexts/WorkspaceContext";
+import { SidebarProvider } from "@/contexts/SidebarContext";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { ConfirmProvider } from "@/components/ui-patterns";
@@ -42,6 +43,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <WorkspaceProvider>
+          <SidebarProvider>
           <ConfirmProvider>
           <Toaster />
 
@@ -98,6 +100,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
           </ConfirmProvider>
+          </SidebarProvider>
         </WorkspaceProvider>
       </AuthProvider>
     </TooltipProvider>

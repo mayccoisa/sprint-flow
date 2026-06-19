@@ -1,9 +1,10 @@
 import {
   Activity,
-  BookOpen,
   Boxes,
   Calendar,
   ChevronDown,
+  ChevronsLeft,
+  ChevronsRight,
   ClipboardList,
   Code2,
   LayoutDashboard,
@@ -21,11 +22,15 @@ import { useTranslation } from 'react-i18next';
 import { SettingsDialog } from './settings/SettingsDialog';
 import { useEffect, useMemo, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useSidebar } from '@/contexts/SidebarContext';
 import { WorkspaceSelector } from './workspace/WorkspaceSelector';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface SidebarContentProps {
   /** Called whenever the user clicks an item that navigates — used to close mobile drawer. */
   onNavigate?: () => void;
+  /** Mobile drawer is always expanded — overrides global collapsed. */
+  forceExpanded?: boolean;
 }
 
 type NavLeaf = {
@@ -52,10 +57,12 @@ const readOpenState = (id: string, fallback: boolean) => {
   }
 };
 
-export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
+export const SidebarContent = ({ onNavigate, forceExpanded = false }: SidebarContentProps) => {
   const location = useLocation();
   const { t } = useTranslation();
   const { hasPermission } = useAuth();
+  const { collapsed: globalCollapsed, toggle } = useSidebar();
+  const collapsed = forceExpanded ? false : globalCollapsed;
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   const dashboard: NavLeaf = {
@@ -68,7 +75,7 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
     const teamChildren: NavLeaf[] = [
       { name: t('sidebar.squads'), href: '/squads', icon: Users, feature: 'squads' },
       { name: t('sidebar.forms', 'Formulários'), href: '/forms', icon: ClipboardList, feature: 'forms' },
-      { name: t('sidebar.jiraIntegration', 'Integração Jira'), href: '/admin/jira', icon: Plug },
+      { name: t('sidebar.tools', 'Ferramentas'), href: '/tools', icon: Plug },
     ];
     if (hasPermission('users', 'view')) {
       teamChildren.push({ name: t('sidebar.users') || 'Usuários', href: '/users', icon: UserCog, feature: 'users' });
@@ -82,7 +89,6 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
           { name: t('sidebar.allInitiatives'), href: '/initiatives', icon: Lightbulb, feature: 'initiatives' },
           { name: t('sidebar.strategy'), href: '/product-strategy', icon: Activity, feature: 'strategy' },
           { name: t('sidebar.modules'), href: '/product-modules', icon: Boxes, feature: 'strategy' },
-          { name: t('sidebar.documentation', 'Documentação'), href: '/docs', icon: BookOpen, feature: 'documents' },
         ],
       },
       {
@@ -121,7 +127,6 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
     return initial;
   });
 
-  // Always keep the section containing the active route open.
   useEffect(() => {
     if (activeSectionId && !openSections[activeSectionId]) {
       setOpenSections((prev) => ({ ...prev, [activeSectionId]: true }));
@@ -144,14 +149,16 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
 
   const renderLeaf = (item: NavLeaf) => {
     const active = isActive(item.href);
-    return (
+    const link = (
       <Link
         key={item.href}
         to={item.href}
         onClick={onNavigate}
         aria-current={active ? 'page' : undefined}
+        aria-label={collapsed ? item.name : undefined}
         className={cn(
-          'group relative flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors',
+          'group relative flex items-center rounded-md text-sm font-medium transition-colors',
+          collapsed ? 'justify-center px-2 py-2' : 'gap-3 px-3 py-2',
           active
             ? 'bg-primary/10 text-primary'
             : 'text-muted-foreground hover:bg-accent hover:text-foreground'
@@ -160,17 +167,51 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
         {active && (
           <span className="absolute left-0 top-1/2 h-5 w-0.5 -translate-y-1/2 rounded-r-full bg-primary" />
         )}
-        <item.icon className={cn('h-4 w-4 shrink-0', active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')} />
-        <span className="truncate">{item.name}</span>
+        <item.icon
+          className={cn(
+            'h-4 w-4 shrink-0',
+            active ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground'
+          )}
+        />
+        {!collapsed && <span className="truncate">{item.name}</span>}
       </Link>
+    );
+    if (!collapsed) return link;
+    return (
+      <Tooltip key={item.href} delayDuration={150}>
+        <TooltipTrigger asChild>{link}</TooltipTrigger>
+        <TooltipContent side="right" className="text-xs">
+          {item.name}
+        </TooltipContent>
+      </Tooltip>
     );
   };
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex h-16 items-center justify-between gap-2 border-b border-border pl-6 pr-3">
-        <h1 className="text-base font-bold tracking-tight text-primary truncate">Sprint Planner</h1>
-        <WorkspaceSelector compact />
+      {/* Header */}
+      <div
+        className={cn(
+          'flex h-16 items-center border-b border-border',
+          collapsed ? 'justify-center px-2' : 'justify-between gap-2 pl-6 pr-3'
+        )}
+      >
+        {!collapsed && (
+          <>
+            <h1 className="text-base font-bold tracking-tight text-primary truncate">Sprint Planner</h1>
+            <WorkspaceSelector compact />
+          </>
+        )}
+        {collapsed && (
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <Link to="/" aria-label="Sprint Planner" className="text-base font-bold tracking-tight text-primary">
+                SP
+              </Link>
+            </TooltipTrigger>
+            <TooltipContent side="right" className="text-xs">Sprint Planner</TooltipContent>
+          </Tooltip>
+        )}
       </div>
 
       <nav className="flex-1 overflow-y-auto px-3 py-3">
@@ -180,6 +221,16 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
           {visibleSections.map((section) => {
             const open = openSections[section.id];
             const hasActiveChild = section.id === activeSectionId;
+
+            if (collapsed) {
+              // Em modo colapsado: sem cabeçalho clicável, apenas divisor + itens com tooltip
+              return (
+                <div key={section.id}>
+                  <div className="my-2 h-px bg-border/60" aria-hidden />
+                  <div className="space-y-0.5">{section.children.map(renderLeaf)}</div>
+                </div>
+              );
+            }
 
             return (
               <div key={section.id}>
@@ -208,25 +259,75 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
                   />
                 </button>
 
-                {open && (
-                  <div className="mt-1 space-y-0.5">
-                    {section.children.map(renderLeaf)}
-                  </div>
-                )}
+                {open && <div className="mt-1 space-y-0.5">{section.children.map(renderLeaf)}</div>}
               </div>
             );
           })}
         </div>
       </nav>
 
-      <div className="border-t border-border p-3">
-        <button
-          onClick={() => setSettingsOpen(true)}
-          className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-        >
-          <Settings className="h-4 w-4" />
-          {t('settings.title')}
-        </button>
+      {/* Footer com Settings + botão de colapsar */}
+      <div className={cn('border-t border-border', collapsed ? 'p-2' : 'p-3')}>
+        {(() => {
+          const settingsBtn = (
+            <button
+              onClick={() => setSettingsOpen(true)}
+              aria-label={collapsed ? t('settings.title') : undefined}
+              className={cn(
+                'flex w-full items-center rounded-md text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
+                collapsed ? 'justify-center px-2 py-2' : 'gap-3 px-3 py-2'
+              )}
+            >
+              <Settings className="h-4 w-4 shrink-0" />
+              {!collapsed && t('settings.title')}
+            </button>
+          );
+          return collapsed ? (
+            <Tooltip delayDuration={150}>
+              <TooltipTrigger asChild>{settingsBtn}</TooltipTrigger>
+              <TooltipContent side="right" className="text-xs">{t('settings.title')}</TooltipContent>
+            </Tooltip>
+          ) : (
+            settingsBtn
+          );
+        })()}
+
+        {/* Botão de colapsar/expandir (oculto no mobile drawer onde forceExpanded=true) */}
+        {!forceExpanded && (
+          <Tooltip delayDuration={150}>
+            <TooltipTrigger asChild>
+              <button
+                onClick={toggle}
+                aria-label={collapsed ? 'Expandir menu' : 'Colapsar menu'}
+                aria-keyshortcuts="Control+B"
+                className={cn(
+                  'mt-1 flex w-full items-center rounded-md text-xs font-medium text-muted-foreground/80 transition-colors hover:bg-accent hover:text-foreground',
+                  collapsed ? 'justify-center px-2 py-2' : 'gap-3 px-3 py-1.5'
+                )}
+              >
+                {collapsed ? (
+                  <ChevronsRight className="h-4 w-4 shrink-0" />
+                ) : (
+                  <>
+                    <ChevronsLeft className="h-4 w-4 shrink-0" />
+                    <span>Colapsar menu</span>
+                    <kbd className="ml-auto rounded border border-border bg-background/60 px-1 py-px text-[10px] font-mono text-muted-foreground/70">
+                      Ctrl B
+                    </kbd>
+                  </>
+                )}
+              </button>
+            </TooltipTrigger>
+            {collapsed && (
+              <TooltipContent side="right" className="text-xs">
+                Expandir menu{' '}
+                <kbd className="ml-1 rounded border border-border bg-background/60 px-1 py-px text-[10px] font-mono">
+                  Ctrl B
+                </kbd>
+              </TooltipContent>
+            )}
+          </Tooltip>
+        )}
       </div>
       <SettingsDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
     </div>
@@ -234,8 +335,16 @@ export const SidebarContent = ({ onNavigate }: SidebarContentProps) => {
 };
 
 /** Desktop sidebar (md+). Mobile uses MobileSidebar via Sheet. */
-export const Sidebar = () => (
-  <aside className="fixed left-0 top-0 hidden h-screen w-64 border-r border-border bg-card md:block">
-    <SidebarContent />
-  </aside>
-);
+export const Sidebar = () => {
+  const { collapsed } = useSidebar();
+  return (
+    <aside
+      className={cn(
+        'fixed left-0 top-0 hidden h-screen border-r border-border bg-card transition-[width] duration-200 ease-out md:block',
+        collapsed ? 'w-16' : 'w-64'
+      )}
+    >
+      <SidebarContent />
+    </aside>
+  );
+};
