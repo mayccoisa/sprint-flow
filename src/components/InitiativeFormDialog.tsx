@@ -710,21 +710,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                 )}
                                             />
 
-                                            {form.watch('has_prototype') && (
-                                                <FormField
-                                                    control={form.control}
-                                                    name="prototype_link"
-                                                    render={({ field }) => (
-                                                        <FormItem>
-                                                            <FormLabel>{t('initiativeForm.fields.prototypeLink')}</FormLabel>
-                                                            <FormControl>
-                                                                <Input {...field} placeholder={t('initiativeForm.placeholders.prototypeLink')} />
-                                                            </FormControl>
-                                                            <FormMessage />
-                                                        </FormItem>
-                                                    )}
-                                                />
-                                            )}
+                                            <FormField
+                                                control={form.control}
+                                                name="prototype_link"
+                                                render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel>{t('initiativeForm.fields.prototypeLink')}</FormLabel>
+                                                        <FormControl>
+                                                            <Input {...field} placeholder={t('initiativeForm.placeholders.prototypeLink')} />
+                                                        </FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )}
+                                            />
                                         </div>
                                     </div>
                                 </ScrollArea>

@@ -563,6 +563,41 @@ const InitiativeDetail = () => {
                                             rows={3}
                                         />
                                     </div>
+
+                                    <div className="space-y-2">
+                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                            <LinkIcon className="h-3.5 w-3.5" />
+                                            Link do protótipo (Figma)
+                                        </Label>
+                                        <div className="flex items-center gap-2">
+                                            <Input
+                                                type="url"
+                                                placeholder="https://www.figma.com/..."
+                                                value={effective.prototype_link ?? ''}
+                                                onChange={(e) =>
+                                                    handleField('prototype_link', (e.target.value || null) as any)
+                                                }
+                                            />
+                                            {effective.prototype_link && (
+                                                <Button
+                                                    asChild
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    className="shrink-0 gap-1.5"
+                                                >
+                                                    <a
+                                                        href={effective.prototype_link}
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                    >
+                                                        <ExternalLink className="h-3.5 w-3.5" />
+                                                        Abrir
+                                                    </a>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
                                 </CardContent>
                             </Card>
 
