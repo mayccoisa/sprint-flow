@@ -62,7 +62,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, endOfDay } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { cn, parseDateLocal } from '@/lib/utils';
 import { PageHeader } from '@/components/ui-patterns';
@@ -99,6 +99,14 @@ const TASK_TYPE_STYLES: Record<string, { color: string; icon: typeof Rocket; lab
   Deployment: { color: '#64748b', icon: Truck, label: 'Deploy' },
 };
 
+/** Colors for the two process bars an initiative can render on the canvas.
+ *  The bar color encodes the *process* (Produto/Engenharia); the task-type is
+ *  still conveyed by the icon. */
+const PROCESS_STYLES = {
+  product: { color: '#06b6d4', label: 'Produto' },
+  engineering: { color: '#8b5cf6', label: 'Engenharia' },
+} as const;
+
 const RELEASE_STATUS_STYLES: Record<string, { color: string; icon: typeof Rocket; label: string }> = {
   Planned: { color: '#64748b', icon: ListTodo, label: 'Planejada' },
   InProgress: { color: '#3b82f6', icon: Rocket, label: 'Em andamento' },
@@ -121,6 +129,89 @@ function hexToRgba(hex: string, alpha: number): string {
   const g = (bigint >> 8) & 255;
   const b = bigint & 255;
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
+
+/** Resolve a [start, end] range from a date pair, tolerating a missing start
+ *  (falls back to the end date) so initiatives that only have a deadline still
+ *  get positioned on the canvas instead of being silently dropped. */
+function resolveRange(
+  startStr: string | null | undefined,
+  endStr: string | null | undefined
+): { start: Date; end: Date } | null {
+  const start = parseDateLocal(startStr ?? null) ?? parseDateLocal(endStr ?? null);
+  if (!start) return null;
+  let end = parseDateLocal(endStr ?? null) ?? start;
+  // Defend against inverted ranges (end before start): a negative-duration
+  // event is invalid and react-big-calendar silently drops it, making the
+  // initiative vanish from the canvas. Clamp end to start so it still renders
+  // (as a single-day bar) on the start date.
+  if (end < start) end = start;
+  return { start, end };
+}
+
+/** Human-readable label for a date pair, used in the task popover. */
+function formatRange(startStr: string | null | undefined, endStr: string | null | undefined): string {
+  const s = parseDateLocal(startStr ?? null);
+  const e = parseDateLocal(endStr ?? null);
+  if (s && e) return `${format(s, 'dd/MM', { locale: ptBR })} → ${format(e, 'dd/MM/yy', { locale: ptBR })}`;
+  if (s) return format(s, 'dd/MM/yy', { locale: ptBR });
+  if (e) return `até ${format(e, 'dd/MM/yy', { locale: ptBR })}`;
+  return '—';
+}
+
+/** Build the calendar event(s) for one initiative. Renders up to two bars —
+ *  one for the Product period and one for the Engineering period. When neither
+ *  process range is set, falls back to a single bar from the overall
+ *  start/end (legacy initiatives that predate the split). */
+function buildTaskEvents(task: Task, hasAlert: boolean): CalendarEvent[] {
+  const typeStyle = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
+  const out: CalendarEvent[] = [];
+
+  const product = resolveRange(task.product_start_date, task.product_end_date);
+  if (product) {
+    out.push({
+      id: task.id * 10 + 1,
+      title: task.title,
+      start: product.start,
+      end: endOfDay(product.end),
+      type: 'task',
+      data: task,
+      color: PROCESS_STYLES.product.color,
+      meta: { icon: typeStyle.icon, subtitle: `${PROCESS_STYLES.product.label} · ${typeStyle.label}`, hasAlert },
+    });
+  }
+
+  const eng = resolveRange(task.eng_start_date, task.eng_end_date);
+  if (eng) {
+    out.push({
+      id: task.id * 10 + 2,
+      title: task.title,
+      start: eng.start,
+      end: endOfDay(eng.end),
+      type: 'task',
+      data: task,
+      color: PROCESS_STYLES.engineering.color,
+      meta: { icon: typeStyle.icon, subtitle: `${PROCESS_STYLES.engineering.label} · ${typeStyle.label}`, hasAlert },
+    });
+  }
+
+  if (out.length === 0) {
+    const total = resolveRange(task.start_date, task.end_date);
+    if (total) {
+      out.push({
+        id: task.id * 10,
+        title: task.title,
+        start: total.start,
+        end: endOfDay(total.end),
+        type: 'task',
+        data: task,
+        color: typeStyle.color,
+        meta: { icon: typeStyle.icon, subtitle: typeStyle.label, hasAlert },
+      });
+    }
+  }
+
+  return out;
 }
 
 interface CalendarProps {
@@ -196,7 +287,16 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
 
   const sprints: Sprint[] = firestoreData.sprints;
   const tasks: Task[] = useMemo(
-    () => firestoreData.tasks.filter((t) => t.start_date),
+    () =>
+      firestoreData.tasks.filter(
+        (t) =>
+          t.start_date ||
+          t.end_date ||
+          t.product_start_date ||
+          t.product_end_date ||
+          t.eng_start_date ||
+          t.eng_end_date
+      ),
     [firestoreData.tasks]
   );
   const releases: Release[] = firestoreData.releases;
@@ -264,10 +364,10 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
   // a sensible default view (week for short sprints, month otherwise).
   useEffect(() => {
     if (!zoomedSprint) return;
-    setDate(new Date(zoomedSprint.start_date));
+    setDate(parseDateLocal(zoomedSprint.start_date)!);
     const spanDays =
-      (new Date(zoomedSprint.end_date).getTime() -
-        new Date(zoomedSprint.start_date).getTime()) /
+      (parseDateLocal(zoomedSprint.end_date)!.getTime() -
+        parseDateLocal(zoomedSprint.start_date)!.getTime()) /
       (1000 * 60 * 60 * 24);
     setView(spanDays <= 14 ? 'week' : 'month');
   }, [zoomedSprint]);
@@ -289,21 +389,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
     if (zoomedSprint) {
       tasks.forEach((task) => {
         if (!zoomedSprintTaskIds.includes(task.id)) return;
-        const start = parseDateLocal(task.start_date);
-        if (!start) return;
-        const end = parseDateLocal(task.end_date) ?? start;
-        const style = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
         const hasChanges = taskDateChanges.some((c) => c.task_id === task.id);
-        result.push({
-          id: task.id,
-          title: task.title,
-          start,
-          end,
-          type: 'task',
-          data: task,
-          color: style.color,
-          meta: { icon: style.icon, subtitle: style.label, hasAlert: hasChanges },
-        });
+        result.push(...buildTaskEvents(task, hasChanges));
       });
 
       const releaseIdsForSprint = new Set(
@@ -320,7 +407,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           id: release.id,
           title: release.version_name,
           start,
-          end: start,
+          end: endOfDay(start),
           type: 'release',
           data: release,
           color: release.color || style.color,
@@ -356,21 +443,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
           });
           if (!anyMatches) return;
         }
-        const start = parseDateLocal(task.start_date);
-        if (!start) return;
-        const end = parseDateLocal(task.end_date) ?? start;
-        const style = TASK_TYPE_STYLES[task.task_type] || TASK_TYPE_STYLES.Feature;
         const hasChanges = taskDateChanges.some((c) => c.task_id === task.id);
-        result.push({
-          id: task.id,
-          title: task.title,
-          start,
-          end,
-          type: 'task',
-          data: task,
-          color: style.color,
-          meta: { icon: style.icon, subtitle: style.label, hasAlert: hasChanges },
-        });
+        result.push(...buildTaskEvents(task, hasChanges));
       });
       if (showReleases) {
         releases.forEach((release) => {
@@ -385,7 +459,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             id: release.id,
             title: release.version_name,
             start,
-            end: start,
+            end: endOfDay(start),
             type: 'release',
             data: release,
             color: release.color || style.color,
@@ -406,8 +480,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
         result.push({
           id: sprint.id,
           title: sprint.name,
-          start: new Date(sprint.start_date),
-          end: new Date(sprint.end_date),
+          start: parseDateLocal(sprint.start_date)!,
+          end: endOfDay(parseDateLocal(sprint.end_date)!),
           type: 'sprint',
           data: sprint,
           color: squadColorMap[sprint.squad_id] || '#6366f1',
@@ -426,8 +500,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
         result.push({
           id: release.id,
           title: release.version_name,
-          start: new Date(release.release_date),
-          end: new Date(release.release_date),
+          start: parseDateLocal(release.release_date)!,
+          end: endOfDay(parseDateLocal(release.release_date)!),
           type: 'release',
           data: release,
           color: release.color || style.color,
@@ -517,8 +591,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             <div className="flex items-center gap-2 text-muted-foreground">
               <CalendarDays className="h-3.5 w-3.5" />
               <span>
-                {format(new Date(sprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
-                {format(new Date(sprint.end_date), 'dd MMM yyyy', { locale: ptBR })}
+                {format(parseDateLocal(sprint.start_date)!, 'dd MMM', { locale: ptBR })} —{' '}
+                {format(parseDateLocal(sprint.end_date)!, 'dd MMM yyyy', { locale: ptBR })}
               </span>
             </div>
             <Badge variant="secondary">{SPRINT_STATUS_LABELS[sprint.status] || sprint.status}</Badge>
@@ -564,6 +638,96 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             <Badge variant="outline">{task.status}</Badge>
           </div>
 
+          {(() => {
+            const hasProduct = !!(task.product_start_date || task.product_end_date);
+            const hasEng = !!(task.eng_start_date || task.eng_end_date);
+            const hasTotal = !!(task.start_date || task.end_date);
+            if (!hasProduct && !hasEng && !hasTotal) return null;
+            return (
+              <div className="space-y-1.5 rounded-md border bg-muted/30 p-2.5 text-xs">
+                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  <CalendarDays className="h-3 w-3" />
+                  Datas planejadas
+                </div>
+                {hasProduct && (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-sm shrink-0"
+                      style={{ background: PROCESS_STYLES.product.color }}
+                    />
+                    <span className="text-muted-foreground w-20">Produto</span>
+                    <span className="font-medium">
+                      {formatRange(task.product_start_date, task.product_end_date)}
+                    </span>
+                  </div>
+                )}
+                {hasEng && (
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="h-2.5 w-2.5 rounded-sm shrink-0"
+                      style={{ background: PROCESS_STYLES.engineering.color }}
+                    />
+                    <span className="text-muted-foreground w-20">Engenharia</span>
+                    <span className="font-medium">
+                      {formatRange(task.eng_start_date, task.eng_end_date)}
+                    </span>
+                  </div>
+                )}
+                {/* Legacy initiatives that predate the Product/Engineering split:
+                    fall back to the overall period so the dates are still shown. */}
+                {!hasProduct && !hasEng && hasTotal && (
+                  <div className="flex items-center gap-2">
+                    <span className="h-2.5 w-2.5 rounded-sm shrink-0 bg-muted-foreground/40" />
+                    <span className="text-muted-foreground w-20">Período</span>
+                    <span className="font-medium">
+                      {formatRange(task.start_date, task.end_date)}
+                    </span>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {changes.length > 0 && (
+            <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 uppercase tracking-wider">
+                <History className="h-3 w-3" />
+                Datas alteradas
+              </div>
+              <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                {changes
+                  .slice()
+                  .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime())
+                  .map((change, idx) => (
+                    <div
+                      key={idx}
+                      className="p-2 rounded-md bg-white border border-amber-100 text-xs space-y-1"
+                    >
+                      <div className="flex items-center justify-between gap-2 text-amber-800 font-medium">
+                        <span>
+                          De:{' '}
+                          {change.old_end_date
+                            ? format(parseDateLocal(change.old_end_date)!, 'dd/MM/yy')
+                            : '—'}
+                        </span>
+                        <span aria-hidden>→</span>
+                        <span>
+                          Para:{' '}
+                          {change.new_end_date
+                            ? format(parseDateLocal(change.new_end_date)!, 'dd/MM/yy')
+                            : '—'}
+                        </span>
+                      </div>
+                      {change.reason && <p className="italic text-amber-700">"{change.reason}"</p>}
+                      <div className="text-xs text-amber-600/70 text-right">
+                        {format(new Date(change.changed_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {!publicMode && (
             <div className="flex gap-2 pt-1">
               <Button
@@ -581,35 +745,6 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
               >
                 Abrir detalhes
               </Button>
-            </div>
-          )}
-
-          {changes.length > 0 && (
-            <div className="space-y-2">
-              <Separator />
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-600 uppercase tracking-wider">
-                <History className="h-3 w-3" />
-                Histórico de previsibilidade
-              </div>
-              <div className="space-y-2 max-h-40 overflow-y-auto pr-2">
-                {changes
-                  .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime())
-                  .map((change, idx) => (
-                    <div
-                      key={idx}
-                      className="p-2 rounded-md bg-amber-50 border border-amber-100 text-xs space-y-1"
-                    >
-                      <div className="flex justify-between text-amber-800 font-medium">
-                        <span>De: {format(new Date(change.old_end_date), 'dd/MM/yy')}</span>
-                        <span>Para: {format(new Date(change.new_end_date), 'dd/MM/yy')}</span>
-                      </div>
-                      <p className="italic text-amber-700">"{change.reason}"</p>
-                      <div className="text-xs text-amber-600/70 text-right">
-                        {format(new Date(change.changed_at), "dd/MM 'às' HH:mm", { locale: ptBR })}
-                      </div>
-                    </div>
-                  ))}
-              </div>
             </div>
           )}
         </div>
@@ -632,7 +767,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
         )}
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
           <CalendarDays className="h-3.5 w-3.5" />
-          {format(new Date(release.release_date), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+          {format(parseDateLocal(release.release_date)!, "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
         </div>
         <Button size="sm" className="w-full" onClick={() => navigate(`/releases/${event.id}`)}>
           Abrir release
@@ -647,7 +782,6 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
       { value: 'month', label: 'Mês' },
       { value: 'week', label: 'Semana' },
       { value: 'day', label: 'Dia' },
-      { value: 'agenda', label: 'Agenda' },
     ];
     return (
       <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
@@ -887,8 +1021,8 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                 <div className="font-semibold truncate">{zoomedSprint.name}</div>
                 <div className="text-xs text-muted-foreground">
                   {zoomedSquad?.name ? `${zoomedSquad.name} · ` : ''}
-                  {format(new Date(zoomedSprint.start_date), 'dd MMM', { locale: ptBR })} —{' '}
-                  {format(new Date(zoomedSprint.end_date), 'dd MMM yyyy', { locale: ptBR })}
+                  {format(parseDateLocal(zoomedSprint.start_date)!, 'dd MMM', { locale: ptBR })} —{' '}
+                  {format(parseDateLocal(zoomedSprint.end_date)!, 'dd MMM yyyy', { locale: ptBR })}
                 </div>
               </div>
             </div>
@@ -1103,7 +1237,22 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
 
                 {(zoomedSprint || allInitiativesMode) && (
                   <>
-                    <LegendSection title="Tarefas por tipo" hint="Cor identifica o tipo">
+                    <LegendSection title="Períodos" hint="Cor da faixa = processo">
+                      <LegendItem
+                        color={PROCESS_STYLES.product.color}
+                        variant="bar"
+                        label="Produto"
+                      />
+                      <LegendItem
+                        color={PROCESS_STYLES.engineering.color}
+                        variant="bar"
+                        label="Engenharia"
+                      />
+                    </LegendSection>
+
+                    <Separator />
+
+                    <LegendSection title="Tarefas por tipo" hint="Ícone identifica o tipo">
                       {Object.entries(TASK_TYPE_STYLES).map(([key, s]) => {
                         const Icon = s.icon;
                         return (
@@ -1167,6 +1316,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
                 endAccessor="end"
                 view={view}
                 onView={setView}
+                views={['month', 'week', 'day']}
                 date={date}
                 onNavigate={setDate}
                 popup

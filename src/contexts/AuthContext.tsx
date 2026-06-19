@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile, sendPasswordResetEmail, EmailAuthProvider, linkWithCredential, updatePassword, reauthenticateWithPopup } from 'firebase/auth';
 import { doc, getDoc, setDoc, onSnapshot, collection, query, where, getDocs, deleteDoc } from 'firebase/firestore';
 import { auth, db } from '@/lib/firebase';
 import type { UserProfile, FeatureAction, AppFeature, UserRole, Role } from '@/types';
@@ -12,7 +12,6 @@ const defaultPermissions: Record<AppFeature, FeatureAction[]> = {
     strategy: ['view'],
     sprints: ['view'],
     releases: ['view'],
-    documents: ['view'],
     forms: [], // Default: members don't see the management area
     users: [], // Only admins
 };
@@ -24,6 +23,17 @@ interface AuthContextType {
     login: () => Promise<void>; // Google Login
     loginWithEmail: (email: string, pass: string) => Promise<void>;
     registerWithEmail: (name: string, email: string, pass: string) => Promise<void>;
+    /** Send a password-reset/define email. Works for accounts created via
+     *  Google too: setting a password adds an email/password credential, so the
+     *  user can then sign in with email+password on any domain (no OAuth
+     *  authorized-domain restriction). */
+    sendPasswordReset: (email: string) => Promise<void>;
+    /** Define (or change) a password for the *currently logged-in* user. If the
+     *  account has no password yet (e.g. signed up with Google), this links an
+     *  email/password credential so the user can also sign in with email+password.
+     *  Re-authenticates with Google automatically if Firebase requires a recent
+     *  login. Returns true if a password was newly created, false if updated. */
+    setAccountPassword: (newPassword: string) => Promise<boolean>;
     logout: () => Promise<void>;
     hasPermission: (feature: AppFeature, action: FeatureAction) => boolean;
 }
@@ -115,6 +125,38 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // The onAuthStateChanged listener will pick up the new user and create the Firestore profile
     };
 
+    const sendPasswordReset = async (email: string) => {
+        await sendPasswordResetEmail(auth, email);
+    };
+
+    const setAccountPassword = async (newPassword: string): Promise<boolean> => {
+        const current = auth.currentUser;
+        if (!current || !current.email) {
+            throw new Error('Usuário não autenticado.');
+        }
+        const hasPassword = current.providerData.some((p) => p.providerId === 'password');
+        const apply = async () => {
+            if (hasPassword) {
+                await updatePassword(current, newPassword);
+            } else {
+                const credential = EmailAuthProvider.credential(current.email!, newPassword);
+                await linkWithCredential(current, credential);
+            }
+        };
+        try {
+            await apply();
+        } catch (error: unknown) {
+            // Firebase requires a fresh login for sensitive ops; re-auth via Google and retry once.
+            if ((error as { code?: string })?.code === 'auth/requires-recent-login') {
+                await reauthenticateWithPopup(current, new GoogleAuthProvider());
+                await apply();
+            } else {
+                throw error;
+            }
+        }
+        return !hasPassword;
+    };
+
     const logout = async () => {
         await signOut(auth);
     };
@@ -147,7 +189,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     };
 
     return (
-        <AuthContext.Provider value={{ user, userProfile, loading, login, loginWithEmail, registerWithEmail, logout, hasPermission }}>
+        <AuthContext.Provider value={{ user, userProfile, loading, login, loginWithEmail, registerWithEmail, sendPasswordReset, setAccountPassword, logout, hasPermission }}>
             {!loading && children}
         </AuthContext.Provider>
     );

@@ -158,8 +158,16 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   order_index: number;
+  /** Período total da iniciativa. Derivado automaticamente do menor início e
+   *  maior fim entre os períodos de Produto e Engenharia (ver onSubmit do form). */
   start_date: string | null;
   end_date: string | null;
+  /** Período de Produto (discovery, design, definição). */
+  product_start_date?: string | null;
+  product_end_date?: string | null;
+  /** Período de Engenharia (desenvolvimento, QA). */
+  eng_start_date?: string | null;
+  eng_end_date?: string | null;
   // Product Context
   product_objective: string | null;
   business_goal: string | null;
@@ -306,7 +314,7 @@ export type UserRole = 'Admin' | 'Member';
 export type FeatureAction = 'view' | 'create' | 'edit' | 'delete';
 
 // Features that can have granular permissions
-export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users' | 'documents' | 'forms';
+export type AppFeature = 'squads' | 'initiatives' | 'backlog' | 'strategy' | 'sprints' | 'releases' | 'users' | 'forms';
 
 export type FeaturePermission = {
   [K in AppFeature]?: FeatureAction[];
@@ -340,37 +348,6 @@ export interface Role {
   created_at: string;
 }
 
-// Documentation Hub Types
-export type DocumentType =
-  | 'PRD'
-  | 'JTBD'
-  | 'WorkingBackwards'
-  | 'Technical'
-  | 'Persona'
-  | 'Interview'
-  | 'Custom';
-
-export interface DocumentTemplate {
-  id: string;
-  type: DocumentType;
-  title: string;
-  description: string;
-  content: string; // Markdown structure
-  icon?: string; // Lucide icon name
-}
-
-export interface ProductDocument {
-  id: number;
-  workspace_id?: string;
-  created_at: string;
-  updated_at: string;
-  title: string;
-  type: DocumentType;
-  content: string; // Markdown content
-  author_id: string; // UserProfile id
-  status: 'Draft' | 'Published' | 'Archived';
-  tags?: string[];
-}
 
 // Custom Forms
 export type FormFieldType = 'ShortText' | 'LongText' | 'Date' | 'Selector';

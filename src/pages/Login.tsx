@@ -11,7 +11,7 @@ import { Target, Layers, Loader2, Mail, Lock, User } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 export default function Login() {
-    const { login, loginWithEmail, registerWithEmail, loading } = useAuth();
+    const { login, loginWithEmail, registerWithEmail, sendPasswordReset, loading } = useAuth();
     const { t } = useTranslation();
     const navigate = useNavigate();
     const location = useLocation();
@@ -60,6 +60,37 @@ export default function Login() {
         completeLink();
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    const handleForgotPassword = async () => {
+        if (!email) {
+            toast({
+                title: t('login.enterEmailFirst') || 'Informe seu e-mail',
+                description:
+                    t('login.enterEmailFirstDesc') ||
+                    'Digite seu e-mail no campo acima para receber o link de senha.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        setIsLoggingIn(true);
+        try {
+            await sendPasswordReset(email);
+            toast({
+                title: t('login.resetSentTitle') || 'E-mail enviado',
+                description:
+                    t('login.resetSentDesc') ||
+                    'Enviamos um link para você definir sua senha. Verifique sua caixa de entrada (e o spam).',
+            });
+        } catch (error: any) {
+            toast({
+                title: t('login.authFailed'),
+                description: error.message || t('login.authError'),
+                variant: 'destructive',
+            });
+        } finally {
+            setIsLoggingIn(false);
+        }
+    };
 
     const handleGoogleLogin = async () => {
         setIsLoggingIn(true);
@@ -248,6 +279,18 @@ export default function Login() {
                                         minLength={6}
                                     />
                                 </div>
+                                {mode === 'login' && (
+                                    <div className="text-right">
+                                        <button
+                                            type="button"
+                                            className="text-xs text-violet-600 font-medium hover:underline disabled:opacity-50"
+                                            onClick={handleForgotPassword}
+                                            disabled={isLoggingIn}
+                                        >
+                                            {t('login.forgotPassword') || 'Esqueci / definir minha senha'}
+                                        </button>
+                                    </div>
+                                )}
                             </div>
 
                             {mode === 'register' && (

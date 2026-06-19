@@ -12,6 +12,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import {
     Select, SelectContent, SelectItem, SelectTrigger, SelectValue,
+    SelectGroup, SelectLabel, SelectSeparator,
 } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarPicker } from '@/components/ui/calendar';
@@ -22,8 +23,13 @@ import {
 import {
     ArrowLeft, History, FileText, Target, Trash2, Pencil, Check,
     PlusCircle, Edit3, ArrowRightLeft, MinusCircle, Calendar, User as UserIcon,
-    Zap, X, Save,
+    Zap, X, Save, ExternalLink, Link as LinkIcon,
 } from 'lucide-react';
+import { JiraConnectDialog } from '@/features/atlassian/JiraConnectDialog';
+import { JiraIcon } from '@/features/atlassian/JiraIcon';
+import { useUserSettings } from '@/features/settings/useUserSettings';
+import { useUnsavedChangesGuard } from '@/hooks/useUnsavedChangesGuard';
+import { useTaskAuditLogs } from '@/hooks/useTaskAuditLogs';
 import { cn, parseDateLocal } from '@/lib/utils';
 import { useLocalData } from '@/hooks/useLocalData';
 import { useToast } from '@/hooks/use-toast';
@@ -76,7 +82,10 @@ const BUSINESS_VALUE_SCALE: ScaleOption[] = [
     { value: 10, label: 'Crítico', hint: 'Estratégico, bloqueia outras' },
 ];
 
-import { STATUS_STYLES, PRIORITY_LABEL_PT, STATUS_LABEL_PT, STATUS_DOT, PRIORITY_DOT, TYPE_DOT } from '@/utils/initiativeStatus';
+import {
+    STATUS_STYLES, PRIORITY_LABEL_PT, STATUS_LABEL_PT, STATUS_DOT, PRIORITY_DOT, TYPE_DOT,
+    PRODUCT_PHASE_STATUSES, ENG_PHASE_STATUSES,
+} from '@/utils/initiativeStatus';
 
 const STATUS_LABEL = STATUS_LABEL_PT;
 
@@ -144,6 +153,8 @@ const InitiativeDetail = () => {
     const [titleDraft, setTitleDraft] = useState('');
     const [editingTitle, setEditingTitle] = useState(false);
     const [draft, setDraft] = useState<Partial<Task>>({});
+    const [jiraDialogOpen, setJiraDialogOpen] = useState(false);
+    const { atlassian } = useUserSettings();
 
     useEffect(() => {
         setTitleDraft(task?.title ?? '');
@@ -154,13 +165,29 @@ const InitiativeDetail = () => {
         setDraft({});
     }, [taskId]);
 
+    const { logs: rawAuditLogs } = useTaskAuditLogs({ taskId: Number.isFinite(taskId) ? taskId : undefined });
     const auditLogs: TaskAuditLog[] = useMemo(
         () =>
-            (data.taskAuditLogs as TaskAuditLog[])
-                .filter((l) => l.task_id === taskId)
-                .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()),
-        [data.taskAuditLogs, taskId],
+            [...rawAuditLogs].sort(
+                (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime(),
+            ),
+        [rawAuditLogs],
     );
+
+    // Guard de alterações não-salvas. PRECISA ser declarado antes dos early returns
+    // pra respeitar as Rules of Hooks (mesma ordem em todo render).
+    const dirty = Object.keys(draft).length > 0;
+    const handleSaveAllSilent = async () => {
+        if (!task || Object.keys(draft).length === 0) return;
+        await updateTask(task.id, draft);
+        setDraft({});
+    };
+    const { dialog: unsavedGuardDialog, guardedRun } = useUnsavedChangesGuard({
+        when: dirty,
+        onSave: handleSaveAllSilent,
+        description:
+            'Esta iniciativa tem alterações pendentes. Deseja salvar antes de sair, descartar ou continuar editando?',
+    });
 
     if (loading) return <Layout><PageSkeleton variant="page" /></Layout>;
 
@@ -186,7 +213,34 @@ const InitiativeDetail = () => {
     const completedAt = doneLog ? new Date(doneLog.changed_at) : null;
 
     const effective: Task = { ...task, ...draft };
-    const dirty = Object.keys(draft).length > 0;
+
+    const jiraSiteUrl = atlassian.siteUrl?.replace(/\/+$/, '');
+    const jiraIssueUrl = effective.jira_key && jiraSiteUrl
+        ? `${jiraSiteUrl}/browse/${effective.jira_key}`
+        : null;
+
+    const handleOpenJiraDialog = () => {
+        if (!atlassian.connected) {
+            toast({
+                title: 'Conecte sua conta Atlassian',
+                description: 'Vá em Ferramentas → Jira para conectar.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        setJiraDialogOpen(true);
+    };
+
+    const handleUnlinkJira = async () => {
+        const ok = await confirm({
+            title: 'Desvincular do Jira?',
+            description: `O issue ${effective.jira_key} continuará existindo no Jira; apenas a vinculação com esta iniciativa será removida.`,
+            confirmLabel: 'Desvincular',
+        });
+        if (!ok) return;
+        await updateTask(task.id, { jira_key: null });
+        toast({ title: 'Desvinculado', description: 'A iniciativa não está mais ligada a um issue.' });
+    };
     const score = effective.prioritization_model
         ? getTaskScore(effective, effective.prioritization_model)
         : null;
@@ -235,6 +289,32 @@ const InitiativeDetail = () => {
         });
     };
 
+    /** Edit one of the Product/Engineering date fields and recompute the
+     *  derived overall start_date/end_date (earliest start → latest end).
+     *  Dates are 'yyyy-MM-dd' strings, so lexical min/max is correct. */
+    const handleProcessDate = (
+        field: 'product_start_date' | 'product_end_date' | 'eng_start_date' | 'eng_end_date',
+        value: string | null
+    ) => {
+        setDraft((d) => {
+            const merged: Task = { ...task, ...d, [field]: value } as Task;
+            const starts = [merged.product_start_date, merged.eng_start_date].filter(Boolean) as string[];
+            const ends = [merged.product_end_date, merged.eng_end_date].filter(Boolean) as string[];
+            const derivedStart = starts.length ? starts.reduce((a, b) => (a < b ? a : b)) : null;
+            const derivedEnd = ends.length ? ends.reduce((a, b) => (a > b ? a : b)) : null;
+
+            const next = { ...d };
+            const setField = (k: keyof Task, v: Task[keyof Task] | null) => {
+                if (task[k] === v) delete (next as Record<string, unknown>)[k as string];
+                else (next as Record<string, unknown>)[k as string] = v;
+            };
+            setField(field, value);
+            setField('start_date', derivedStart);
+            setField('end_date', derivedEnd);
+            return next;
+        });
+    };
+
     const handleSaveAll = async () => {
         if (!dirty) return;
         await updateTask(task.id, draft);
@@ -273,8 +353,14 @@ const InitiativeDetail = () => {
                 <Breadcrumb>
                     <BreadcrumbList>
                         <BreadcrumbItem>
-                            <BreadcrumbLink asChild>
-                                <Link to="/initiatives">Iniciativas</Link>
+                            <BreadcrumbLink
+                                href="/initiatives"
+                                onClick={(e) => {
+                                    e.preventDefault();
+                                    guardedRun(() => navigate('/initiatives'));
+                                }}
+                            >
+                                Iniciativas
                             </BreadcrumbLink>
                         </BreadcrumbItem>
                         <BreadcrumbSeparator />
@@ -340,11 +426,57 @@ const InitiativeDetail = () => {
                             )}
                         </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigate('/initiatives')}>
+                    <div className="flex items-center gap-2 flex-wrap">
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => guardedRun(() => navigate('/initiatives'))}
+                        >
                             <ArrowLeft className="h-4 w-4 mr-1" />
                             Voltar
                         </Button>
+
+                        {effective.jira_key ? (
+                            <div className="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 overflow-hidden">
+                                {jiraIssueUrl ? (
+                                    <a
+                                        href={jiraIssueUrl}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                                        title="Abrir no Jira"
+                                    >
+                                        <JiraIcon className="h-3.5 w-3.5" />
+                                        {effective.jira_key}
+                                        <ExternalLink className="h-3 w-3 opacity-60" />
+                                    </a>
+                                ) : (
+                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-sky-800">
+                                        <JiraIcon className="h-3.5 w-3.5" />
+                                        {effective.jira_key}
+                                    </span>
+                                )}
+                                <button
+                                    type="button"
+                                    onClick={handleUnlinkJira}
+                                    className="border-l border-sky-200 px-1.5 py-1.5 text-sky-700 hover:bg-sky-100"
+                                    title="Desvincular do Jira"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </div>
+                        ) : (
+                            <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={handleOpenJiraDialog}
+                                className="text-sky-700 hover:text-sky-800"
+                            >
+                                <JiraIcon className="h-4 w-4 mr-1" />
+                                Conectar ao Jira
+                            </Button>
+                        )}
+
                         {dirty && (
                             <>
                                 <Button variant="outline" size="sm" onClick={handleDiscard}>
@@ -441,68 +573,109 @@ const InitiativeDetail = () => {
                                         <Calendar className="h-4 w-4 text-muted-foreground" />
                                         <h3 className="text-sm font-semibold">Datas planejadas</h3>
                                         <span className="text-xs text-muted-foreground ml-auto">
-                                            Opcional — quando preenchidas, a iniciativa aparece no calendário
+                                            Produto e Engenharia — a iniciativa aparece no calendário em duas faixas
                                         </span>
                                     </header>
-                                    <div className="grid gap-4 sm:grid-cols-2">
-                                        {(['start_date', 'end_date'] as const).map((field) => {
-                                            const raw = effective[field] as string | null;
-                                            const value = parseDateLocal(raw);
-                                            return (
-                                                <div key={field} className="space-y-2">
-                                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">
-                                                        {field === 'start_date' ? 'Data de início' : 'Data de fim'}
-                                                    </Label>
-                                                    <Popover>
-                                                        <PopoverTrigger asChild>
-                                                            <Button
-                                                                type="button"
-                                                                variant="outline"
-                                                                className={cn(
-                                                                    'w-full justify-start text-left font-normal',
-                                                                    !value && 'text-muted-foreground'
-                                                                )}
-                                                            >
-                                                                <Calendar className="mr-2 h-4 w-4" />
-                                                                {value
-                                                                    ? format(value, 'dd/MM/yyyy')
-                                                                    : 'Selecionar data'}
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-auto p-0" align="start">
-                                                            <CalendarPicker
-                                                                mode="single"
-                                                                selected={value ?? undefined}
-                                                                onSelect={(d) => {
-                                                                    handleField(
-                                                                        field,
-                                                                        (d ? format(d, 'yyyy-MM-dd') : null) as any
-                                                                    );
-                                                                }}
-                                                                initialFocus
-                                                                className="pointer-events-auto"
-                                                            />
-                                                            {value && (
-                                                                <div className="p-2 border-t">
+
+                                    {([
+                                        {
+                                            label: 'Produto',
+                                            color: '#06b6d4',
+                                            startField: 'product_start_date',
+                                            endField: 'product_end_date',
+                                        },
+                                        {
+                                            label: 'Engenharia',
+                                            color: '#8b5cf6',
+                                            startField: 'eng_start_date',
+                                            endField: 'eng_end_date',
+                                        },
+                                    ] as const).map((group) => (
+                                        <div key={group.label} className="space-y-2">
+                                            <div className="flex items-center gap-2 text-sm font-medium">
+                                                <span
+                                                    className="h-2.5 w-2.5 rounded-sm"
+                                                    style={{ background: group.color }}
+                                                />
+                                                {group.label}
+                                            </div>
+                                            <div className="grid gap-4 sm:grid-cols-2">
+                                                {([group.startField, group.endField] as const).map((field) => {
+                                                    const raw = effective[field] as string | null;
+                                                    const value = parseDateLocal(raw);
+                                                    const isStart = field === group.startField;
+                                                    return (
+                                                        <div key={field} className="space-y-2">
+                                                            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                                                {isStart ? 'Início' : 'Fim'}
+                                                            </Label>
+                                                            <Popover>
+                                                                <PopoverTrigger asChild>
                                                                     <Button
                                                                         type="button"
-                                                                        variant="ghost"
-                                                                        size="sm"
-                                                                        className="w-full"
-                                                                        onClick={() =>
-                                                                            handleField(field, null as any)
-                                                                        }
+                                                                        variant="outline"
+                                                                        className={cn(
+                                                                            'w-full justify-start text-left font-normal',
+                                                                            !value && 'text-muted-foreground'
+                                                                        )}
                                                                     >
-                                                                        Limpar
+                                                                        <Calendar className="mr-2 h-4 w-4" />
+                                                                        {value
+                                                                            ? format(value, 'dd/MM/yyyy')
+                                                                            : 'Selecionar data'}
                                                                     </Button>
-                                                                </div>
-                                                            )}
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                </div>
-                                            );
-                                        })}
-                                    </div>
+                                                                </PopoverTrigger>
+                                                                <PopoverContent className="w-auto p-0" align="start">
+                                                                    <CalendarPicker
+                                                                        mode="single"
+                                                                        selected={value ?? undefined}
+                                                                        onSelect={(d) => {
+                                                                            handleProcessDate(
+                                                                                field,
+                                                                                d ? format(d, 'yyyy-MM-dd') : null
+                                                                            );
+                                                                        }}
+                                                                        initialFocus
+                                                                        className="pointer-events-auto"
+                                                                    />
+                                                                    {value && (
+                                                                        <div className="p-2 border-t">
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="ghost"
+                                                                                size="sm"
+                                                                                className="w-full"
+                                                                                onClick={() =>
+                                                                                    handleProcessDate(field, null)
+                                                                                }
+                                                                            >
+                                                                                Limpar
+                                                                            </Button>
+                                                                        </div>
+                                                                    )}
+                                                                </PopoverContent>
+                                                            </Popover>
+                                                        </div>
+                                                    );
+                                                })}
+                                            </div>
+                                        </div>
+                                    ))}
+
+                                    {(effective.start_date || effective.end_date) && (
+                                        <p className="text-xs text-muted-foreground border-t pt-3">
+                                            Período total (calculado):{' '}
+                                            <span className="font-medium text-foreground">
+                                                {effective.start_date
+                                                    ? format(parseDateLocal(effective.start_date)!, 'dd/MM/yyyy')
+                                                    : '—'}
+                                                {' → '}
+                                                {effective.end_date
+                                                    ? format(parseDateLocal(effective.end_date)!, 'dd/MM/yyyy')
+                                                    : '—'}
+                                            </span>
+                                        </p>
+                                    )}
                                 </CardContent>
                             </Card>
 
@@ -733,14 +906,40 @@ const InitiativeDetail = () => {
                                     <Select value={effective.status} onValueChange={(v) => handleField('status', v as TaskStatus)}>
                                         <SelectTrigger className="h-9 mt-1.5"><SelectValue /></SelectTrigger>
                                         <SelectContent>
-                                            {(Object.keys(STATUS_LABEL) as TaskStatus[]).map((s) => (
-                                                <SelectItem key={s} value={s}>
-                                                    <span className="inline-flex items-center gap-2">
-                                                        <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s] ?? 'bg-slate-400')} />
-                                                        {STATUS_LABEL[s]}
-                                                    </span>
-                                                </SelectItem>
-                                            ))}
+                                            <SelectGroup>
+                                                <SelectLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                                                    Produto
+                                                </SelectLabel>
+                                                {PRODUCT_PHASE_STATUSES.map((s) => (
+                                                    <SelectItem key={s} value={s}>
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s] ?? 'bg-slate-400')} />
+                                                            {STATUS_LABEL[s]}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                            <SelectSeparator />
+                                            <SelectGroup>
+                                                <SelectLabel className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground/80">
+                                                    Desenvolvimento
+                                                </SelectLabel>
+                                                {ENG_PHASE_STATUSES.map((s) => (
+                                                    <SelectItem key={s} value={s}>
+                                                        <span className="inline-flex items-center gap-2">
+                                                            <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s] ?? 'bg-slate-400')} />
+                                                            {STATUS_LABEL[s]}
+                                                        </span>
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectGroup>
+                                            <SelectSeparator />
+                                            <SelectItem value="Archived">
+                                                <span className="inline-flex items-center gap-2">
+                                                    <span className={cn('h-2 w-2 rounded-full', STATUS_DOT['Archived'] ?? 'bg-slate-400')} />
+                                                    {STATUS_LABEL['Archived']}
+                                                </span>
+                                            </SelectItem>
                                         </SelectContent>
                                     </Select>
                                 </div>
@@ -913,6 +1112,22 @@ const InitiativeDetail = () => {
                     </aside>
                 </div>
             </div>
+
+            {unsavedGuardDialog}
+
+            <JiraConnectDialog
+                open={jiraDialogOpen}
+                onClose={() => setJiraDialogOpen(false)}
+                initialTitle={effective.title}
+                initialDescription={effective.description ?? ''}
+                onLinked={async ({ issueKey, created }) => {
+                    await updateTask(task.id, { jira_key: issueKey });
+                    toast({
+                        title: created ? 'Issue criado no Jira' : 'Iniciativa vinculada',
+                        description: issueKey,
+                    });
+                }}
+            />
         </Layout>
     );
 };

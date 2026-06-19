@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useForm } from 'react-hook-form';
+import { useForm, Control } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Task, PrioritizationModel } from '@/types';
@@ -37,12 +37,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useTranslation } from 'react-i18next';
-import { CalendarIcon, Sparkles } from 'lucide-react';
+import { CalendarIcon, Sparkles, ExternalLink, X } from 'lucide-react';
 import { format } from 'date-fns';
 import { cn, parseDateLocal } from '@/lib/utils';
 import { GeneratePRDDialog } from './ai/GeneratePRDDialog';
 import { PRDSection } from '@/services/aiService';
 import { toast } from '@/hooks/use-toast';
+import { useUserSettings } from '@/features/settings/useUserSettings';
+import { JiraConnectDialog } from '@/features/atlassian/JiraConnectDialog';
+import { JiraIcon } from '@/features/atlassian/JiraIcon';
+import { useConfirm } from '@/components/ui-patterns';
 
 interface InitiativeFormDialogProps {
     open: boolean;
@@ -107,33 +111,130 @@ const ScaleSelect = ({
     value: number | undefined;
     onChange: (v: number) => void;
     options: ScaleOption[];
-}) => (
-    <Select
-        value={value ? String(value) : undefined}
-        onValueChange={(v) => onChange(parseInt(v))}
-    >
-        <FormControl>
-            <SelectTrigger>
-                <SelectValue placeholder="Selecione..." />
-            </SelectTrigger>
-        </FormControl>
-        <SelectContent>
-            {options.map(opt => (
-                <SelectItem key={opt.value} value={String(opt.value)}>
-                    <div className="flex flex-col items-start">
-                        <span className="font-medium">{opt.value} — {opt.label}</span>
-                        <span className="text-xs text-muted-foreground">{opt.hint}</span>
-                    </div>
-                </SelectItem>
-            ))}
-        </SelectContent>
-    </Select>
-);
+}) => {
+    const selected = options.find((opt) => opt.value === value);
+    return (
+        <Select
+            value={value ? String(value) : undefined}
+            onValueChange={(v) => onChange(parseInt(v))}
+        >
+            <FormControl>
+                <SelectTrigger>
+                    <SelectValue placeholder="Selecione...">
+                        {selected ? `${selected.value} — ${selected.label}` : null}
+                    </SelectValue>
+                </SelectTrigger>
+            </FormControl>
+            <SelectContent>
+                {options.map(opt => (
+                    <SelectItem key={opt.value} value={String(opt.value)}>
+                        <div className="flex flex-col items-start">
+                            <span className="font-medium">{opt.value} — {opt.label}</span>
+                            <span className="text-xs text-muted-foreground">{opt.hint}</span>
+                        </div>
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
+};
+
+/** Single date picker wired to a react-hook-form field. Used by the planned
+ *  dates section for both the Product and Engineering ranges. */
+function DateField({ control, name, label }: { control: Control<any>; name: string; label: string }) {
+    return (
+        <FormField
+            control={control}
+            name={name}
+            render={({ field }) => (
+                <FormItem className="flex flex-col">
+                    <FormLabel className="text-xs">{label}</FormLabel>
+                    <Popover>
+                        <PopoverTrigger asChild>
+                            <FormControl>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    className={cn(
+                                        'w-full pl-3 text-left font-normal',
+                                        !field.value && 'text-muted-foreground'
+                                    )}
+                                >
+                                    {field.value ? format(field.value, 'dd/MM/yyyy') : 'Selecionar data'}
+                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                </Button>
+                            </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                                mode="single"
+                                selected={field.value ?? undefined}
+                                onSelect={(d) => field.onChange(d ?? null)}
+                                initialFocus
+                                className="pointer-events-auto"
+                            />
+                            {field.value && (
+                                <div className="p-2 border-t">
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        className="w-full"
+                                        onClick={() => field.onChange(null)}
+                                    >
+                                        Limpar
+                                    </Button>
+                                </div>
+                            )}
+                        </PopoverContent>
+                    </Popover>
+                    <FormMessage />
+                </FormItem>
+            )}
+        />
+    );
+}
 
 export const InitiativeFormDialog = ({ open, onClose, onSave, task }: InitiativeFormDialogProps) => {
     const { t } = useTranslation();
-    const { data: localData } = useLocalData();
+    const { data: localData, updateTask } = useLocalData() as any;
+    const { atlassian } = useUserSettings();
+    const confirm = useConfirm();
     const [isAIOpen, setIsAIOpen] = useState(false);
+    const [jiraDialogOpen, setJiraDialogOpen] = useState(false);
+    const [localJiraKey, setLocalJiraKey] = useState<string | null>(task?.jira_key ?? null);
+
+    useEffect(() => {
+        setLocalJiraKey(task?.jira_key ?? null);
+    }, [task?.id, task?.jira_key, open]);
+
+    const jiraSiteUrl = atlassian.siteUrl?.replace(/\/+$/, '');
+    const jiraIssueUrl = localJiraKey && jiraSiteUrl ? `${jiraSiteUrl}/browse/${localJiraKey}` : null;
+
+    const handleOpenJiraDialog = () => {
+        if (!atlassian.connected) {
+            toast({
+                title: 'Conecte sua conta Atlassian',
+                description: 'Vá em Ferramentas → Jira para conectar.',
+                variant: 'destructive',
+            });
+            return;
+        }
+        setJiraDialogOpen(true);
+    };
+
+    const handleUnlinkJira = async () => {
+        if (!task || !localJiraKey) return;
+        const ok = await confirm({
+            title: 'Desvincular do Jira?',
+            description: `O issue ${localJiraKey} continuará existindo no Jira; apenas a vinculação com esta iniciativa será removida.`,
+            confirmLabel: 'Desvincular',
+        });
+        if (!ok) return;
+        await updateTask(task.id, { jira_key: null });
+        setLocalJiraKey(null);
+        toast({ title: 'Desvinculado', description: 'A iniciativa não está mais ligada a um issue.' });
+    };
 
     const initiativeSchema = useMemo(() => z.object({
         title: z.string().min(1, t('validation.required')),
@@ -161,10 +262,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
         brice_effort: z.number().min(0).optional(),
         start_date: z.date().nullable().optional(),
         end_date: z.date().nullable().optional(),
-    }).refine(
-        (data) => !data.start_date || !data.end_date || data.end_date >= data.start_date,
-        { message: 'Data de fim deve ser igual ou posterior à data de início', path: ['end_date'] }
-    ), [t]);
+        product_start_date: z.date().nullable().optional(),
+        product_end_date: z.date().nullable().optional(),
+        eng_start_date: z.date().nullable().optional(),
+        eng_end_date: z.date().nullable().optional(),
+    })
+        .refine(
+            (data) => !data.product_start_date || !data.product_end_date || data.product_end_date >= data.product_start_date,
+            { message: 'Fim de Produto deve ser igual ou posterior ao início', path: ['product_end_date'] }
+        )
+        .refine(
+            (data) => !data.eng_start_date || !data.eng_end_date || data.eng_end_date >= data.eng_start_date,
+            { message: 'Fim de Engenharia deve ser igual ou posterior ao início', path: ['eng_end_date'] }
+        ), [t]);
 
     type InitiativeFormValues = z.infer<typeof initiativeSchema>;
 
@@ -196,6 +306,10 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
             brice_effort: 0,
             start_date: null,
             end_date: null,
+            product_start_date: null,
+            product_end_date: null,
+            eng_start_date: null,
+            eng_end_date: null,
         },
     });
 
@@ -227,6 +341,10 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 brice_effort: task.brice_effort ?? 0,
                 start_date: parseDateLocal(task.start_date),
                 end_date: parseDateLocal(task.end_date),
+                product_start_date: parseDateLocal(task.product_start_date),
+                product_end_date: parseDateLocal(task.product_end_date),
+                eng_start_date: parseDateLocal(task.eng_start_date),
+                eng_end_date: parseDateLocal(task.eng_end_date),
             });
         } else {
             form.reset({
@@ -255,11 +373,27 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                 brice_effort: 0,
                 start_date: null,
                 end_date: null,
+                product_start_date: null,
+                product_end_date: null,
+                eng_start_date: null,
+                eng_end_date: null,
             });
         }
     }, [task, form, open]);
 
     const onSubmit = (data: InitiativeFormValues) => {
+        // The overall period is derived: earliest start and latest end across
+        // the Product and Engineering ranges. This keeps start_date/end_date as
+        // a single source of truth for anything that reads the total span.
+        const starts = [data.product_start_date, data.eng_start_date].filter(Boolean) as Date[];
+        const ends = [data.product_end_date, data.eng_end_date].filter(Boolean) as Date[];
+        const derivedStart = starts.length
+            ? new Date(Math.min(...starts.map((d) => d.getTime())))
+            : null;
+        const derivedEnd = ends.length
+            ? new Date(Math.max(...ends.map((d) => d.getTime())))
+            : null;
+        const fmt = (d: Date | null | undefined) => (d ? format(d, 'yyyy-MM-dd') : null);
         onSave({
             ...data,
             description: data.description || null,
@@ -275,8 +409,12 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
             status: task?.status || 'Discovery', // Default to Discovery for new initiatives
             order_index: task?.order_index ?? 0,
             feature_id: data.feature_id ? parseInt(data.feature_id) : null,
-            start_date: data.start_date ? format(data.start_date, 'yyyy-MM-dd') : null,
-            end_date: data.end_date ? format(data.end_date, 'yyyy-MM-dd') : null,
+            start_date: fmt(derivedStart),
+            end_date: fmt(derivedEnd),
+            product_start_date: fmt(data.product_start_date),
+            product_end_date: fmt(data.product_end_date),
+            eng_start_date: fmt(data.eng_start_date),
+            eng_end_date: fmt(data.eng_end_date),
         });
         form.reset();
         onClose();
@@ -324,8 +462,6 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                 <ScrollArea className="h-[400px] pr-4">
                                     <div className="space-y-4">
                                         <div className="space-y-4">
-                                            <h3 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">{t('initiativeForm.sections.whatWhy')}</h3>
-
                                             <FormField
                                                 control={form.control}
                                                 name="title"
@@ -383,130 +519,88 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                                 />
                                             </div>
 
-                                            <FormField
-                                                control={form.control}
-                                                name="product_objective"
-                                                render={({ field }) => (
-                                                    <FormItem>
-                                                        <FormLabel>{t('initiativeForm.fields.objective')}</FormLabel>
-                                                        <FormControl>
-                                                            <Textarea {...field} placeholder={t('initiativeForm.placeholders.objective')} rows={3} />
-                                                        </FormControl>
-                                                        <FormMessage />
-                                                    </FormItem>
-                                                )}
-                                            />
+                                            {task && (
+                                                <div className="space-y-3 border-t pt-4">
+                                                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                                                        Chamado no Jira
+                                                    </h3>
+                                                    {localJiraKey ? (
+                                                        <div className="flex items-center gap-2 flex-wrap">
+                                                            <div className="inline-flex items-center rounded-md border border-sky-200 bg-sky-50 overflow-hidden">
+                                                                {jiraIssueUrl ? (
+                                                                    <a
+                                                                        href={jiraIssueUrl}
+                                                                        target="_blank"
+                                                                        rel="noreferrer"
+                                                                        className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-sky-800 hover:bg-sky-100"
+                                                                        title="Abrir no Jira"
+                                                                    >
+                                                                        <JiraIcon className="h-3.5 w-3.5" />
+                                                                        {localJiraKey}
+                                                                        <ExternalLink className="h-3 w-3 opacity-60" />
+                                                                    </a>
+                                                                ) : (
+                                                                    <span className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold text-sky-800">
+                                                                        <JiraIcon className="h-3.5 w-3.5" />
+                                                                        {localJiraKey}
+                                                                    </span>
+                                                                )}
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleUnlinkJira}
+                                                                    className="border-l border-sky-200 px-1.5 py-1.5 text-sky-700 hover:bg-sky-100"
+                                                                    title="Desvincular do Jira"
+                                                                >
+                                                                    <X className="h-3 w-3" />
+                                                                </button>
+                                                            </div>
+                                                        </div>
+                                                    ) : (
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={handleOpenJiraDialog}
+                                                            className="text-sky-700 hover:text-sky-800"
+                                                        >
+                                                            <JiraIcon className="h-4 w-4 mr-1" />
+                                                            Conectar ao Jira
+                                                        </Button>
+                                                    )}
+                                                </div>
+                                            )}
 
-                                            <div className="space-y-3 border-t pt-4">
-                                                <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
-                                                    Datas planejadas
-                                                </h3>
-                                                <FormDescription>
-                                                    Opcional. Quando preenchidas, a iniciativa aparece no calendário no intervalo selecionado.
-                                                </FormDescription>
-                                                <div className="grid grid-cols-2 gap-4">
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="start_date"
-                                                        render={({ field }) => (
-                                                            <FormItem className="flex flex-col">
-                                                                <FormLabel>Data de início</FormLabel>
-                                                                <Popover>
-                                                                    <PopoverTrigger asChild>
-                                                                        <FormControl>
-                                                                            <Button
-                                                                                type="button"
-                                                                                variant="outline"
-                                                                                className={cn(
-                                                                                    'w-full pl-3 text-left font-normal',
-                                                                                    !field.value && 'text-muted-foreground'
-                                                                                )}
-                                                                            >
-                                                                                {field.value
-                                                                                    ? format(field.value, 'dd/MM/yyyy')
-                                                                                    : 'Selecionar data'}
-                                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                            </Button>
-                                                                        </FormControl>
-                                                                    </PopoverTrigger>
-                                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                                        <Calendar
-                                                                            mode="single"
-                                                                            selected={field.value ?? undefined}
-                                                                            onSelect={(d) => field.onChange(d ?? null)}
-                                                                            initialFocus
-                                                                            className="pointer-events-auto"
-                                                                        />
-                                                                        {field.value && (
-                                                                            <div className="p-2 border-t">
-                                                                                <Button
-                                                                                    type="button"
-                                                                                    variant="ghost"
-                                                                                    size="sm"
-                                                                                    className="w-full"
-                                                                                    onClick={() => field.onChange(null)}
-                                                                                >
-                                                                                    Limpar
-                                                                                </Button>
-                                                                            </div>
-                                                                        )}
-                                                                    </PopoverContent>
-                                                                </Popover>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
-                                                    <FormField
-                                                        control={form.control}
-                                                        name="end_date"
-                                                        render={({ field }) => (
-                                                            <FormItem className="flex flex-col">
-                                                                <FormLabel>Data de fim</FormLabel>
-                                                                <Popover>
-                                                                    <PopoverTrigger asChild>
-                                                                        <FormControl>
-                                                                            <Button
-                                                                                type="button"
-                                                                                variant="outline"
-                                                                                className={cn(
-                                                                                    'w-full pl-3 text-left font-normal',
-                                                                                    !field.value && 'text-muted-foreground'
-                                                                                )}
-                                                                            >
-                                                                                {field.value
-                                                                                    ? format(field.value, 'dd/MM/yyyy')
-                                                                                    : 'Selecionar data'}
-                                                                                <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                                                            </Button>
-                                                                        </FormControl>
-                                                                    </PopoverTrigger>
-                                                                    <PopoverContent className="w-auto p-0" align="start">
-                                                                        <Calendar
-                                                                            mode="single"
-                                                                            selected={field.value ?? undefined}
-                                                                            onSelect={(d) => field.onChange(d ?? null)}
-                                                                            initialFocus
-                                                                            className="pointer-events-auto"
-                                                                        />
-                                                                        {field.value && (
-                                                                            <div className="p-2 border-t">
-                                                                                <Button
-                                                                                    type="button"
-                                                                                    variant="ghost"
-                                                                                    size="sm"
-                                                                                    className="w-full"
-                                                                                    onClick={() => field.onChange(null)}
-                                                                                >
-                                                                                    Limpar
-                                                                                </Button>
-                                                                            </div>
-                                                                        )}
-                                                                    </PopoverContent>
-                                                                </Popover>
-                                                                <FormMessage />
-                                                            </FormItem>
-                                                        )}
-                                                    />
+                                            <div className="space-y-4 border-t pt-4">
+                                                <div>
+                                                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                                                        Datas planejadas
+                                                    </h3>
+                                                    <p className="text-xs text-muted-foreground mt-1">
+                                                        Informe os períodos de Produto e Engenharia. O período total da
+                                                        iniciativa é calculado automaticamente (menor início → maior fim).
+                                                    </p>
+                                                </div>
+
+                                                <div className="space-y-2 rounded-md border border-cyan-200/60 bg-cyan-50/40 p-3">
+                                                    <div className="flex items-center gap-2 text-sm font-medium text-cyan-700">
+                                                        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#06b6d4' }} />
+                                                        Produto
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <DateField control={form.control} name="product_start_date" label="Início" />
+                                                        <DateField control={form.control} name="product_end_date" label="Fim" />
+                                                    </div>
+                                                </div>
+
+                                                <div className="space-y-2 rounded-md border border-violet-200/60 bg-violet-50/40 p-3">
+                                                    <div className="flex items-center gap-2 text-sm font-medium text-violet-700">
+                                                        <span className="h-2.5 w-2.5 rounded-sm" style={{ background: '#8b5cf6' }} />
+                                                        Engenharia
+                                                    </div>
+                                                    <div className="grid grid-cols-2 gap-4">
+                                                        <DateField control={form.control} name="eng_start_date" label="Início" />
+                                                        <DateField control={form.control} name="eng_end_date" label="Fim" />
+                                                    </div>
                                                 </div>
                                             </div>
                                         </div>
@@ -518,6 +612,20 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                             <TabsContent value="details" className="space-y-4 pt-4">
                                 <ScrollArea className="h-[400px] pr-4">
                                     <div className="space-y-5">
+                                        <FormField
+                                            control={form.control}
+                                            name="product_objective"
+                                            render={({ field }) => (
+                                                <FormItem>
+                                                    <FormLabel>{t('initiativeForm.fields.objective')}</FormLabel>
+                                                    <FormControl>
+                                                        <Textarea {...field} placeholder={t('initiativeForm.placeholders.objective')} rows={3} />
+                                                    </FormControl>
+                                                    <FormMessage />
+                                                </FormItem>
+                                            )}
+                                        />
+
                                         <FormField
                                             control={form.control}
                                             name="user_impact"
@@ -811,6 +919,19 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                     onOpenChange={setIsAIOpen}
                     onGenerated={handleAIGenerated}
                 />
+                {task && (
+                    <JiraConnectDialog
+                        open={jiraDialogOpen}
+                        onClose={() => setJiraDialogOpen(false)}
+                        initialTitle={task.title}
+                        initialDescription={task.description ?? ''}
+                        onLinked={async ({ issueKey }) => {
+                            await updateTask(task.id, { jira_key: issueKey });
+                            setLocalJiraKey(issueKey);
+                            toast({ title: 'Iniciativa vinculada', description: issueKey });
+                        }}
+                    />
+                )}
             </DialogContent>
         </Dialog >
     );
