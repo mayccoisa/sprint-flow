@@ -188,7 +188,7 @@ const KanbanColumn = ({
         isOver && 'ring-2 ring-primary/40 bg-muted/70'
       )}
     >
-      <h3 className="font-semibold mb-4 text-sm uppercase text-muted-foreground flex items-center justify-between">
+      <h3 className="font-semibold mb-4 text-sm text-foreground flex items-center justify-between">
         {title}
         <Badge variant="secondary" className="ml-2">
           {tasks.length}
@@ -365,7 +365,7 @@ export default function Backlog() {
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-xl font-semibold tracking-tight">{t('engineeringBacklog.title')}</h1>
-            <p className="text-muted-foreground">{t('engineeringBacklog.subtitle')}</p>
+            <p className="text-sm text-muted-foreground">{t('engineeringBacklog.subtitle')}</p>
           </div>
           <div className="flex items-center space-x-2">
             <Button variant="outline" onClick={handleJiraSync} disabled={isSyncing}>
@@ -383,7 +383,7 @@ export default function Backlog() {
           <Card>
             <CardContent className="p-3 flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.total')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('engineeringBacklog.stats.total')}</p>
                 <p className="text-lg font-semibold tabular-nums">{stats.totalBacklog}</p>
               </div>
               <Circle className="h-4 w-4 text-muted-foreground" />
@@ -392,7 +392,7 @@ export default function Backlog() {
           <Card>
             <CardContent className="p-3 flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.effort')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('engineeringBacklog.stats.effort')}</p>
                 <p className="text-lg font-semibold tabular-nums">{stats.totalEffort}</p>
               </div>
               <Clock className="h-4 w-4 text-muted-foreground" />
@@ -401,7 +401,7 @@ export default function Backlog() {
           <Card>
             <CardContent className="p-3 flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.bugs')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('engineeringBacklog.stats.bugs')}</p>
                 <p className="text-lg font-semibold tabular-nums">{stats.bugs}</p>
               </div>
               <AlertCircle className="h-4 w-4 text-muted-foreground" />
@@ -410,7 +410,7 @@ export default function Backlog() {
           <Card>
             <CardContent className="p-3 flex items-center justify-between">
               <div>
-                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('engineeringBacklog.stats.highPriority')}</p>
+                <p className="text-[11px] text-muted-foreground">{t('engineeringBacklog.stats.highPriority')}</p>
                 <p className="text-lg font-semibold tabular-nums">{stats.highPriority}</p>
               </div>
               <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
