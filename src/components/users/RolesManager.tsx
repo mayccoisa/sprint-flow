@@ -25,7 +25,6 @@ const FEATURES: { id: AppFeature; label: string }[] = [
     { id: 'strategy', label: 'Estratégia' },
     { id: 'sprints', label: 'Sprints' },
     { id: 'releases', label: 'Lançamentos' },
-    { id: 'documents', label: 'Documentação' },
     { id: 'forms', label: 'Formulários' },
     { id: 'users', label: 'Usuários' },
 ];

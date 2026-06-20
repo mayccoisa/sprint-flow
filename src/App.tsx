@@ -28,12 +28,10 @@ import Releases from "./pages/Releases";
 import ReleaseDetail from "./pages/ReleaseDetail";
 import SeedData from "./pages/SeedData";
 import ImportClientInitiatives from "./pages/ImportClientInitiatives";
-import DocumentationHub from "./pages/DocumentationHub";
-import DocumentEditor from "./pages/DocumentEditor";
 import FormsManagement from "./pages/FormsManagement";
 import PublicFormView from "./pages/PublicFormView";
 import PublicCalendar from "./pages/PublicCalendar";
-import JiraSettings from "./pages/JiraSettings";
+import ToolsPage from "./pages/Tools";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -85,13 +83,12 @@ const App = () => (
               <Route path="/releases" element={<ProtectedRoute feature="releases"><Releases /></ProtectedRoute>} />
               <Route path="/releases/:id" element={<ProtectedRoute feature="releases"><ReleaseDetail /></ProtectedRoute>} />
 
-              <Route path="/docs" element={<ProtectedRoute feature="documents"><DocumentationHub /></ProtectedRoute>} />
-              <Route path="/docs/:id" element={<ProtectedRoute feature="documents"><DocumentEditor /></ProtectedRoute>} />
-
               {/* Admin Routes */}
               <Route path="/users" element={<ProtectedRoute requiredRole="Admin"><UsersManagement /></ProtectedRoute>} />
               <Route path="/forms" element={<ProtectedRoute feature="forms"><FormsManagement /></ProtectedRoute>} />
-              <Route path="/admin/jira" element={<ProtectedRoute requiredRole="Admin"><JiraSettings /></ProtectedRoute>} />
+              <Route path="/tools" element={<ProtectedRoute><ToolsPage /></ProtectedRoute>} />
+              {/* Legacy alias para /admin/jira — agora redireciona para /tools */}
+              <Route path="/admin/jira" element={<ProtectedRoute><ToolsPage /></ProtectedRoute>} />
               <Route path="/admin/seed-data" element={<ProtectedRoute requiredRole="Admin"><SeedData /></ProtectedRoute>} />
               <Route path="/admin/import-initiatives" element={<ProtectedRoute requiredRole="Admin"><ImportClientInitiatives /></ProtectedRoute>} />
 

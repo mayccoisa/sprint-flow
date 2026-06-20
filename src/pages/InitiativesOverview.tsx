@@ -1,4 +1,5 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { Input } from '@/components/ui/input';
@@ -41,7 +42,7 @@ import { InitiativeTypeSelectionDialog } from '@/components/InitiativeTypeSelect
 import { InitiativeFormDialog } from '@/components/InitiativeFormDialog';
 import { TaskFormDialog } from '@/components/TaskFormDialog';
 import { useToast } from '@/hooks/use-toast';
-import { EmptyState, PageSkeleton, useConfirm } from '@/components/ui-patterns';
+import { EmptyState, PageSkeleton, useConfirm, MultiSelectFilter, type FilterOption } from '@/components/ui-patterns';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { getTaskScore } from '@/utils/prioritization';
@@ -139,11 +140,19 @@ const InitiativesOverview = () => {
     const navigate = useNavigate();
     const { data, loading, addTask, updateTask, deleteTask } = useLocalData() as any;
     const [searchQuery, setSearchQuery] = useState('');
-    const [requesterFilter, setRequesterFilter] = useState<string>(() => {
+    /** Multi-select de solicitantes. Valores: id do usuário, ou sentinel
+     *  '__none__' para "sem solicitante". Vazio = sem filtro. */
+    const [requesterFilter, setRequesterFilter] = useState<string[]>(() => {
         try {
-            return sessionStorage.getItem('initiatives.requesterFilter') ?? 'all';
+            const raw = sessionStorage.getItem('initiatives.requesterFilter');
+            if (!raw) return [];
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) return parsed;
+            // Compat: valor legado de string single → migra
+            if (typeof parsed === 'string' && parsed !== 'all') return [parsed];
+            return [];
         } catch {
-            return 'all';
+            return [];
         }
     });
     const [statusFilter, setStatusFilter] = useState<TaskStatus[]>(() => {
@@ -207,7 +216,7 @@ const InitiativesOverview = () => {
 
     useEffect(() => {
         try {
-            sessionStorage.setItem('initiatives.requesterFilter', requesterFilter);
+            sessionStorage.setItem('initiatives.requesterFilter', JSON.stringify(requesterFilter));
         } catch {
             // sessionStorage unavailable; ignore.
         }
@@ -235,7 +244,7 @@ const InitiativesOverview = () => {
     }, [sprintFilter]);
 
     const activeFilterCount =
-        (requesterFilter !== 'all' ? 1 : 0) +
+        (requesterFilter.length > 0 ? 1 : 0) +
         (statusFilter.length > 0 ? 1 : 0) +
         (typeFilter.length > 0 ? 1 : 0) +
         (priorityFilter.length > 0 ? 1 : 0) +
@@ -248,7 +257,7 @@ const InitiativesOverview = () => {
         setStatusFilter([]);
         setTypeFilter([]);
         setPriorityFilter([]);
-        setRequesterFilter('all');
+        setRequesterFilter([]);
         setSprintFilter([]);
     };
 
@@ -274,13 +283,127 @@ const InitiativesOverview = () => {
             );
     }, [data.sprints]);
 
+    // ===== Options pros MultiSelectFilters =====
+    const statusOptions = useMemo<FilterOption[]>(
+        () =>
+            STATUS_ORDER.map((s, idx) => ({
+                value: s,
+                label: STATUS_LABEL_PT[s] ?? s,
+                dot: STATUS_DOT[s],
+                order: idx,
+            })),
+        [],
+    );
+    const typeOptions = useMemo<FilterOption[]>(
+        () => [
+            { value: 'Feature', label: 'Feature', dot: TYPE_DOT.Feature, order: 0 },
+            { value: 'Improvement', label: 'Melhoria', dot: TYPE_DOT.Improvement, order: 1 },
+            { value: 'Bug', label: 'Bug', dot: TYPE_DOT.Bug, order: 2 },
+            { value: 'Deployment', label: 'Implantação', dot: TYPE_DOT.Deployment, order: 3 },
+            { value: 'TechDebt', label: 'Tech Debt', dot: TYPE_DOT.TechDebt, order: 4 },
+            { value: 'Spike', label: 'Spike', dot: TYPE_DOT.Spike, order: 5 },
+        ],
+        [],
+    );
+    const priorityOptions = useMemo<FilterOption[]>(
+        () => [
+            { value: 'High', label: PRIORITY_LABEL_PT.High, dot: PRIORITY_DOT.High, order: 0 },
+            { value: 'Medium', label: PRIORITY_LABEL_PT.Medium, dot: PRIORITY_DOT.Medium, order: 1 },
+            { value: 'Low', label: PRIORITY_LABEL_PT.Low, dot: PRIORITY_DOT.Low, order: 2 },
+        ],
+        [],
+    );
+    const sprintOptions = useMemo<FilterOption[]>(
+        () => [
+            { value: '__none__', label: 'Sem sprint vinculada', muted: true, order: -1 },
+            ...sprintsForFilter.map((s, idx) => ({
+                value: String(s.id),
+                label: s.name,
+                order: idx,
+            })),
+        ],
+        [sprintsForFilter],
+    );
+    const requesterOptions = useMemo<FilterOption[]>(
+        () => [
+            { value: '__none__', label: 'Sem solicitante', muted: true, order: -1 },
+            ...(((data.users as any[]) ?? [])
+                .slice()
+                .sort((a: any, b: any) => (a.name ?? a.email).localeCompare(b.name ?? b.email))
+                .map((u: any, idx: number) => ({
+                    value: u.id,
+                    label: u.name ?? u.email,
+                    order: idx,
+                }))),
+        ],
+        [data.users],
+    );
+
+    // Chips ativos — coletados de todos os filtros, com função de remoção
+    const activeChips = useMemo(() => {
+        const chips: Array<{ key: string; label: string; group: string; remove: () => void }> = [];
+        statusFilter.forEach((s) =>
+            chips.push({
+                key: `status:${s}`,
+                label: STATUS_LABEL_PT[s] ?? s,
+                group: 'Status',
+                remove: () => setStatusFilter((p) => p.filter((x) => x !== s)),
+            }),
+        );
+        typeFilter.forEach((s) => {
+            const opt = typeOptions.find((o) => o.value === s);
+            chips.push({
+                key: `type:${s}`,
+                label: opt?.label ?? s,
+                group: 'Tipo',
+                remove: () => setTypeFilter((p) => p.filter((x) => x !== s)),
+            });
+        });
+        priorityFilter.forEach((s) =>
+            chips.push({
+                key: `priority:${s}`,
+                label: PRIORITY_LABEL_PT[s] ?? s,
+                group: 'Prioridade',
+                remove: () => setPriorityFilter((p) => p.filter((x) => x !== s)),
+            }),
+        );
+        sprintFilter.forEach((sid) => {
+            const label =
+                sid === -1
+                    ? 'Sem sprint'
+                    : sprintsForFilter.find((sp) => sp.id === sid)?.name ?? `Sprint ${sid}`;
+            chips.push({
+                key: `sprint:${sid}`,
+                label,
+                group: 'Sprint',
+                remove: () => setSprintFilter((p) => p.filter((x) => x !== sid)),
+            });
+        });
+        requesterFilter.forEach((rid) => {
+            const label =
+                rid === '__none__'
+                    ? 'Sem solicitante'
+                    : requesterOptions.find((o) => o.value === rid)?.label ?? rid;
+            chips.push({
+                key: `requester:${rid}`,
+                label,
+                group: 'Solicitante',
+                remove: () => setRequesterFilter((p) => p.filter((x) => x !== rid)),
+            });
+        });
+        return chips;
+    }, [statusFilter, typeFilter, priorityFilter, sprintFilter, requesterFilter, typeOptions, requesterOptions, sprintsForFilter]);
+
     const allInitiatives = useMemo(() => {
         return data.tasks.filter((t: any) => {
             if (!t.title.toLowerCase().includes(searchQuery.toLowerCase())) return false;
-            if (requesterFilter === '__none__') {
-                if (t.requester_id) return false;
-            } else if (requesterFilter !== 'all' && t.requester_id !== requesterFilter) {
-                return false;
+            if (requesterFilter.length > 0) {
+                const wantsNoRequester = requesterFilter.includes('__none__');
+                if (!t.requester_id) {
+                    if (!wantsNoRequester) return false;
+                } else {
+                    if (!requesterFilter.includes(t.requester_id)) return false;
+                }
             }
             if (statusFilter.length > 0 && !statusFilter.includes(t.status)) return false;
             if (typeFilter.length > 0 && !typeFilter.includes(t.task_type)) return false;
@@ -565,6 +688,21 @@ const InitiativesOverview = () => {
 
     const visibleColumnDefs = COLUMN_DEFS.filter((d) => visibleColumns[d.key]);
 
+    // Virtual scrolling: only renders rows currently in the viewport (+ overscan).
+    // Cuts Radix Select/Dropdown instantiation from O(rows) to O(~visible).
+    const tableContainerRef = useRef<HTMLDivElement>(null);
+    const virtualizer = useVirtualizer({
+        count: allInitiatives.length,
+        getScrollElement: () => tableContainerRef.current,
+        estimateSize: () => 56,
+        overscan: 12,
+    });
+    const virtualRows = virtualizer.getVirtualItems();
+    const totalRowsHeight = virtualizer.getTotalSize();
+    const paddingTop = virtualRows.length > 0 ? virtualRows[0].start : 0;
+    const paddingBottom =
+        virtualRows.length > 0 ? totalRowsHeight - virtualRows[virtualRows.length - 1].end : 0;
+
     if (loading) {
         return (
             <Layout>
@@ -592,8 +730,8 @@ const InitiativesOverview = () => {
                 </header>
 
                 <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'list' | 'dashboard')}>
-                <div className="flex items-center gap-3">
-                    <div className="relative flex-1 max-w-md">
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative flex-1 min-w-[200px] max-w-md">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
                         <Input
                             className="pl-9 h-9 bg-transparent"
@@ -602,164 +740,52 @@ const InitiativesOverview = () => {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Select value={requesterFilter} onValueChange={setRequesterFilter}>
-                        <SelectTrigger className="h-9 w-56">
-                            <SelectValue placeholder={t('initiatives.filterByRequester', 'Solicitante')} />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">
-                                {t('initiatives.allRequesters', 'Todos os solicitantes')}
-                            </SelectItem>
-                            <SelectItem value="__none__">
-                                {t('initiatives.noRequester', 'Sem solicitante')}
-                            </SelectItem>
-                            {(((data.users as any[]) ?? [])
-                                .slice()
-                                .sort((a: any, b: any) => (a.name ?? a.email).localeCompare(b.name ?? b.email))
-                            ).map((u: any) => (
-                                <SelectItem key={u.id} value={u.id}>
-                                    {u.name ?? u.email}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
 
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <Button variant="outline" size="sm" className="gap-1.5 h-9">
-                                <Filter className="h-3.5 w-3.5" />
-                                {t('initiatives.filters', 'Filtros')}
-                                {activeFilterCount > 0 && (
-                                    <Badge variant="secondary" className="ml-1 h-4 px-1.5 text-[10px] tabular-nums">
-                                        {activeFilterCount}
-                                    </Badge>
-                                )}
-                            </Button>
-                        </PopoverTrigger>
-                        <PopoverContent align="end" className="w-72 p-0">
-                            <div className="flex items-center justify-between px-3 py-2 border-b">
-                                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                                    {t('initiatives.filters', 'Filtros')}
-                                </span>
-                                {activeFilterCount > 0 && (
-                                    <Button
-                                        variant="ghost"
-                                        size="sm"
-                                        className="h-6 px-2 text-xs"
-                                        onClick={clearAllFilters}
-                                    >
-                                        {t('common.clearAll', 'Limpar')}
-                                    </Button>
-                                )}
-                            </div>
-                            <div className="max-h-[60vh] overflow-y-auto p-3 space-y-4">
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                                        {t('initiatives.table.status', 'Status')}
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {STATUS_ORDER.map((s) => (
-                                            <label key={s} className="flex items-center gap-2 cursor-pointer">
-                                                <Checkbox
-                                                    checked={statusFilter.includes(s)}
-                                                    onCheckedChange={() => setStatusFilter((prev) => toggleInArray(prev, s))}
-                                                />
-                                                <span className={cn('h-2 w-2 rounded-full', STATUS_DOT[s] ?? 'bg-slate-400')} />
-                                                <span className="text-sm">{STATUS_LABEL_PT[s] ?? s}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
+                    <MultiSelectFilter
+                        label="Status"
+                        options={statusOptions}
+                        selected={statusFilter}
+                        onChange={(v) => setStatusFilter(v as TaskStatus[])}
+                    />
+                    <MultiSelectFilter
+                        label="Tipo"
+                        options={typeOptions}
+                        selected={typeFilter}
+                        onChange={(v) => setTypeFilter(v as TaskType[])}
+                    />
+                    <MultiSelectFilter
+                        label="Prioridade"
+                        options={priorityOptions}
+                        selected={priorityFilter}
+                        onChange={(v) => setPriorityFilter(v as TaskPriority[])}
+                    />
+                    <MultiSelectFilter
+                        label="Sprint"
+                        options={sprintOptions}
+                        selected={sprintFilter.map(String)}
+                        onChange={(v) =>
+                            setSprintFilter(v.map((x) => (x === '__none__' ? -1 : Number(x))))
+                        }
+                        emptyText="Nenhuma sprint cadastrada."
+                    />
+                    <MultiSelectFilter
+                        label="Solicitante"
+                        options={requesterOptions}
+                        selected={requesterFilter}
+                        onChange={setRequesterFilter}
+                    />
 
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                                        {t('initiatives.table.type', 'Tipo')}
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {([
-                                            ['Feature', 'Feature'],
-                                            ['Improvement', 'Melhoria'],
-                                            ['Bug', 'Bug'],
-                                            ['Deployment', 'Implantação'],
-                                            ['TechDebt', 'Tech Debt'],
-                                            ['Spike', 'Spike'],
-                                        ] as [TaskType, string][]).map(([value, label]) => (
-                                            <label key={value} className="flex items-center gap-2 cursor-pointer">
-                                                <Checkbox
-                                                    checked={typeFilter.includes(value)}
-                                                    onCheckedChange={() => setTypeFilter((prev) => toggleInArray(prev, value))}
-                                                />
-                                                <span className={cn('h-2 w-2 rounded-full', TYPE_DOT[value] ?? 'bg-slate-400')} />
-                                                <span className="text-sm">{label}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                                        {t('initiatives.table.priority', 'Prioridade')}
-                                    </p>
-                                    <div className="space-y-1.5">
-                                        {(['High', 'Medium', 'Low'] as TaskPriority[]).map((p) => (
-                                            <label key={p} className="flex items-center gap-2 cursor-pointer">
-                                                <Checkbox
-                                                    checked={priorityFilter.includes(p)}
-                                                    onCheckedChange={() => setPriorityFilter((prev) => toggleInArray(prev, p))}
-                                                />
-                                                <span className={cn('h-2 w-2 rounded-full', PRIORITY_DOT[p] ?? 'bg-slate-400')} />
-                                                <span className="text-sm">{PRIORITY_LABEL_PT[p] ?? p}</span>
-                                            </label>
-                                        ))}
-                                    </div>
-                                </div>
-
-                                <div>
-                                    <p className="text-[11px] uppercase tracking-wider text-muted-foreground mb-2">
-                                        Sprint
-                                    </p>
-                                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-                                        <label className="flex items-center gap-2 cursor-pointer">
-                                            <Checkbox
-                                                checked={sprintFilter.includes(-1)}
-                                                onCheckedChange={() =>
-                                                    setSprintFilter((prev) => toggleInArray(prev, -1))
-                                                }
-                                            />
-                                            <span className="text-sm italic text-muted-foreground">
-                                                Sem sprint vinculada
-                                            </span>
-                                        </label>
-                                        {sprintsForFilter.length === 0 ? (
-                                            <p className="text-xs text-muted-foreground italic pl-1">
-                                                Nenhuma sprint cadastrada.
-                                            </p>
-                                        ) : (
-                                            sprintsForFilter.map((sprint) => (
-                                                <label
-                                                    key={sprint.id}
-                                                    className="flex items-center gap-2 cursor-pointer"
-                                                >
-                                                    <Checkbox
-                                                        checked={sprintFilter.includes(sprint.id)}
-                                                        onCheckedChange={() =>
-                                                            setSprintFilter((prev) =>
-                                                                toggleInArray(prev, sprint.id)
-                                                            )
-                                                        }
-                                                    />
-                                                    <span className="text-sm truncate">
-                                                        {sprint.name}
-                                                    </span>
-                                                </label>
-                                            ))
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        </PopoverContent>
-                    </Popover>
-
+                    {activeFilterCount > 0 && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={clearAllFilters}
+                            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+                        >
+                            <X className="h-3.5 w-3.5" />
+                            Limpar filtros
+                        </Button>
+                    )}
                     <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                             <Button variant="outline" size="sm" className="gap-1.5 h-9">
@@ -811,13 +837,35 @@ const InitiativesOverview = () => {
                     </TabsList>
                 </div>
 
+                {activeChips.length > 0 && (
+                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
+                        {activeChips.map((chip) => (
+                            <Badge
+                                key={chip.key}
+                                variant="secondary"
+                                className="gap-1 pl-2 pr-1 py-1 text-[11px] font-medium"
+                            >
+                                <span className="text-muted-foreground">{chip.group}:</span>
+                                <span>{chip.label}</span>
+                                <button
+                                    type="button"
+                                    onClick={chip.remove}
+                                    aria-label={`Remover filtro ${chip.label}`}
+                                    className="ml-0.5 grid h-4 w-4 place-items-center rounded hover:bg-muted-foreground/20"
+                                >
+                                    <X className="h-3 w-3" />
+                                </button>
+                            </Badge>
+                        ))}
+                    </div>
+                )}
+
                     <TabsContent value="dashboard" className="pt-4">
                         <InitiativesDashboard
                             tasks={allInitiatives}
                             users={(data.users as any[]) ?? []}
-                            auditLogs={(data.taskAuditLogs as any[]) ?? []}
                             onFocusNoRequester={() => {
-                                setRequesterFilter('__none__');
+                                setRequesterFilter(['__none__']);
                                 setActiveTab('list');
                             }}
                         />
@@ -841,9 +889,12 @@ const InitiativesOverview = () => {
                         }
                     />
                 ) : (
-                    <div className="rounded-lg border border-border/60 overflow-hidden">
+                    <div
+                        ref={tableContainerRef}
+                        className="rounded-lg border border-border/60 overflow-auto max-h-[calc(100vh-300px)] min-h-[400px]"
+                    >
                         <Table>
-                            <TableHeader>
+                            <TableHeader className="sticky top-0 z-10 bg-card">
                                 <TableRow className="hover:bg-transparent border-border/60 bg-muted/30">
                                     <TableHead className="h-10 w-12 pl-4">
                                         <Checkbox
@@ -870,11 +921,17 @@ const InitiativesOverview = () => {
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
-                                {allInitiatives.map((task: any) => {
+                                {paddingTop > 0 && (
+                                    <tr aria-hidden style={{ height: `${paddingTop}px` }} />
+                                )}
+                                {virtualRows.map((virtualRow) => {
+                                    const task = allInitiatives[virtualRow.index] as any;
                                     const isSelected = selectedIds.has(task.id);
                                     return (
                                         <TableRow
                                             key={task.id}
+                                            ref={virtualizer.measureElement}
+                                            data-index={virtualRow.index}
                                             data-state={isSelected ? 'selected' : undefined}
                                             className={cn(
                                                 'border-border/40 transition-colors hover:bg-muted/40 relative',
@@ -957,6 +1014,9 @@ const InitiativesOverview = () => {
                                         </TableRow>
                                     );
                                 })}
+                                {paddingBottom > 0 && (
+                                    <tr aria-hidden style={{ height: `${paddingBottom}px` }} />
+                                )}
                             </TableBody>
                         </Table>
                     </div>

@@ -109,7 +109,7 @@ export default function SquadMembers() {
     return (
       <Layout>
         <div className="text-center">
-          <h1 className="text-2xl font-bold">{t('pages.squadMembers.notFound')}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{t('pages.squadMembers.notFound')}</h1>
           <Link to="/squads" className="text-primary hover:underline">
             {t('pages.squadMembers.backToSquads')}
           </Link>
@@ -131,7 +131,7 @@ export default function SquadMembers() {
 
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.squadMembers.heading', { squad: squad.name })}</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('pages.squadMembers.heading', { squad: squad.name })}</h1>
             <p className="mt-2 text-muted-foreground">{t('pages.squadMembers.subtitle')}</p>
           </div>
           <div className="flex items-center gap-2">

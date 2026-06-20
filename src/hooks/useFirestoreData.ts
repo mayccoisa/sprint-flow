@@ -18,7 +18,7 @@ import type {
     Workspace, Squad, TeamMember, Task, Sprint, SprintTask,
     TaskAssignment, ModuleMetric, ProductModule,
     ProductService, ProductFeature, ServiceDependency,
-    UserProfile, UserRole, FeaturePermission, ProductDocument,
+    UserProfile, UserRole, FeaturePermission,
     CustomForm, FormSubmission, JiraSyncLog, JiraConfig, TaskDateChange,
     Release, ReleaseTask, ReleaseSprint, ReleaseAuditLog, SprintParticipant, Role, TaskAuditLog, TaskAuditChange
 } from '@/types';
@@ -43,7 +43,6 @@ interface FirestoreData {
     serviceDependencies: ServiceDependency[];
     users: UserProfile[];
     roles: Role[];
-    documents: ProductDocument[];
     taskAuditLogs: TaskAuditLog[];
     forms: CustomForm[];
     formSubmissions: FormSubmission[];
@@ -71,7 +70,6 @@ const initialData: FirestoreData = {
     serviceDependencies: [],
     users: [],
     roles: [],
-    documents: [],
     taskAuditLogs: [],
     forms: [],
     formSubmissions: [],
@@ -227,7 +225,6 @@ export const useFirestoreData = () => {
             subscribeToCollection('product_services', 'productServices', true),
             subscribeToCollection('product_features', 'productFeatures', true),
             subscribeToCollection('service_dependencies', 'serviceDependencies', true),
-            subscribeToCollection('documents', 'documents', true),
             subscribeToCollection('forms', 'forms', true),
             subscribeToCollection('form_submissions', 'formSubmissions', true),
             subscribeToCollection('jira_sync_logs', 'jiraSyncLogs', true),
@@ -235,9 +232,9 @@ export const useFirestoreData = () => {
             subscribeToCollection('releases', 'releases', true),
             subscribeToCollection('release_tasks', 'releaseTasks', true),
             subscribeToCollection('release_sprints', 'releaseSprints', true),
-            subscribeToCollection('release_audit_logs', 'releaseAuditLogs', true),
+            // task_audit_logs e release_audit_logs são pesados — assinados sob demanda
+            // via useTaskAuditLogs() / useReleaseAuditLogs() nas páginas que os consomem.
             subscribeToCollection('roles', 'roles', true),
-            subscribeToCollection('task_audit_logs', 'taskAuditLogs', true),
         ];
 
         setLoading(false);
@@ -272,7 +269,7 @@ export const useFirestoreData = () => {
                 const collectionsToMigrate = [
                     'squads', 'members', 'tasks', 'sprints', 'sprint_tasks',
                     'task_assignments', 'product_modules', 'module_metrics',
-                    'product_services', 'product_features', 'service_dependencies', 'documents',
+                    'product_services', 'product_features', 'service_dependencies',
                     'forms', 'form_submissions', 'jira_sync_logs', 'task_date_changes'
                 ];
 
@@ -303,11 +300,11 @@ export const useFirestoreData = () => {
                 const fullPerms = {
                     squads: allActions, initiatives: allActions, backlog: allActions,
                     strategy: allActions, sprints: allActions, releases: allActions,
-                    documents: allActions, users: allActions, forms: allActions,
+                    users: allActions, forms: allActions,
                 };
                 const memberPerms = {
                     squads: ['view'], initiatives: ['view'], backlog: ['view'],
-                    strategy: ['view'], sprints: ['view'], releases: ['view'], documents: ['view'],
+                    strategy: ['view'], sprints: ['view'], releases: ['view'],
                     forms: [],
                 };
                 if (!hasAdmin) {
@@ -748,13 +745,6 @@ export const useFirestoreData = () => {
             };
             await sendSignInLinkToEmail(auth, user.email.toLowerCase(), actionCodeSettings);
         },
-
-        // Documentation Hub
-        addDocument: (docData: Omit<ProductDocument, 'id' | 'created_at' | 'updated_at'>) =>
-            addItem('documents', { ...docData, created_at: new Date().toISOString(), updated_at: new Date().toISOString() }),
-        updateDocument: (id: number, updates: Partial<ProductDocument>) =>
-            updateItem('documents', id, { ...updates, updated_at: new Date().toISOString() }),
-        deleteDocument: (id: number) => deleteItem('documents', id),
 
         // Forms
         addForm: (formData: Omit<CustomForm, 'id' | 'created_at'>) =>

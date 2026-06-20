@@ -645,7 +645,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
             if (!hasProduct && !hasEng && !hasTotal) return null;
             return (
               <div className="space-y-1.5 rounded-md border bg-muted/30 p-2.5 text-xs">
-                <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
                   <CalendarDays className="h-3 w-3" />
                   Datas planejadas
                 </div>
@@ -690,7 +690,7 @@ export default function Calendar({ publicMode = false }: CalendarProps = {}) {
 
           {changes.length > 0 && (
             <div className="space-y-2 rounded-md border border-amber-200 bg-amber-50/60 p-2.5">
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700 uppercase tracking-wider">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-700">
                 <History className="h-3 w-3" />
                 Datas alteradas
               </div>
@@ -1417,7 +1417,7 @@ function LegendSection({
   return (
     <div className="space-y-2">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+        <p className="text-xs font-semibold text-muted-foreground">
           {title}
         </p>
         {hint && <p className="text-xs text-muted-foreground/80">{hint}</p>}

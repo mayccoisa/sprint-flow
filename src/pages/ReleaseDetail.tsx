@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Caption, KpiCard, SectionLabel, StatusBadge, TypeBadge } from '@/components/ui-patterns';
 import { useLocalData } from '@/hooks/useLocalData';
+import { useReleaseAuditLogs } from '@/hooks/useReleaseAuditLogs';
 import { Release, ReleaseAuditLog, Sprint, Task } from '@/types';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -149,12 +150,15 @@ export default function ReleaseDetail() {
   );
 
   /** Audit log entries for this release, newest first. */
+  const { logs: rawReleaseLogs } = useReleaseAuditLogs({
+    releaseId: Number.isFinite(releaseId) ? releaseId : undefined,
+  });
   const auditLogs = useMemo<ReleaseAuditLog[]>(
     () =>
-      ((data.releaseAuditLogs as ReleaseAuditLog[]) || [])
-        .filter((l) => l.release_id === releaseId)
-        .sort((a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime()),
-    [data.releaseAuditLogs, releaseId]
+      [...rawReleaseLogs].sort(
+        (a, b) => new Date(b.changed_at).getTime() - new Date(a.changed_at).getTime(),
+      ),
+    [rawReleaseLogs],
   );
 
   const handleEditSave = async (
@@ -349,7 +353,7 @@ export default function ReleaseDetail() {
           <Button variant="ghost" size="icon" aria-label="Voltar" onClick={() => navigate('/releases')}>
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <h1 className="text-2xl font-semibold tracking-tight">{release.version_name}</h1>
+          <h1 className="text-xl font-semibold tracking-tight">{release.version_name}</h1>
           <StatusBadge kind="release" status={release.status} />
           <Button
             variant="outline"
@@ -766,7 +770,7 @@ export default function ReleaseDetail() {
                 pickerGroups.map((group) => (
                   <div key={group.key} className="space-y-2">
                     <div className="flex items-center gap-2">
-                      <h4 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                      <h4 className="text-xs font-semibold text-muted-foreground">
                         {group.sprint ? group.sprint.name : 'Outras tarefas'}
                       </h4>
                       <Badge variant="secondary" className="text-[10px] h-5 px-1.5">

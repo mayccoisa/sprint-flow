@@ -274,7 +274,7 @@ export function SprintRosterDialog({ open, onClose, sprint, squadName }: SprintR
                 </div>
 
                 <div className="space-y-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <h3 className="text-xs font-semibold text-muted-foreground">
                         {t('sprintRoster.squadMembers', 'Membros do squad')}
                     </h3>
                     {draftEntries.filter((d) => !d.isGuest).length === 0 ? (
@@ -287,7 +287,7 @@ export function SprintRosterDialog({ open, onClose, sprint, squadName }: SprintR
                 </div>
 
                 <div className="space-y-2 pt-2">
-                    <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                    <h3 className="text-xs font-semibold text-muted-foreground">
                         {t('sprintRoster.guests', 'Convidados de outros squads')}
                     </h3>
                     {draftEntries.filter((d) => d.isGuest).map(renderRow)}

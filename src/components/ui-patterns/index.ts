@@ -8,3 +8,4 @@ export { KpiCard } from './KpiCard';
 export { StatusBadge } from './StatusBadge';
 export { PriorityBadge } from './PriorityBadge';
 export { TypeBadge } from './TypeBadge';
+export { MultiSelectFilter, type FilterOption } from './MultiSelectFilter';

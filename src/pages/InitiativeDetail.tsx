@@ -195,7 +195,7 @@ const InitiativeDetail = () => {
         return (
             <Layout>
                 <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
-                    <h1 className="text-2xl font-semibold tracking-tight">Iniciativa não encontrada</h1>
+                    <h1 className="text-xl font-semibold tracking-tight">Iniciativa não encontrada</h1>
                     <p className="text-muted-foreground">Talvez tenha sido excluída.</p>
                     <Button onClick={() => navigate('/initiatives')}>
                         <ArrowLeft className="h-4 w-4 mr-2" />
@@ -385,7 +385,7 @@ const InitiativeDetail = () => {
                                         }
                                     }}
                                     autoFocus
-                                    className="h-10 text-2xl font-semibold tracking-tight"
+                                    className="h-10 text-xl font-semibold tracking-tight"
                                 />
                                 <Button size="icon" variant="ghost" onClick={handleSaveTitle}>
                                     <Check className="h-4 w-4" />
@@ -400,7 +400,7 @@ const InitiativeDetail = () => {
                                 }}
                                 className="group flex items-center gap-2 text-left"
                             >
-                                <h1 className="text-2xl font-semibold tracking-tight">{effective.title}</h1>
+                                <h1 className="text-xl font-semibold tracking-tight">{effective.title}</h1>
                                 <Pencil className="h-4 w-4 text-muted-foreground opacity-0 group-hover:opacity-100 transition" />
                             </button>
                         )}
@@ -527,7 +527,7 @@ const InitiativeDetail = () => {
                                         <h3 className="text-sm font-semibold">Funcionalidade</h3>
                                     </header>
                                     <div className="space-y-2">
-                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Descrição</Label>
+                                        <Label className="text-xs text-muted-foreground">Descrição</Label>
                                         <Textarea
                                             value={effective.description ?? ''}
                                             onChange={(e) => handleField('description', (e.target.value || null) as any)}
@@ -538,7 +538,7 @@ const InitiativeDetail = () => {
 
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="space-y-2">
-                                            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Objetivo (Por quê?)</Label>
+                                            <Label className="text-xs text-muted-foreground">Objetivo (Por quê?)</Label>
                                             <Textarea
                                                 value={effective.product_objective ?? ''}
                                                 onChange={(e) => handleField('product_objective', (e.target.value || null) as any)}
@@ -546,7 +546,7 @@ const InitiativeDetail = () => {
                                             />
                                         </div>
                                         <div className="space-y-2">
-                                            <Label className="text-xs uppercase tracking-wider text-muted-foreground">Meta de negócio / KPI</Label>
+                                            <Label className="text-xs text-muted-foreground">Meta de negócio / KPI</Label>
                                             <Textarea
                                                 value={effective.business_goal ?? ''}
                                                 onChange={(e) => handleField('business_goal', (e.target.value || null) as any)}
@@ -556,7 +556,7 @@ const InitiativeDetail = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground">Impacto no usuário</Label>
+                                        <Label className="text-xs text-muted-foreground">Impacto no usuário</Label>
                                         <Textarea
                                             value={effective.user_impact ?? ''}
                                             onChange={(e) => handleField('user_impact', (e.target.value || null) as any)}
@@ -565,7 +565,7 @@ const InitiativeDetail = () => {
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label className="text-xs uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
+                                        <Label className="text-xs text-muted-foreground flex items-center gap-1.5">
                                             <LinkIcon className="h-3.5 w-3.5" />
                                             Link do protótipo (Figma)
                                         </Label>
@@ -641,7 +641,7 @@ const InitiativeDetail = () => {
                                                     const isStart = field === group.startField;
                                                     return (
                                                         <div key={field} className="space-y-2">
-                                                            <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                                            <Label className="text-xs text-muted-foreground">
                                                                 {isStart ? 'Início' : 'Fim'}
                                                             </Label>
                                                             <Popover>
@@ -764,7 +764,7 @@ const InitiativeDetail = () => {
                                             </Select>
                                         </div>
                                         <div className="rounded-md border bg-muted/30 px-4 py-3 text-right">
-                                            <div className="text-xs uppercase tracking-wider text-muted-foreground">Score atual</div>
+                                            <div className="text-xs text-muted-foreground">Score atual</div>
                                             <div className="text-2xl font-bold tabular-nums">
                                                 {score && score > 0 ? (Number.isInteger(score) ? score : score.toFixed(2)) : '—'}
                                             </div>
@@ -937,7 +937,7 @@ const InitiativeDetail = () => {
                         <Card>
                             <CardContent className="p-4 space-y-4 text-sm">
                                 <div>
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Status</Label>
+                                    <Label className="text-xs text-muted-foreground">Status</Label>
                                     <Select value={effective.status} onValueChange={(v) => handleField('status', v as TaskStatus)}>
                                         <SelectTrigger className="h-9 mt-1.5"><SelectValue /></SelectTrigger>
                                         <SelectContent>
@@ -980,7 +980,7 @@ const InitiativeDetail = () => {
                                 </div>
 
                                 <div>
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Prioridade</Label>
+                                    <Label className="text-xs text-muted-foreground">Prioridade</Label>
                                     <Select value={effective.priority} onValueChange={(v) => handleField('priority', v as TaskPriority)}>
                                         <SelectTrigger className="h-9 mt-1.5"><SelectValue /></SelectTrigger>
                                         <SelectContent>
@@ -997,7 +997,7 @@ const InitiativeDetail = () => {
                                 </div>
 
                                 <div>
-                                    <Label className="text-xs uppercase tracking-wider text-muted-foreground">Tipo</Label>
+                                    <Label className="text-xs text-muted-foreground">Tipo</Label>
                                     <Select value={effective.task_type} onValueChange={(v) => handleField('task_type', v as TaskType)}>
                                         <SelectTrigger className="h-9 mt-1.5"><SelectValue /></SelectTrigger>
                                         <SelectContent>
@@ -1024,7 +1024,7 @@ const InitiativeDetail = () => {
 
                         <Card>
                             <CardContent className="p-4 space-y-3 text-sm">
-                                <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     <UserIcon className="h-3.5 w-3.5" />
                                     <span>Solicitante</span>
                                 </div>
@@ -1052,7 +1052,7 @@ const InitiativeDetail = () => {
 
                         <Card>
                             <CardContent className="p-4 space-y-3 text-sm">
-                                <div className="flex items-center gap-2 text-xs uppercase tracking-wider text-muted-foreground">
+                                <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                     <Zap className="h-3.5 w-3.5" />
                                     <span>Sprint</span>
                                 </div>

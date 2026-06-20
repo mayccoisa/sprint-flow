@@ -91,16 +91,42 @@ A Tailwind config expõe 8 tokens `sidebar-*` (`sidebar.DEFAULT`, `sidebar-foreg
 ### 3.6 Raio, espaçamento e tipografia
 
 - **Radius**: `--radius: 0.5rem` (`rounded-lg`); `rounded-md` = `calc(var(--radius) - 2px)`; `rounded-sm` = `calc(var(--radius) - 4px)`. Botões e inputs → `rounded-md`; cards e dialogs → `rounded-lg`.
-- **Espaçamento**: múltiplos de `4px` (escala Tailwind). Padding padrão de página = `p-8`; gap entre seções = `space-y-8`; entre itens de seção = `gap-4`.
+- **Espaçamento**: múltiplos de `4px` (escala Tailwind). Padding padrão de página = `p-8`; gap entre seções = `space-y-8`; entre itens de seção = `gap-4`. **Dentro de forms/diálogos** a régua é mais densa (ver §3.7): `space-y-4` entre seções, `gap-3` em grids de campos.
 - **Container**: `container mx-auto p-8` dentro de `<main>` (já provido pelo `Layout`); breakpoint `2xl = 1400px`, padding lateral `2rem`.
 - **Animações**: apenas `accordion-down` / `accordion-up` (0.2s ease-out) configuradas em `tailwind.config.ts`. Plugin `tailwindcss-animate` ativo.
-- **Tipografia**:
+- **Tipografia** (régua **Compacta** — ver §3.7):
   - Família: padrão do sistema (sans). Não importar webfonts.
-  - Títulos de página: `text-2xl font-semibold tracking-tight`
+  - Títulos de página: `text-xl font-semibold tracking-tight` (20px) — via `<PageHeader>`
+  - Título de diálogo: `text-base font-semibold` (16px) — padrão do `<DialogTitle>`
   - Títulos de seção / card: `text-lg font-semibold` ou `<CardTitle>`
-  - Métricas em destaque: `text-2xl font-bold`
-  - Texto base: `text-sm`
+  - Rótulo de subseção (dentro de card/painel): `<SectionLabel>` → `text-xs font-semibold` **sentence case** (sem caixa-alta/tracking)
+  - Métricas em destaque: `text-2xl font-bold` (mantêm 24px — são números de KPI, não títulos)
+  - Texto base / campos: `text-sm` (14px)
+  - Label de campo: `text-[13px] font-medium` — padrão do `<Label>`/`<FormLabel>`
   - Suporte/legenda: `text-xs text-muted-foreground`
+
+### 3.7 Escala de densidade "Compacta" (régua oficial)
+
+> Adotada em 2026-06-19. O produto **não** usa o preset padrão do shadcn (controles de 40px, inputs 16px, títulos grandes), que ficava "exagerado" para uma ferramenta densa. A régua abaixo está **embutida nos componentes base** — usar as primitivas de `@/components/ui/*` já entrega o resultado; não recriar tamanhos à mão.
+
+| Elemento | Valor | Onde |
+|---|---|---|
+| Altura de controle (input/select/botão `default`/`icon`) | **36px** (`h-9`) | `input.tsx`, `select.tsx`, `button.tsx` |
+| Botão `sm` / `lg` | 32px (`h-8`) / 44px (`h-11`) | `button.tsx` |
+| Texto de input | **14px** (`text-sm`) fixo | `input.tsx`, `textarea.tsx` |
+| Label de campo | **13px** medium | `label.tsx` |
+| Título de diálogo | **16px** (`text-base`) | `dialog.tsx` |
+| Título de página (H1) | **20px** (`text-xl`) | `PageHeader.tsx` |
+| Rótulo de subseção | **12px** semibold, sentence case | `SectionLabel.tsx` |
+| Respiro vertical em form | `space-y-4` entre seções; `gap-3` em grids | (no markup do form) |
+
+**Referência viva**: [InitiativeFormDialog.tsx](src/components/InitiativeFormDialog.tsx) foi o piloto e é o exemplo canônico de form/diálogo nessa régua — usa as primitivas base sem overrides de tamanho.
+
+**Regras:**
+- ❌ Não usar `CAIXA-ALTA + tracking-wide/wider` em **cabeçalhos de seção** nem em **labels de campo** — sentence case sempre (`<SectionLabel>` para subseções, `<Label>`/`<FormLabel>` para campos). Migração feita em todo o sistema em 2026-06-19.
+- ✅ **Uppercase é permitido apenas** em micro-rótulos estruturais convencionais e pequenos (≤11px): cabeçalhos de tabela (`<TableHead>`, §5.7), labels de grupo da sidebar, `<DropdownMenuLabel>`/`<SelectLabel>` (rótulos de menu) e captions de KPI. Não usar em títulos/labels de conteúdo.
+- ❌ Não fixar `h-10`/`text-base` em inputs/botões — as primitivas já são `h-9`/`text-sm`.
+- ❌ Não usar `text-2xl` em títulos de página — `text-2xl font-bold` fica reservado para métricas/KPIs.
 
 ---
 
@@ -184,7 +210,7 @@ Primitivas instaladas (48): `accordion`, `alert`, `alert-dialog`, `aspect-ratio`
 | `destructive` | Excluir, cancelar com perda de dados |
 | `link` | Navegação inline |
 
-Tamanhos: `default` (h-10), `sm` (h-9), `lg` (h-11), `icon` (h-10 w-10 — usar quando o conteúdo for **apenas** um `lucide` icon, sempre com `aria-label`).
+Tamanhos (régua compacta §3.7): `default` (h-9 = 36px), `sm` (h-8 = 32px), `lg` (h-11), `icon` (h-9 w-9 — usar quando o conteúdo for **apenas** um `lucide` icon, sempre com `aria-label`).
 
 Convenções:
 - Ícone à esquerda do label: `<Plus className="mr-2 h-4 w-4" />` (size 16 — não usar 20 dentro de botões médios).
@@ -210,7 +236,7 @@ Estrutura canônica:
 ### 5.3 Inputs e Forms
 
 - **Sempre** usar componentes shadcn: `Input`, `Textarea`, `Select`, `Checkbox`, `Switch`, `RadioGroup`, `Label`, `Form` (react-hook-form).
-- Labels acima dos inputs, `text-sm font-medium`.
+- Labels acima dos inputs, `text-[13px] font-medium` (padrão do `<Label>`/`<FormLabel>`, régua compacta §3.7).
 - Diálogos de criar/editar entidades seguem o padrão `EntityFormDialog` (ex.: `InitiativeFormDialog`, `SprintFormDialog`, `MemberFormDialog`, `SquadFormDialog`).
 
 **Padrão de validação** (aplicar em todo novo form):
@@ -456,4 +482,4 @@ Avaliação contra os princípios das skills `product-design` (em [skills/produc
 
 ---
 
-**Última atualização**: 2026-05-04
+**Última atualização**: 2026-06-19 — adoção da escala de densidade "Compacta" (§3.7) em **todo o sistema**: controles 36px, inputs 14px, labels 13px, títulos de página 20px, títulos de diálogo 16px, cabeçalhos de seção e labels de campo em sentence case. Aplicada nos componentes base (`input`, `select`, `button`, `label`, `dialog`), nos padrões `PageHeader`/`SectionLabel`, no sweep de títulos de página (~18 telas) e na migração dos cabeçalhos/labels uppercase (`InitiativeDetail`, `ReleaseDetail`, `SprintRosterDialog`, `Calendar`, `JiraConnectDialog`, `AtlassianToolSettings`, `Tools`, `ImportRequestersDialog`). Uppercase mantido só em micro-rótulos estruturais (tabela, sidebar, menus, KPI).
