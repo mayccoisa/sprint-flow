@@ -158,7 +158,7 @@ export function ImportRequestersDialog({ open, onClose }: Props) {
                     {squadId && (
                         <div className="space-y-2">
                             <div className="flex items-center justify-between">
-                                <Label className="text-xs uppercase tracking-wider text-muted-foreground">
+                                <Label className="text-xs text-muted-foreground">
                                     Membros encontrados
                                 </Label>
                                 <button

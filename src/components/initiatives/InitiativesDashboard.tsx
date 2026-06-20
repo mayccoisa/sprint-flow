@@ -15,6 +15,7 @@ import {
     ListTodo, Compass, Zap, CheckCircle2, UserX, Clock, ExternalLink,
 } from 'lucide-react';
 import type { Task, UserProfile, TaskAuditLog, TaskStatus } from '@/types';
+import { useTaskAuditLogs } from '@/hooks/useTaskAuditLogs';
 import { STATUS_HEX, STATUS_ORDER, STATUS_STYLES, PRODUCT_PHASE_STATUSES, STATUS_LABEL_PT, TYPE_LABEL_PT, TYPE_HEX, TYPE_ORDER } from '@/utils/initiativeStatus';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
@@ -25,7 +26,8 @@ const THROUGHPUT_MONTHS = 12;
 type Props = {
     tasks: Task[];
     users: UserProfile[];
-    auditLogs: TaskAuditLog[];
+    /** Optional — when omitted, the component lazy-loads audit logs internally. */
+    auditLogs?: TaskAuditLog[];
     onFocusNoRequester: () => void;
 };
 
@@ -45,7 +47,10 @@ const lastStatusChangeAt = (logs: TaskAuditLog[], taskId: number): string | null
     return latest;
 };
 
-export const InitiativesDashboard = ({ tasks, users, auditLogs, onFocusNoRequester }: Props) => {
+export const InitiativesDashboard = ({ tasks, users, auditLogs: auditLogsProp, onFocusNoRequester }: Props) => {
+    // Lazy-load audit logs when the parent doesn't provide them (preferred path now).
+    const { logs: lazyLogs } = useTaskAuditLogs({ disabled: auditLogsProp != null });
+    const auditLogs = auditLogsProp ?? lazyLogs;
     const { t } = useTranslation();
 
     const userById = useMemo(() => {

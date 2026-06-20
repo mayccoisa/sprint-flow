@@ -148,7 +148,7 @@ export default function Team() {
       <div>
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.team.title')}</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('pages.team.title')}</h1>
             <p className="mt-2 text-muted-foreground">{t('pages.team.subtitle')}</p>
           </div>
           <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>

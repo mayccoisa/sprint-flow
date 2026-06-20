@@ -67,7 +67,7 @@ export default function PublicFormView() {
         return (
             <div className="min-h-screen bg-slate-50 flex flex-col items-center pt-24">
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold mb-2">{t('forms.public.notFound')}</h1>
+                    <h1 className="text-xl font-bold mb-2">{t('forms.public.notFound')}</h1>
                     <p className="text-muted-foreground">{t('forms.public.notFoundDesc')}</p>
                 </div>
             </div>
@@ -81,7 +81,7 @@ export default function PublicFormView() {
                     <CardContent className="space-y-6 flex flex-col items-center">
                         <CheckCircle2 className="h-16 w-16 text-green-500" />
                         <div className="space-y-2">
-                            <h2 className="text-2xl font-semibold">{t('forms.public.success')}</h2>
+                            <h2 className="text-xl font-semibold">{t('forms.public.success')}</h2>
                             <p className="text-muted-foreground">
                                 {form.destination === 'Product' ? t('forms.public.successProduct') : t('forms.public.successEngineering')}
                             </p>

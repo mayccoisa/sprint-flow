@@ -73,7 +73,7 @@ const Index = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight tracking-tight">{t('dashboard.title')}</h1>
+            <h1 className="text-xl font-semibold tracking-tight tracking-tight">{t('dashboard.title')}</h1>
             <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
           </div>
         </div>

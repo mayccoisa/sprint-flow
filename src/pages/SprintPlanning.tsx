@@ -357,7 +357,7 @@ const SprintPlanning = () => {
         <div className="flex items-start justify-between gap-4 flex-wrap">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-2xl font-semibold tracking-tight">
+              <h1 className="text-xl font-semibold tracking-tight">
                 {sprint.name}
               </h1>
               <Badge className={statusColors[sprint.status]}>

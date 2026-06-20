@@ -71,7 +71,7 @@ export default function Squads() {
       <div>
         <div className="mb-8 flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight text-foreground">{t('pages.squads.title')}</h1>
+            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('pages.squads.title')}</h1>
             <p className="mt-2 text-muted-foreground">{t('pages.squads.subtitle')}</p>
           </div>
           <Button onClick={handleNewSquad}>

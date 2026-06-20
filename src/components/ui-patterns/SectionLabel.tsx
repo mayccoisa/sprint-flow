@@ -9,18 +9,19 @@ interface SectionLabelProps {
 }
 
 /**
- * Compact uppercase label used to introduce subsections inside cards or panels.
- * Centralises the recurring pattern: `text-xs uppercase tracking-wider text-muted-foreground`.
+ * Compact label used to introduce subsections inside cards or panels.
+ * Centralises the recurring pattern: `text-xs font-semibold text-foreground`
+ * (sentence case — no uppercase/tracking per the compact density scale, design.md §3.6).
  *
  * Use for dense contexts where a full `<CardTitle>` would be too heavy
- * (e.g. "DATAS PLANEJADAS", "TAREFAS POR TIPO", "INDICADORES").
+ * (e.g. "Datas planejadas", "Tarefas por tipo", "Indicadores").
  */
 export const SectionLabel = ({ children, className, trailing }: SectionLabelProps) => {
   return (
     <div className="flex items-center gap-2">
       <h3
         className={cn(
-          'text-xs font-semibold uppercase tracking-wider text-muted-foreground',
+          'text-xs font-semibold text-foreground',
           className
         )}
       >

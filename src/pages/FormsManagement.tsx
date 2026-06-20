@@ -96,7 +96,7 @@ export default function FormsManagement() {
                             <ArrowLeft className="h-5 w-5" />
                         </Button>
                         <div>
-                            <h1 className="text-2xl font-semibold tracking-tight">
+                            <h1 className="text-xl font-semibold tracking-tight">
                                 {editingForm ? t('forms.builder.editTitle') : t('forms.builder.newTitle')}
                             </h1>
                             <p className="text-muted-foreground">{t('forms.builder.subtitle')}</p>
@@ -118,7 +118,7 @@ export default function FormsManagement() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">{t('forms.management.title')}</h1>
+                        <h1 className="text-xl font-semibold tracking-tight">{t('forms.management.title')}</h1>
                         <p className="text-muted-foreground">{t('forms.management.subtitle')}</p>
                     </div>
                     {canCreate && (

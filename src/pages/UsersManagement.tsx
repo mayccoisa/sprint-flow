@@ -46,7 +46,7 @@ export default function UsersManagement() {
             <Layout>
                 <div className="flex flex-col items-center justify-center h-[60vh] text-center space-y-4">
                     <ShieldAlert className="h-16 w-16 text-red-500" />
-                    <h1 className="text-2xl font-bold">{t('usersManagement.accessDenied')}</h1>
+                    <h1 className="text-xl font-semibold tracking-tight">{t('usersManagement.accessDenied')}</h1>
                     <p className="text-muted-foreground">{t('usersManagement.accessDeniedDesc')}</p>
                 </div>
             </Layout>
@@ -147,7 +147,7 @@ export default function UsersManagement() {
             <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">{t('usersManagement.title')}</h1>
+                        <h1 className="text-xl font-semibold tracking-tight">{t('usersManagement.title')}</h1>
                         <p className="text-muted-foreground">{t('usersManagement.subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-2">

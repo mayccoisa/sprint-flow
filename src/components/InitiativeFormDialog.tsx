@@ -448,7 +448,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                             description: firstError?.message || 'Verifique os campos obrigatórios.',
                             variant: 'destructive',
                         });
-                    })} className="space-y-6">
+                    })} className="space-y-4">
 
                         <Tabs defaultValue="general" className="w-full">
                             <TabsList className="grid w-full grid-cols-3">
@@ -521,7 +521,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
 
                                             {task && (
                                                 <div className="space-y-3 border-t pt-4">
-                                                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                                                    <h3 className="text-xs font-semibold text-foreground">
                                                         Chamado no Jira
                                                     </h3>
                                                     {localJiraKey ? (
@@ -572,7 +572,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
 
                                             <div className="space-y-4 border-t pt-4">
                                                 <div>
-                                                    <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">
+                                                    <h3 className="text-xs font-semibold text-foreground">
                                                         Datas planejadas
                                                     </h3>
                                                     <p className="text-xs text-muted-foreground mt-1">
@@ -611,7 +611,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                             {/* TAB 2: DETAILS */}
                             <TabsContent value="details" className="space-y-4 pt-4">
                                 <ScrollArea className="h-[400px] pr-4">
-                                    <div className="space-y-5">
+                                    <div className="space-y-4">
                                         <FormField
                                             control={form.control}
                                             name="product_objective"
@@ -656,7 +656,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
 
                                         {/* Product Context */}
                                         <div className="space-y-3 border-t pt-4">
-                                            <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('initiativeForm.productContext')}</h3>
+                                            <h3 className="text-xs font-semibold text-foreground">{t('initiativeForm.productContext')}</h3>
                                             <FormField
                                                 control={form.control}
                                                 name="feature_id"
@@ -690,7 +690,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
 
                                         {/* Discovery Status */}
                                         <div className="space-y-3 border-t pt-4">
-                                            <h3 className="font-semibold text-sm uppercase tracking-wide text-muted-foreground">{t('initiativeForm.sections.discovery')}</h3>
+                                            <h3 className="text-xs font-semibold text-foreground">{t('initiativeForm.sections.discovery')}</h3>
 
                                             <FormField
                                                 control={form.control}
@@ -731,7 +731,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                             {/* TAB 3: PRIORITIZATION */}
                             <TabsContent value="prioritization" className="space-y-4 pt-4">
                                 <ScrollArea className="h-[400px] pr-4">
-                                    <div className="space-y-6">
+                                    <div className="space-y-4">
                                         <FormField
                                             control={form.control}
                                             name="prioritization_model"
@@ -752,7 +752,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         />
 
                                         {form.watch('prioritization_model') === 'ICE' && (
-                                            <div className="grid grid-cols-3 gap-4 border p-4 rounded-lg bg-slate-50/50">
+                                            <div className="grid grid-cols-3 gap-4 border p-4 rounded-lg bg-slate-50/50 gap-y-3">
                                                 <FormField
                                                     control={form.control}
                                                     name="ice_impact"
@@ -790,7 +790,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         )}
 
                                         {form.watch('prioritization_model') === 'RICE' && (
-                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50">
+                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50 gap-y-3">
                                                 <FormField
                                                     control={form.control}
                                                     name="rice_reach"
@@ -840,7 +840,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         )}
 
                                         {form.watch('prioritization_model') === 'BRICE' && (
-                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50">
+                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50 gap-y-3">
                                                 <FormField
                                                     control={form.control}
                                                     name="brice_business_value"

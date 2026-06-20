@@ -375,7 +375,7 @@ const ProductBacklog = () => {
             <div className="space-y-6 h-full flex flex-col">
                 <div className="flex items-center justify-between shrink-0">
                     <div>
-                        <h1 className="text-2xl font-semibold tracking-tight">{t('pages.productBacklog.heading')}</h1>
+                        <h1 className="text-xl font-semibold tracking-tight">{t('pages.productBacklog.heading')}</h1>
                         <p className="text-muted-foreground">{t('productBacklog.subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-4">

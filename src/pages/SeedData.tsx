@@ -172,7 +172,7 @@ export default function SeedData() {
   return (
     <Layout>
       <div className="container mx-auto p-6 max-w-4xl">
-        <h1 className="text-2xl font-semibold tracking-tight mb-2">Administração - Dados de Exemplo</h1>
+        <h1 className="text-xl font-semibold tracking-tight mb-2">Administração - Dados de Exemplo</h1>
         <p className="text-muted-foreground mb-8">
           Popule o workspace atual com dados realistas para demonstração ou limpe tudo.
         </p>

@@ -15,7 +15,7 @@ interface PageHeaderProps {
 
 /**
  * Canonical page header per design.md §4.2:
- *   h1 (text-2xl font-semibold tracking-tight) + optional subtitle (text-sm muted) + actions.
+ *   h1 (text-xl font-semibold tracking-tight) + optional subtitle (text-sm muted) + actions.
  *
  * Use this in every page-level component instead of rolling your own markup.
  * Keeps page tops visually consistent across the product.
@@ -36,8 +36,8 @@ export const PageHeader = ({
       )}
     >
       <div className="min-w-0">
-        <h1 className="text-2xl font-semibold tracking-tight flex items-center gap-2">
-          {Icon && <Icon className="h-6 w-6 text-primary" aria-hidden="true" />}
+        <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
+          {Icon && <Icon className="h-5 w-5 text-primary" aria-hidden="true" />}
           {title}
           {badge}
         </h1>

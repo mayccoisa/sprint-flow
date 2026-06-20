@@ -172,7 +172,7 @@ export default function Login() {
                 </div>
 
                 <div className="space-y-6 max-w-md">
-                    <h1 className="text-3xl font-bold tracking-tight tracking-tight">
+                    <h1 className="text-3xl font-bold tracking-tight">
                         {t('login.heroTitle1')} <br className="hidden lg:inline" />
                         {t('login.heroTitle2')}
                     </h1>
@@ -209,7 +209,7 @@ export default function Login() {
                     </div>
 
                     <div className="text-center md:text-left space-y-2">
-                        <h2 className="text-2xl font-semibold tracking-tight tracking-tight text-slate-900">
+                        <h2 className="text-xl font-semibold tracking-tight text-slate-900">
                             {mode === 'login' ? t('login.titleLogin') : t('login.titleRegister')}
                         </h2>
                         <p className="text-muted-foreground">

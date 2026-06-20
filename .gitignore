@@ -22,3 +22,12 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Build / tooling caches
+*.tsbuildinfo
+
+# Firebase deploy cache
+.firebase/
+
+# Claude Code (agente)
+.claude/
