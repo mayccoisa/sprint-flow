@@ -537,7 +537,7 @@ const ProductBacklog = () => {
                     <div className="border rounded-lg bg-white overflow-hidden flex-1 flex flex-col">
                         <div className="overflow-y-auto">
                             <Table>
-                                <TableHeader className="bg-slate-50 sticky top-0 z-10">
+                                <TableHeader className="bg-muted sticky top-0 z-10">
                                         <TableRow>
                                             <TableHead className="w-[30%] font-semibold">{t('productBacklog.tableHeaders.title')}</TableHead>
                                             <TableHead className="w-[12%] font-semibold">{t('productBacklog.tableHeaders.status')}</TableHead>
@@ -556,7 +556,7 @@ const ProductBacklog = () => {
                                         const statusColor = columns.find(c => c.id === task.status)?.color || '';
                                         
                                         return (
-                                            <TableRow key={task.id} className="hover:bg-slate-50/50">
+                                            <TableRow key={task.id} className="hover:bg-muted/50">
                                                 <TableCell className="font-medium">
                                                     <div className="flex flex-col">
                                                         <span>{task.title}</span>
