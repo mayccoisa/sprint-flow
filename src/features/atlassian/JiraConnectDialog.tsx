@@ -309,17 +309,17 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
         role="dialog"
         aria-modal="true"
         onClick={(e) => e.stopPropagation()}
-        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+        className="flex max-h-[90vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl border border-border bg-white shadow-2xl"
       >
         {/* Header */}
-        <header className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+        <header className="flex items-center justify-between border-b border-border px-6 py-4">
           <div className="flex items-center gap-2">
             <div className="grid h-8 w-8 place-items-center rounded-lg bg-sky-50">
               <JiraIcon size={16} />
             </div>
             <div className="leading-tight">
-              <h2 className="text-lg font-bold text-slate-900">Conectar ao Jira</h2>
-              <p className="text-[11px] font-medium text-slate-500">
+              <h2 className="text-lg font-bold text-foreground">Conectar ao Jira</h2>
+              <p className="text-[11px] font-medium text-muted-foreground">
                 Vincule esta iniciativa a um chamado existente ou crie um novo
               </p>
             </div>
@@ -327,7 +327,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
           <button
             onClick={onClose}
             disabled={submitting}
-            className="rounded-lg p-1.5 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:opacity-50"
+            className="rounded-lg p-1.5 text-muted-foreground transition-colors hover:bg-muted hover:text-muted-foreground disabled:opacity-50"
             aria-label="Fechar"
           >
             <X size={18} strokeWidth={2.5} />
@@ -340,18 +340,18 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
             <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-full bg-emerald-100">
               <CheckCircle2 className="h-6 w-6 text-emerald-600" />
             </div>
-            <h3 className="mb-1 text-base font-bold text-slate-900">
+            <h3 className="mb-1 text-base font-bold text-foreground">
               {success.created ? 'Issue criado e vinculado' : 'Iniciativa vinculada'}
             </h3>
-            <p className="mb-4 text-sm text-slate-500">
-              <span className="font-mono font-semibold text-slate-700">{success.key}</span>
+            <p className="mb-4 text-sm text-muted-foreground">
+              <span className="font-mono font-semibold text-foreground">{success.key}</span>
             </p>
             <div className="flex items-center justify-center gap-2">
               <a
                 href={success.url}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-50"
+                className="inline-flex items-center gap-1.5 rounded-lg border border-border px-3 py-1.5 text-xs font-bold text-foreground hover:bg-muted"
               >
                 Abrir no Jira <ExternalLink size={12} />
               </a>
@@ -366,7 +366,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
         ) : (
           <>
             {/* Project picker (compartilhado) */}
-            <div className="border-b border-slate-100 px-6 py-4">
+            <div className="border-b border-border px-6 py-4">
               <label className="mb-1.5 block text-[13px] font-medium text-muted-foreground">
                 Quadro (projeto Jira)
               </label>
@@ -378,7 +378,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                 </div>
               )}
               {!projects && !projectsError && (
-                <div className="flex items-center gap-2 rounded-lg border border-slate-100 px-3 py-2 text-xs text-slate-500">
+                <div className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs text-muted-foreground">
                   <Loader2 size={13} className="animate-spin" /> Carregando projetos…
                 </div>
               )}
@@ -413,19 +413,19 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                     <Search
                       size={12}
                       strokeWidth={2.5}
-                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                      className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                     />
                     <input
                       autoFocus
                       value={projectFilter}
                       onChange={(e) => setProjectFilter(e.target.value)}
                       placeholder="Filtrar por nome ou chave…"
-                      className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-xs placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                      className="w-full rounded-lg border border-border bg-white py-1.5 pl-7 pr-2 text-xs placeholder:text-muted-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                     />
                   </div>
-                  <div className="max-h-44 overflow-y-auto rounded-lg border border-slate-100">
+                  <div className="max-h-44 overflow-y-auto rounded-lg border border-border">
                     {filteredProjects?.length === 0 ? (
-                      <p className="px-3 py-3 text-xs text-slate-400">Nenhum match.</p>
+                      <p className="px-3 py-3 text-xs text-muted-foreground">Nenhum match.</p>
                     ) : (
                       filteredProjects?.map((p) => (
                         <button
@@ -436,19 +436,19 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                             setProjectPickerOpen(false);
                             setProjectFilter('');
                           }}
-                          className={`flex w-full items-center gap-2 border-b border-slate-50 px-3 py-2 text-left text-xs transition-colors last:border-b-0 ${
-                            projectKey === p.key ? 'bg-sky-50 text-sky-800' : 'hover:bg-slate-50'
+                          className={`flex w-full items-center gap-2 border-b border-border px-3 py-2 text-left text-xs transition-colors last:border-b-0 ${
+                            projectKey === p.key ? 'bg-sky-50 text-sky-800' : 'hover:bg-muted'
                           }`}
                         >
                           {p.avatarUrl ? (
                             <img src={p.avatarUrl} alt="" className="h-5 w-5 rounded" />
                           ) : (
-                            <div className="grid h-5 w-5 place-items-center rounded bg-slate-200 text-[9px] font-bold text-slate-600">
+                            <div className="grid h-5 w-5 place-items-center rounded bg-muted text-[9px] font-bold text-muted-foreground">
                               {p.key.slice(0, 2)}
                             </div>
                           )}
-                          <span className="flex-1 truncate font-bold text-slate-800">{p.name}</span>
-                          <span className="font-mono text-[10px] text-slate-400">{p.key}</span>
+                          <span className="flex-1 truncate font-bold text-foreground">{p.name}</span>
+                          <span className="font-mono text-[10px] text-muted-foreground">{p.key}</span>
                         </button>
                       ))
                     )}
@@ -457,7 +457,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
               )}
 
               {projects && projects.length === 0 && !projectsError && (
-                <p className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-xs text-slate-500">
+                <p className="rounded-lg border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                   Nenhum projeto Jira visível para sua conta.
                 </p>
               )}
@@ -466,13 +466,13 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
             {/* Tabs + conteúdo */}
             {selectedProject && !projectPickerOpen && (
               <>
-                <div className="flex gap-1 border-b border-slate-100 px-6 pt-3">
+                <div className="flex gap-1 border-b border-border px-6 pt-3">
                   <button
                     onClick={() => setTab('link')}
                     className={`flex items-center gap-1.5 rounded-t-lg px-3 py-2 text-xs font-bold transition-colors ${
                       tab === 'link'
                         ? 'border-b-2 border-sky-600 text-sky-700'
-                        : 'text-slate-500 hover:text-slate-700'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <LinkIcon size={12} strokeWidth={2.5} />
@@ -483,7 +483,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                     className={`flex items-center gap-1.5 rounded-t-lg px-3 py-2 text-xs font-bold transition-colors ${
                       tab === 'create'
                         ? 'border-b-2 border-sky-600 text-sky-700'
-                        : 'text-slate-500 hover:text-slate-700'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     <Plus size={12} strokeWidth={2.5} />
@@ -500,20 +500,20 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           <Search
                             size={12}
                             strokeWidth={2.5}
-                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400"
+                            className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground"
                           />
                           <input
                             value={linkQuery}
                             onChange={(e) => setLinkQuery(e.target.value)}
                             placeholder="Buscar por título ou chave (ex: PROJ-123)…"
-                            className="w-full rounded-lg border border-slate-200 bg-white py-1.5 pl-7 pr-2 text-xs placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                            className="w-full rounded-lg border border-border bg-white py-1.5 pl-7 pr-2 text-xs placeholder:text-muted-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                           />
                         </div>
                         <div className="flex gap-2">
                           <select
                             value={linkIssueTypeFilter}
                             onChange={(e) => setLinkIssueTypeFilter(e.target.value)}
-                            className="flex-1 rounded-lg border border-slate-200 bg-white py-1.5 px-2 text-xs font-medium focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                            className="flex-1 rounded-lg border border-border bg-white py-1.5 px-2 text-xs font-medium focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                             disabled={!issueTypes || issueTypes.length === 0}
                           >
                             <option value="">Todos os tipos</option>
@@ -526,7 +526,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           <select
                             value={linkAssigneeFilter}
                             onChange={(e) => setLinkAssigneeFilter(e.target.value)}
-                            className="flex-1 rounded-lg border border-slate-200 bg-white py-1.5 px-2 text-xs font-medium focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                            className="flex-1 rounded-lg border border-border bg-white py-1.5 px-2 text-xs font-medium focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                             disabled={!users || users.length === 0}
                           >
                             <option value="">Todos os responsáveis</option>
@@ -538,7 +538,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                             ))}
                           </select>
                         </div>
-                        <p className="text-[10px] text-slate-400">
+                        <p className="text-[10px] text-muted-foreground">
                           Mostrando apenas chamados em backlog ou sprints ativas/futuras.
                         </p>
                       </div>
@@ -551,33 +551,33 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                         </div>
                       )}
                       {linkLoading && (
-                        <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
+                        <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
                           <Loader2 size={13} className="animate-spin" /> Buscando…
                         </div>
                       )}
                       {!linkLoading && linkResults && linkResults.length === 0 && (
-                        <p className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-3 text-center text-xs text-slate-500">
+                        <p className="rounded-lg border border-border bg-muted px-3 py-3 text-center text-xs text-muted-foreground">
                           Nenhum chamado encontrado neste projeto com esses filtros.
                         </p>
                       )}
                       {!linkLoading && linkResults && linkResults.length > 0 && (
-                        <div className="rounded-lg border border-slate-100 overflow-hidden">
+                        <div className="rounded-lg border border-border overflow-hidden">
                           {linkResults.map((iss) => (
                             <button
                               key={iss.key}
                               onClick={() => handleLinkExisting(iss)}
                               disabled={submitting}
-                              className="flex w-full items-start gap-3 border-b border-slate-50 px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-sky-50 disabled:opacity-50"
+                              className="flex w-full items-start gap-3 border-b border-border px-3 py-2.5 text-left transition-colors last:border-b-0 hover:bg-sky-50 disabled:opacity-50"
                             >
                               <span className="mt-0.5 font-mono text-[10px] font-bold text-sky-700 min-w-[64px]">
                                 {iss.key}
                               </span>
                               <div className="flex-1 min-w-0">
-                                <div className="truncate text-xs font-semibold text-slate-800">
+                                <div className="truncate text-xs font-semibold text-foreground">
                                   {iss.summary || '(sem título)'}
                                 </div>
-                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-500">
-                                  <span className="rounded bg-slate-100 px-1.5 py-0.5 font-bold">
+                                <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-muted-foreground">
+                                  <span className="rounded bg-muted px-1.5 py-0.5 font-bold">
                                     {iss.issueType}
                                   </span>
                                   <span>{iss.status}</span>
@@ -589,7 +589,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                                           ? 'bg-emerald-50 text-emerald-700'
                                           : iss.sprintState === 'future'
                                             ? 'bg-amber-50 text-amber-700'
-                                            : 'bg-slate-100 text-slate-600',
+                                            : 'bg-muted text-muted-foreground',
                                       )}
                                       title={
                                         iss.sprintState === 'active'
@@ -604,7 +604,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                                     </span>
                                   )}
                                   {!iss.sprintName && (
-                                    <span className="rounded bg-slate-50 px-1.5 py-0.5 text-slate-500">
+                                    <span className="rounded bg-muted px-1.5 py-0.5 text-muted-foreground">
                                       Backlog
                                     </span>
                                   )}
@@ -620,11 +620,11 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                                       {iss.assignee}
                                     </span>
                                   ) : (
-                                    <span className="italic text-slate-400">Sem responsável</span>
+                                    <span className="italic text-muted-foreground">Sem responsável</span>
                                   )}
                                 </div>
                               </div>
-                              <ChevronRight size={13} className="mt-1 text-slate-400 shrink-0" />
+                              <ChevronRight size={13} className="mt-1 text-muted-foreground shrink-0" />
                             </button>
                           ))}
                         </div>
@@ -640,7 +640,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           Tipo de issue
                         </label>
                         {!issueTypes && !issueTypesError && (
-                          <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
+                          <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
                             <Loader2 size={13} className="animate-spin" /> Carregando…
                           </div>
                         )}
@@ -659,7 +659,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                                 className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold transition-colors ${
                                   createIssueType === t.name
                                     ? 'bg-sky-600 text-white shadow-sm'
-                                    : 'border border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                                    : 'border border-border bg-white text-foreground hover:bg-muted'
                                 }`}
                               >
                                 {t.iconUrl && <img src={t.iconUrl} alt="" className="h-3.5 w-3.5" />}
@@ -679,7 +679,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           value={summary}
                           onChange={(e) => setSummary(e.target.value)}
                           placeholder="Título do chamado"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                         />
                       </div>
 
@@ -689,7 +689,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           Responsável
                         </label>
                         {!users && !usersError && (
-                          <div className="flex items-center gap-2 px-3 py-2 text-xs text-slate-500">
+                          <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
                             <Loader2 size={13} className="animate-spin" /> Carregando…
                           </div>
                         )}
@@ -697,7 +697,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           <select
                             value={assigneeId}
                             onChange={(e) => setAssigneeId(e.target.value)}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                           >
                             <option value="">Não atribuir</option>
                             {users.map((u) => (
@@ -719,7 +719,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           <select
                             value={sprintId === '' ? '' : String(sprintId)}
                             onChange={(e) => setSprintId(e.target.value ? Number(e.target.value) : '')}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                            className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                           >
                             <option value="">Sem sprint</option>
                             {sprints.map((s) => (
@@ -740,7 +740,7 @@ export function JiraConnectDialog({ open, onClose, initialTitle, initialDescript
                           value={labels}
                           onChange={(e) => setLabels(e.target.value)}
                           placeholder="frontend, urgente"
-                          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm placeholder:text-slate-400 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
+                          className="w-full rounded-lg border border-border bg-white px-3 py-2 text-sm placeholder:text-muted-foreground focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-100"
                         />
                       </div>
 

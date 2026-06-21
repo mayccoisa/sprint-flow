@@ -389,7 +389,7 @@ export default function ProductStrategy() {
                                                                 const module = feature ? data.productModules.find(m => m.id === feature.module_id) : null;
 
                                                                 return module ? (
-                                                                    <Badge variant="secondary" className="bg-slate-100">
+                                                                    <Badge variant="secondary" className="bg-muted">
                                                                         {module.name}
                                                                     </Badge>
                                                                 ) : (
@@ -400,7 +400,7 @@ export default function ProductStrategy() {
                                                         <TableCell>
                                                             {/* Simulated Impact vs Realized */}
                                                             <div className="flex items-center gap-2">
-                                                                <div className="w-24 h-2 bg-slate-100 rounded-full overflow-hidden">
+                                                                <div className="w-24 h-2 bg-muted rounded-full overflow-hidden">
                                                                     <div className="h-full bg-violet-500" style={{ width: `${Math.random() * 100}%` }} />
                                                                 </div>
                                                                 <span className="text-xs text-muted-foreground">{t('productStrategy.table.estimated')}</span>
@@ -408,7 +408,7 @@ export default function ProductStrategy() {
                                                         </TableCell>
                                                         <TableCell className="text-right">
                                                             <Badge className={cn(
-                                                                task.status === 'Done' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-slate-100 text-slate-700 hover:bg-slate-100'
+                                                                task.status === 'Done' ? 'bg-emerald-100 text-emerald-700 hover:bg-emerald-100' : 'bg-muted text-foreground hover:bg-muted'
                                                             )}>
                                                                 {task.status}
                                                             </Badge>

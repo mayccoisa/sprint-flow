@@ -17,11 +17,13 @@ import {
   setAtlassianCredentialsFn,
 } from '@/features/settings/callableApi';
 import { formatRelative } from '@/lib/formatRelative';
+import { useConfirm } from '@/components/ui-patterns';
 
 type Mode = 'view' | 'edit';
 
 export function AtlassianToolSettings() {
   const { atlassian, loading } = useUserSettings();
+  const confirm = useConfirm();
   const [mode, setMode] = useState<Mode>('view');
   const [email, setEmail] = useState('');
   const [apiToken, setApiToken] = useState('');
@@ -89,12 +91,12 @@ export function AtlassianToolSettings() {
   };
 
   const disconnect = async () => {
-    if (
-      !window.confirm(
-        'Desconectar sua conta Atlassian? A ferramenta de Jira parará de funcionar até reconectar.',
-      )
-    )
-      return;
+    const ok = await confirm({
+      title: 'Desconectar conta Atlassian?',
+      description: 'A ferramenta de Jira parará de funcionar até você reconectar.',
+      confirmLabel: 'Desconectar',
+    });
+    if (!ok) return;
     setError(null);
     setBusy(true);
     try {
@@ -123,11 +125,11 @@ export function AtlassianToolSettings() {
   return (
     <div className="space-y-5">
       <section>
-        <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-slate-900">
+        <h3 className="mb-1 flex items-center gap-2 text-sm font-bold text-foreground">
           <Link2 size={14} strokeWidth={2.5} className="text-sky-600" />
           Conta Atlassian
         </h3>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-muted-foreground">
           Esta ferramenta usa <strong>API Token</strong> — cada usuário gera o próprio token na conta
           Atlassian dele e cola aqui. As ações (criar issue) ficam atribuídas a você.
         </p>
@@ -145,7 +147,7 @@ export function AtlassianToolSettings() {
               onChange={(e) => setEmail(e.target.value)}
               placeholder="seu.nome@empresa.com"
               autoComplete="email"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-border bg-white px-4 py-2.5 text-sm transition-all placeholder:text-muted-foreground focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 
@@ -158,7 +160,7 @@ export function AtlassianToolSettings() {
               value={siteUrl}
               onChange={(e) => setSiteUrl(e.target.value)}
               placeholder="https://empresa.atlassian.net"
-              className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 font-mono text-sm transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+              className="w-full rounded-xl border border-border bg-white px-4 py-2.5 font-mono text-sm transition-all placeholder:text-muted-foreground focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
             />
           </label>
 
@@ -173,12 +175,12 @@ export function AtlassianToolSettings() {
                 onChange={(e) => setApiToken(e.target.value)}
                 placeholder="ATATT3xFfGF0..."
                 autoComplete="off"
-                className="w-full rounded-xl border border-slate-200 bg-white px-4 py-2.5 pr-10 font-mono text-sm transition-all placeholder:text-slate-400 focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
+                className="w-full rounded-xl border border-border bg-white px-4 py-2.5 pr-10 font-mono text-sm transition-all placeholder:text-muted-foreground focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-100"
               />
               <button
                 type="button"
                 onClick={() => setShowToken((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-muted-foreground"
                 aria-label={showToken ? 'Ocultar token' : 'Mostrar token'}
               >
                 {showToken ? <EyeOff size={14} /> : <Eye size={14} />}
@@ -265,11 +267,11 @@ export function AtlassianToolSettings() {
         </div>
       )}
 
-      <section className="border-t border-slate-100 pt-4">
+      <section className="border-t border-border pt-4">
         <h4 className="mb-2 text-[13px] font-medium text-muted-foreground">
           Como obter o API Token
         </h4>
-        <ol className="space-y-1 text-xs text-slate-600">
+        <ol className="space-y-1 text-xs text-muted-foreground">
           <li>
             1. Abra{' '}
             <a

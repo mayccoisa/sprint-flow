@@ -323,7 +323,7 @@ const SprintPlanning = () => {
   const statusColors = {
     Planning: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     Active: 'bg-green-100 text-green-800 border-green-200',
-    Completed: 'bg-gray-100 text-gray-800 border-gray-200',
+    Completed: 'bg-muted text-foreground border-border',
     Cancelled: 'bg-red-100 text-red-800 border-red-200',
   };
 
@@ -640,7 +640,7 @@ const BacklogTaskCard = ({
     TechDebt: 'bg-yellow-100 text-yellow-800 border-yellow-200',
     Spike: 'bg-purple-100 text-purple-800 border-purple-200',
     Improvement: 'bg-cyan-100 text-cyan-800 border-cyan-200',
-    Deployment: 'bg-gray-100 text-gray-800 border-gray-200',
+    Deployment: 'bg-muted text-foreground border-border',
   };
 
   const priorityColors: Record<string, string> = {
@@ -655,11 +655,11 @@ const BacklogTaskCard = ({
     Prototyping: 'bg-pink-100 text-pink-800 border-pink-200',
     Refinement: 'bg-indigo-100 text-indigo-800 border-indigo-200',
     ReadyForEng: 'bg-teal-100 text-teal-800 border-teal-200',
-    Backlog: 'bg-slate-100 text-slate-800 border-slate-200',
+    Backlog: 'bg-muted text-foreground border-border',
     InSprint: 'bg-amber-100 text-amber-800 border-amber-200',
     Review: 'bg-orange-100 text-orange-800 border-orange-200',
     Done: 'bg-green-100 text-green-800 border-green-200',
-    Archived: 'bg-gray-200 text-gray-700 border-gray-300',
+    Archived: 'bg-muted text-foreground border-border',
   };
 
   const statusLabels = STATUS_LABEL_PT;

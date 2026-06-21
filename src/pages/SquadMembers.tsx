@@ -15,7 +15,7 @@ import { useLocalData } from '@/hooks/useLocalData';
 import { toast } from '@/hooks/use-toast';
 import type { TeamMember, MemberSpecialty } from '@/types';
 import { useTranslation } from 'react-i18next';
-import { useConfirm } from '@/components/ui-patterns';
+import { PageHeader, useConfirm } from '@/components/ui-patterns';
 
 const SPECIALTY_COLORS: Record<MemberSpecialty, string> = {
   Frontend: 'bg-specialty-frontend/10 text-specialty-frontend border-specialty-frontend/20',
@@ -129,12 +129,12 @@ export default function SquadMembers() {
           <span className="text-foreground font-medium">{t('pages.squadMembers.breadcrumbMembers')}</span>
         </div>
 
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('pages.squadMembers.heading', { squad: squad.name })}</h1>
-            <p className="mt-2 text-muted-foreground">{t('pages.squadMembers.subtitle')}</p>
-          </div>
-          <div className="flex items-center gap-2">
+        <PageHeader
+          className="mb-8"
+          title={t('pages.squadMembers.heading', { squad: squad.name })}
+          subtitle={t('pages.squadMembers.subtitle')}
+          actions={
+            <>
             <Button
               variant="outline"
               className="text-destructive hover:text-destructive hover:bg-destructive/10"
@@ -173,8 +173,9 @@ export default function SquadMembers() {
               <Plus className="mr-2 h-4 w-4" />
               {t('pages.squadMembers.addMember')}
             </Button>
-          </div>
-        </div>
+            </>
+          }
+        />
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">
           <Card>

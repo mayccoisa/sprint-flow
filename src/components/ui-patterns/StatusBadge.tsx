@@ -13,7 +13,7 @@ import type { SprintStatus, TaskStatus, VersionStatus } from '@/types';
 const SPRINT_STATUS_STYLES: Record<SprintStatus, string> = {
   Planning: 'bg-amber-50 text-amber-700 ring-amber-200',
   Active: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
-  Completed: 'bg-slate-100 text-slate-700 ring-slate-200',
+  Completed: 'bg-muted text-foreground ring-border',
   Cancelled: 'bg-rose-50 text-rose-700 ring-rose-200',
 };
 
@@ -25,7 +25,7 @@ const SPRINT_STATUS_LABEL_PT: Record<SprintStatus, string> = {
 };
 
 const VERSION_STATUS_STYLES: Record<VersionStatus, string> = {
-  Planned: 'bg-slate-100 text-slate-700 ring-slate-200',
+  Planned: 'bg-muted text-foreground ring-border',
   InProgress: 'bg-blue-50 text-blue-700 ring-blue-200',
   Released: 'bg-emerald-50 text-emerald-700 ring-emerald-200',
   Cancelled: 'bg-rose-50 text-rose-700 ring-rose-200',

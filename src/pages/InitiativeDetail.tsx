@@ -409,7 +409,7 @@ const InitiativeDetail = () => {
                                 variant="outline"
                                 className={cn(
                                     'font-medium border-0 ring-1 px-2 py-0.5',
-                                    STATUS_STYLES[effective.status] ?? 'bg-slate-50 text-slate-700 ring-slate-200',
+                                    STATUS_STYLES[effective.status] ?? 'bg-muted text-foreground ring-border',
                                 )}
                             >
                                 {STATUS_LABEL[effective.status] ?? effective.status}

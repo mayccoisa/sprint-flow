@@ -6,7 +6,7 @@ import type { TaskPriority } from '@/types';
 const PRIORITY_STYLES: Record<TaskPriority, string> = {
   High: 'bg-rose-50 text-rose-700 ring-rose-200',
   Medium: 'bg-amber-50 text-amber-700 ring-amber-200',
-  Low: 'bg-slate-50 text-slate-600 ring-slate-200',
+  Low: 'bg-muted text-muted-foreground ring-border',
 };
 
 interface PriorityBadgeProps {

@@ -428,7 +428,7 @@ export const InitiativesDashboard = ({ tasks, users, auditLogs: auditLogsProp, o
                                             variant="outline"
                                             className={cn(
                                                 'font-medium border-0 ring-1 px-2 py-0.5 text-[10px] shrink-0',
-                                                STATUS_STYLES[task.status] ?? 'bg-slate-50 text-slate-700 ring-slate-200',
+                                                STATUS_STYLES[task.status] ?? 'bg-muted text-foreground ring-border',
                                             )}
                                         >
                                             {STATUS_LABEL_PT[task.status] ?? task.status}

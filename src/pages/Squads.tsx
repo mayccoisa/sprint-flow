@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Plus } from 'lucide-react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/ui-patterns';
 import { Button } from '@/components/ui/button';
 import { SquadCard } from '@/components/SquadCard';
 import { SquadFormDialog } from '@/components/SquadFormDialog';
@@ -69,16 +70,17 @@ export default function Squads() {
   return (
     <Layout>
       <div>
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('pages.squads.title')}</h1>
-            <p className="mt-2 text-muted-foreground">{t('pages.squads.subtitle')}</p>
-          </div>
-          <Button onClick={handleNewSquad}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('pages.squads.newSquad')}
-          </Button>
-        </div>
+        <PageHeader
+          className="mb-8"
+          title={t('pages.squads.title')}
+          subtitle={t('pages.squads.subtitle')}
+          actions={
+            <Button onClick={handleNewSquad}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('pages.squads.newSquad')}
+            </Button>
+          }
+        />
 
         <div className="mb-6 flex items-center gap-2">
           <Switch

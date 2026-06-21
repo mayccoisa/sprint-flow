@@ -16,7 +16,7 @@ import type { CustomForm } from '@/types';
 import FormBuilder from '@/components/forms/FormBuilder';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useConfirm } from '@/components/ui-patterns';
+import { PageHeader, useConfirm } from '@/components/ui-patterns';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function FormsManagement() {
@@ -116,18 +116,16 @@ export default function FormsManagement() {
     return (
         <Layout>
             <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-xl font-semibold tracking-tight">{t('forms.management.title')}</h1>
-                        <p className="text-muted-foreground">{t('forms.management.subtitle')}</p>
-                    </div>
-                    {canCreate && (
+                <PageHeader
+                    title={t('forms.management.title')}
+                    subtitle={t('forms.management.subtitle')}
+                    actions={canCreate && (
                         <Button onClick={handleCreateNew} className="bg-violet-600 hover:bg-violet-700">
                             <Plus className="h-4 w-4 mr-2" />
                             {t('forms.management.newForm')}
                         </Button>
                     )}
-                </div>
+                />
 
                 <Card>
                     <CardHeader>
