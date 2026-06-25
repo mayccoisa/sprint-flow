@@ -1,0 +1,14 @@
+{
+  "name": "atlassian-ui",
+  "version": "0.1.0",
+  "kind": "react-ui",
+  "description": "Dialogs prontos para enviar conteúdo ao Jira e Confluence (TailwindCSS v3+)",
+  "exports": [
+    "JiraSendDialog",
+    "ConfluenceSendDialog",
+    "JiraIcon",
+    "ConfluenceIcon"
+  ],
+  "companions": ["atlassian-tools"],
+  "stylesNote": "Componentes usam Tailwind. O app consumidor precisa ter Tailwind v3+ com a paleta default (slate, indigo, sky, amber, emerald, red)."
+}
