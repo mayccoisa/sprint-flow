@@ -376,7 +376,7 @@ const ProductBacklog = () => {
                 <div className="flex items-center justify-between shrink-0">
                     <div>
                         <h1 className="text-xl font-semibold tracking-tight">{t('pages.productBacklog.heading')}</h1>
-                        <p className="text-muted-foreground">{t('productBacklog.subtitle')}</p>
+                        <p className="text-sm text-muted-foreground">{t('productBacklog.subtitle')}</p>
                     </div>
                     <div className="flex items-center gap-4">
                         <Tabs value={viewMode} onValueChange={(v) => setViewMode(v as 'kanban' | 'table')} className="w-auto">
@@ -393,7 +393,7 @@ const ProductBacklog = () => {
                         </Tabs>
 
                         <div className="flex gap-2">
-                            <div className="flex items-center gap-2 border rounded-md px-3 h-10 bg-background">
+                            <div className="flex items-center gap-2 border rounded-md px-3 h-9 bg-background">
                                 <BarChart2 className="h-4 w-4 text-muted-foreground" />
                                 <Select value={activeModel} onValueChange={(v) => setActiveModel(v as PrioritizationModel)}>
                                     <SelectTrigger className="border-0 focus:ring-0 w-[100px] h-8 p-0">
@@ -423,7 +423,7 @@ const ProductBacklog = () => {
                     <Card>
                         <CardContent className="p-3 flex items-center justify-between">
                             <div>
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.total', 'Total em produto')}</p>
+                                <p className="text-[11px] text-muted-foreground">{t('productBacklog.stats.total', 'Total em produto')}</p>
                                 <p className="text-lg font-semibold tabular-nums">{stats.total}</p>
                             </div>
                             <ListChecks className="h-4 w-4 text-muted-foreground" />
@@ -432,7 +432,7 @@ const ProductBacklog = () => {
                     <Card>
                         <CardContent className="p-3 flex items-center justify-between">
                             <div>
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.productBacklog', 'Backlog de Produto')}</p>
+                                <p className="text-[11px] text-muted-foreground">{t('productBacklog.stats.productBacklog', 'Backlog de Produto')}</p>
                                 <p className="text-lg font-semibold tabular-nums">{stats.inProductBacklog}</p>
                             </div>
                             <Lightbulb className="h-4 w-4 text-muted-foreground" />
@@ -441,7 +441,7 @@ const ProductBacklog = () => {
                     <Card>
                         <CardContent className="p-3 flex items-center justify-between">
                             <div>
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.inRefinement', 'Em refinamento')}</p>
+                                <p className="text-[11px] text-muted-foreground">{t('productBacklog.stats.inRefinement', 'Em refinamento')}</p>
                                 <p className="text-lg font-semibold tabular-nums">{stats.inRefinement}</p>
                             </div>
                             <Sparkles className="h-4 w-4 text-muted-foreground" />
@@ -450,7 +450,7 @@ const ProductBacklog = () => {
                     <Card>
                         <CardContent className="p-3 flex items-center justify-between">
                             <div>
-                                <p className="text-[11px] uppercase tracking-wider text-muted-foreground">{t('productBacklog.stats.documented', 'Documentado')}</p>
+                                <p className="text-[11px] text-muted-foreground">{t('productBacklog.stats.documented', 'Documentado')}</p>
                                 <p className="text-lg font-semibold tabular-nums">{stats.ready}</p>
                             </div>
                             <FileCheck2 className="h-4 w-4 text-muted-foreground" />
@@ -483,7 +483,7 @@ const ProductBacklog = () => {
                                 const colTasks = tasks.filter(t => t.status === col.id);
                                 return (
                                     <div key={col.id} className={cn("rounded-lg flex flex-col h-full w-[280px] flex-shrink-0", col.color)}>
-                                        <div className="p-3 font-semibold border-b border-black/5 flex justify-between items-center bg-white/50 rounded-t-lg">
+                                        <div className="p-3 text-sm font-semibold border-b border-black/5 flex justify-between items-center bg-white/50 rounded-t-lg">
                                             <span className="flex items-center gap-2">
                                                 {col.title}
                                                 <Badge variant="outline" className="ml-1 bg-white/50">{colTasks.length}</Badge>
@@ -537,7 +537,7 @@ const ProductBacklog = () => {
                     <div className="border rounded-lg bg-white overflow-hidden flex-1 flex flex-col">
                         <div className="overflow-y-auto">
                             <Table>
-                                <TableHeader className="bg-slate-50 sticky top-0 z-10">
+                                <TableHeader className="bg-muted sticky top-0 z-10">
                                         <TableRow>
                                             <TableHead className="w-[30%] font-semibold">{t('productBacklog.tableHeaders.title')}</TableHead>
                                             <TableHead className="w-[12%] font-semibold">{t('productBacklog.tableHeaders.status')}</TableHead>
@@ -556,7 +556,7 @@ const ProductBacklog = () => {
                                         const statusColor = columns.find(c => c.id === task.status)?.color || '';
                                         
                                         return (
-                                            <TableRow key={task.id} className="hover:bg-slate-50/50">
+                                            <TableRow key={task.id} className="hover:bg-muted/50">
                                                 <TableCell className="font-medium">
                                                     <div className="flex flex-col">
                                                         <span>{task.title}</span>
