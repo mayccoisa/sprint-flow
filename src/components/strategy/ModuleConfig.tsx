@@ -96,7 +96,7 @@ export function ModuleConfig() {
                                         {data.productFeatures
                                             .filter(f => f.module_id === module.id)
                                             .map(feature => (
-                                                <div key={feature.id} className="flex items-center justify-between p-2 bg-slate-50 rounded border text-sm">
+                                                <div key={feature.id} className="flex items-center justify-between p-2 bg-muted rounded border text-sm">
                                                     <span>{feature.name}</span>
                                                     <Badge variant="secondary" className="text-[10px]">{feature.status}</Badge>
                                                 </div>
@@ -150,7 +150,7 @@ export function ModuleConfig() {
 
                     <div className="space-y-3">
                         {data.productServices.map(service => (
-                            <div key={service.id} className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-slate-50 transition-colors">
+                            <div key={service.id} className="flex items-center justify-between p-3 border rounded-lg bg-card hover:bg-muted transition-colors">
                                 <div className="flex items-center gap-3">
                                     <div className={`p-2 rounded-md ${service.type === 'Database' ? 'bg-blue-100 text-blue-700' :
                                         service.type === 'External' ? 'bg-red-100 text-red-700' :

@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/ui-patterns';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -138,15 +139,11 @@ const ImportClientInitiatives = () => {
     return (
         <Layout>
             <div className="space-y-6 max-w-3xl">
-                <div>
-                    <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-                        <Upload className="h-7 w-7 text-primary" />
-                        Importar Iniciativas (CSV WeON)
-                    </h1>
-                    <p className="text-muted-foreground">
-                        Importa em massa as iniciativas mapeadas no CSV de Solicitações de Clientes WeON 2026.
-                    </p>
-                </div>
+                <PageHeader
+                    icon={Upload}
+                    title="Importar Iniciativas (CSV WeON)"
+                    subtitle="Importa em massa as iniciativas mapeadas no CSV de Solicitações de Clientes WeON 2026."
+                />
 
                 <Card>
                     <CardHeader>

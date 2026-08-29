@@ -244,7 +244,7 @@ export function RolesManager() {
                             <div className="rounded-md border overflow-hidden">
                                 <Table>
                                     <TableHeader>
-                                        <TableRow className="bg-slate-50">
+                                        <TableRow className="bg-muted">
                                             <TableHead className="w-[200px]">Módulo</TableHead>
                                             {ACTIONS.map((a) => (
                                                 <TableHead key={a.id} className="text-center">{a.label}</TableHead>
@@ -254,7 +254,7 @@ export function RolesManager() {
                                     <TableBody>
                                         {FEATURES.map((f) => (
                                             <TableRow key={f.id}>
-                                                <TableCell className="font-medium bg-slate-50/40">{f.label}</TableCell>
+                                                <TableCell className="font-medium bg-muted/40">{f.label}</TableCell>
                                                 {ACTIONS.map((a) => (
                                                     <TableCell key={a.id} className="text-center">
                                                         <Checkbox

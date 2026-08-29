@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Plus, Edit, UserX, Search } from 'lucide-react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/ui-patterns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -146,16 +147,17 @@ export default function Team() {
   return (
     <Layout>
       <div>
-        <div className="mb-8 flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight text-foreground">{t('pages.team.title')}</h1>
-            <p className="mt-2 text-muted-foreground">{t('pages.team.subtitle')}</p>
-          </div>
-          <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
-            <Plus className="mr-2 h-4 w-4" />
-            {t('pages.team.addMember')}
-          </Button>
-        </div>
+        <PageHeader
+          className="mb-8"
+          title={t('pages.team.title')}
+          subtitle={t('pages.team.subtitle')}
+          actions={
+            <Button onClick={() => { setEditingMember(undefined); setDialogOpen(true); }}>
+              <Plus className="mr-2 h-4 w-4" />
+              {t('pages.team.addMember')}
+            </Button>
+          }
+        />
 
         <div className="mb-6 grid gap-4 md:grid-cols-4">
           <Card>

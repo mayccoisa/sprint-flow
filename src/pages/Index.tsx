@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/ui-patterns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,12 +72,7 @@ const Index = () => {
     <Layout>
       <div className="space-y-8">
         {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-semibold tracking-tight tracking-tight">{t('dashboard.title')}</h1>
-            <p className="text-muted-foreground">{t('dashboard.subtitle')}</p>
-          </div>
-        </div>
+        <PageHeader title={t('dashboard.title')} subtitle={t('dashboard.subtitle')} />
 
         {/* KPI Cards */}
         <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">

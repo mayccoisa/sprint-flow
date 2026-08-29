@@ -752,7 +752,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         />
 
                                         {form.watch('prioritization_model') === 'ICE' && (
-                                            <div className="grid grid-cols-3 gap-4 border p-4 rounded-lg bg-slate-50/50 gap-y-3">
+                                            <div className="grid grid-cols-3 gap-4 border p-4 rounded-lg bg-muted/50 gap-y-3">
                                                 <FormField
                                                     control={form.control}
                                                     name="ice_impact"
@@ -790,7 +790,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         )}
 
                                         {form.watch('prioritization_model') === 'RICE' && (
-                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50 gap-y-3">
+                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/50 gap-y-3">
                                                 <FormField
                                                     control={form.control}
                                                     name="rice_reach"
@@ -840,7 +840,7 @@ export const InitiativeFormDialog = ({ open, onClose, onSave, task }: Initiative
                                         )}
 
                                         {form.watch('prioritization_model') === 'BRICE' && (
-                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-slate-50/50 gap-y-3">
+                                            <div className="grid grid-cols-2 gap-4 border p-4 rounded-lg bg-muted/50 gap-y-3">
                                                 <FormField
                                                     control={form.control}
                                                     name="brice_business_value"

@@ -42,7 +42,7 @@ export function ProtectedRoute({ children, feature, action = 'view', requiredRol
 
 function AccessDenied() {
     return (
-        <div className="flex flex-col items-center justify-center h-screen w-full text-center space-y-4 bg-slate-50">
+        <div className="flex flex-col items-center justify-center h-screen w-full text-center space-y-4 bg-muted">
             <ShieldAlert className="h-16 w-16 text-red-500" />
             <h1 className="text-2xl font-bold">Access Denied</h1>
             <p className="text-muted-foreground">You do not have the required permissions to view this page.</p>

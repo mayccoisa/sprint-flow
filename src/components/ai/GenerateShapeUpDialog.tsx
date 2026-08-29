@@ -101,8 +101,8 @@ export function GenerateShapeUpDialog({ open, onOpenChange, task }: GenerateShap
 
                 <div className="space-y-6 py-4">
                     {!localStorage.getItem('gemini_api_key') && !apiKey && (
-                        <div className="space-y-2 p-4 bg-slate-50 border rounded-lg">
-                            <Label htmlFor="apiKey" className="text-xs font-semibold text-slate-500 uppercase">Gemini API Key</Label>
+                        <div className="space-y-2 p-4 bg-muted/50 border rounded-lg">
+                            <Label htmlFor="apiKey" className="text-xs font-semibold text-muted-foreground">Gemini API Key</Label>
                             <Input
                                 id="apiKey"
                                 type="password"
@@ -142,7 +142,7 @@ export function GenerateShapeUpDialog({ open, onOpenChange, task }: GenerateShap
                         </div>
                     ) : (
                         <div className="space-y-4">
-                            <div className="bg-slate-50 p-4 rounded-lg border prose prose-sm max-w-none prose-headings:text-violet-900 prose-a:text-violet-600">
+                            <div className="bg-muted p-4 rounded-lg border prose prose-sm max-w-none prose-headings:text-violet-900 prose-a:text-violet-600">
                                 <ReactMarkdown>{generatedPitch}</ReactMarkdown>
                             </div>
 

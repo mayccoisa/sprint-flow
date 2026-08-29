@@ -10,6 +10,7 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Plus, Trash2, Box, Layers, Database, Globe, Server } from 'lucide-react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/ui-patterns';
 import { useTranslation } from 'react-i18next';
 import {
     AlertDialog,
@@ -100,10 +101,7 @@ export const ProductModules = () => {
     return (
         <Layout>
             <div className="space-y-6">
-                <div>
-                    <h1 className="text-xl font-semibold tracking-tight tracking-tight">{t('productModules.title')}</h1>
-                    <p className="text-muted-foreground">{t('productModules.subtitle')}</p>
-                </div>
+                <PageHeader title={t('productModules.title')} subtitle={t('productModules.subtitle')} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 

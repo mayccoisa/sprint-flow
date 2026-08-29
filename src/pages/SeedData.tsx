@@ -6,7 +6,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { useLocalData } from '@/hooks/useLocalData';
 import { Loader2 } from 'lucide-react';
-import { useConfirm } from '@/components/ui-patterns';
+import { PageHeader, useConfirm } from '@/components/ui-patterns';
 
 export default function SeedData() {
   const [loading, setLoading] = useState(false);
@@ -172,10 +172,11 @@ export default function SeedData() {
   return (
     <Layout>
       <div className="container mx-auto p-6 max-w-4xl">
-        <h1 className="text-xl font-semibold tracking-tight mb-2">Administração - Dados de Exemplo</h1>
-        <p className="text-muted-foreground mb-8">
-          Popule o workspace atual com dados realistas para demonstração ou limpe tudo.
-        </p>
+        <PageHeader
+          className="mb-8"
+          title="Administração - Dados de Exemplo"
+          subtitle="Popule o workspace atual com dados realistas para demonstração ou limpe tudo."
+        />
 
         <div className="grid gap-6">
           <Card>

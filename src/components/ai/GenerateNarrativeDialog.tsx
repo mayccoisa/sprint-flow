@@ -88,7 +88,7 @@ export const GenerateNarrativeDialog = ({ open, onOpenChange }: Props) => {
                     ) : (
                         <div className="space-y-4">
                             <div className="flex justify-between items-center">
-                                <h3 className="text-sm font-semibold uppercase text-muted-foreground tracking-wider">Generated Narrative</h3>
+                                <h3 className="text-xs font-semibold text-foreground">Narrativa gerada</h3>
                                 <Button size="sm" variant="outline" onClick={copyToClipboard} className="h-8 gap-2">
                                     {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
                                     {copied ? 'Copied' : 'Copy'}

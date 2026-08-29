@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Layout } from '@/components/Layout';
+import { PageHeader } from '@/components/ui-patterns';
 import { TOOLS_CATALOG, findTool } from '@/features/tools/catalog';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Settings2 } from 'lucide-react';
@@ -11,15 +12,11 @@ export default function ToolsPage() {
   return (
     <Layout>
       <div className="space-y-6">
-        <div>
-          <h1 className="text-xl font-semibold tracking-tight flex items-center gap-2">
-            <Settings2 className="h-5 w-5" />
-            Ferramentas
-          </h1>
-          <p className="text-muted-foreground">
-            Conecte serviços externos ao Sprint Flow. Cada usuário gerencia suas próprias credenciais.
-          </p>
-        </div>
+        <PageHeader
+          icon={Settings2}
+          title="Ferramentas"
+          subtitle="Conecte serviços externos ao Sprint Flow. Cada usuário gerencia suas próprias credenciais."
+        />
 
         <div className="grid gap-6 md:grid-cols-[260px_1fr]">
           <aside className="space-y-1">
@@ -51,7 +48,7 @@ export default function ToolsPage() {
                     <h4 className="mb-2 text-[13px] font-medium text-muted-foreground">
                       O que faz
                     </h4>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    <ul className="list-disc pl-5 space-y-1 text-sm text-foreground">
                       {active.capabilities.map((c) => (
                         <li key={c}>{c}</li>
                       ))}
@@ -61,7 +58,7 @@ export default function ToolsPage() {
                     <h4 className="mb-2 text-[13px] font-medium text-muted-foreground">
                       Quando usar
                     </h4>
-                    <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
+                    <ul className="list-disc pl-5 space-y-1 text-sm text-foreground">
                       {active.whenToUse.map((c) => (
                         <li key={c}>{c}</li>
                       ))}
@@ -72,7 +69,7 @@ export default function ToolsPage() {
                       <h4 className="mb-2 text-[13px] font-medium text-muted-foreground">
                         Limitações
                       </h4>
-                      <ul className="list-disc pl-5 space-y-1 text-sm text-slate-700">
+                      <ul className="list-disc pl-5 space-y-1 text-sm text-foreground">
                         {active.limitations.map((c) => (
                           <li key={c}>{c}</li>
                         ))}

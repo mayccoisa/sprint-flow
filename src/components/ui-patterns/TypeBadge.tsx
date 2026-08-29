@@ -7,7 +7,7 @@ const TYPE_STYLES: Record<TaskType, string> = {
   Feature: 'bg-blue-50 text-blue-700 ring-blue-200',
   Improvement: 'bg-cyan-50 text-cyan-700 ring-cyan-200',
   Bug: 'bg-rose-50 text-rose-700 ring-rose-200',
-  Deployment: 'bg-slate-50 text-slate-700 ring-slate-200',
+  Deployment: 'bg-muted text-foreground ring-border',
   TechDebt: 'bg-amber-50 text-amber-700 ring-amber-200',
   Spike: 'bg-violet-50 text-violet-700 ring-violet-200',
 };

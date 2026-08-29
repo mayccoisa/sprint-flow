@@ -15,7 +15,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useTranslation } from 'react-i18next';
-import { useConfirm } from '@/components/ui-patterns';
+import { PageHeader, useConfirm } from '@/components/ui-patterns';
 import { RolesManager } from '@/components/users/RolesManager';
 import { ImportRequestersDialog } from '@/components/users/ImportRequestersDialog';
 import type { UserProfile, UserRole, Role } from '@/types';
@@ -145,22 +145,22 @@ export default function UsersManagement() {
     return (
         <Layout>
             <div className="space-y-6">
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-                    <div>
-                        <h1 className="text-xl font-semibold tracking-tight">{t('usersManagement.title')}</h1>
-                        <p className="text-muted-foreground">{t('usersManagement.subtitle')}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <Button variant="outline" onClick={() => setIsImportOpen(true)}>
-                            <Download className="h-4 w-4 mr-2" />
-                            Importar solicitantes
-                        </Button>
-                        <Button onClick={openNewInvite} className="bg-violet-600 hover:bg-violet-700">
-                            <UserPlus className="h-4 w-4 mr-2" />
-                            {t('usersManagement.inviteUser')}
-                        </Button>
-                    </div>
-                </div>
+                <PageHeader
+                    title={t('usersManagement.title')}
+                    subtitle={t('usersManagement.subtitle')}
+                    actions={
+                        <>
+                            <Button variant="outline" onClick={() => setIsImportOpen(true)}>
+                                <Download className="h-4 w-4 mr-2" />
+                                Importar solicitantes
+                            </Button>
+                            <Button onClick={openNewInvite} className="bg-violet-600 hover:bg-violet-700">
+                                <UserPlus className="h-4 w-4 mr-2" />
+                                {t('usersManagement.inviteUser')}
+                            </Button>
+                        </>
+                    }
+                />
 
                 <Tabs defaultValue="users" className="w-full">
                     <TabsList>

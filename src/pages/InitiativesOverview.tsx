@@ -615,7 +615,7 @@ const InitiativesOverview = () => {
                             <SelectTrigger
                                 className={cn(
                                     'h-7 px-2 border-transparent hover:opacity-80 focus:border-input text-[11px] font-medium ring-1 w-auto min-w-[120px] gap-1.5',
-                                    STATUS_STYLES[task.status] ?? 'bg-slate-50 text-slate-700 ring-slate-200',
+                                    STATUS_STYLES[task.status] ?? 'bg-muted text-foreground ring-border',
                                 )}
                             >
                                 <span className="inline-flex items-center gap-1.5">
@@ -1050,7 +1050,7 @@ const InitiativesOverview = () => {
                     <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 rounded-full text-slate-300 hover:text-white hover:bg-white/10"
+                        className="h-8 w-8 rounded-full text-muted-foreground hover:text-white hover:bg-white/10"
                         onClick={() => setSelectedIds(new Set())}
                         aria-label="clear selection"
                     >
